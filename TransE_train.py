@@ -4,6 +4,7 @@ import config
 from models import TransE
 from project_path import bin_dir
 
+
 def train(gpu, data_dir):
     os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu)
     con = config.Config()
@@ -30,11 +31,14 @@ def train(gpu, data_dir):
     con.set_train_model(TransE)
     con.train()
 
+
 def main():
     gpu = sys.argv[1]
     language = sys.argv[2]
-    # print(gpu, bin_dir / language)
-    train(gpu, bin_dir / language)
+    dbp15k_dir = bin_dir / 'dbp15k'
+    now_train = dbp15k_dir / 'fr_en'
+    train(gpu, now_train / language)
+
 
 if __name__ == '__main__':
     main()

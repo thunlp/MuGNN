@@ -8,7 +8,7 @@ from project_path import bin_dir
 def train(gpu, data_dir):
     os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu)
     con = config.Config()
-    con.set_in_path(data_dir)
+    con.set_in_path(str(data_dir))
     con.set_work_threads(8)
     con.set_train_times(1000)
     con.set_nbatches(100)

@@ -1,5 +1,11 @@
+import shutil
+import math
+import random
 from .kg_path import kg_data_dir
+from .n2n import n2n
 from pathlib import Path
+from tools.print_time_info import print_time_info
+
 
 '''
 root\
@@ -27,13 +33,76 @@ root\
       zh\
 '''
 
+
+def _dataset_split_validation_test(data2num, valid_ratio, test_ratio):
+    '''
+    1. test
+    2. return num of data for each valid and test sets
+    split rule: entity出现总数大于** 5 **的，可以分到valid里一个验证数据
+    '''
+    split_threshold = 5
+    data2num_valid = {}
+    data2num_test = {}
+    data2num_train = {}
+    count = 0
+    count2 = 0
+    for data, num in data2num.items():
+        if num >= split_threshold:
+            valid_num = math.ceil(num*valid_ratio)
+            test_num = math.ceil(num*test_ratio)
+        else:
+            valid_num = 0
+            test_num = 0
+
+        data2num_valid[data] = valid_num
+        data2num_test[data] = test_num
+        if valid_num + test_num >= num:
+            count += 1
+            data2num_train[data] = 0
+        else:
+            data2num_train[data] = num - valid_num - test_num
+    if count > 0:
+        print_time_info('------------------------')
+        print_time_info(count2)
+        print_time_info(
+            'Totally %d/%d of the data could not be split with the valid_ratio: %f, test ratio: %f.' % (count, len(data2num), valid_ratio, test_ratio))
+    else:
+        print_time_info('Check passed.')
+    return data2num_train, data2num_valid, data2num_test
+
+
 def _dump_seeds(file, file_name, bin_dir):
     with open(bin_dir / (file_name + '_seeds.txt'), 'w', encoding='utf8') as f:
         f.write(str(len(file)) + '\n')
         for seed_pair in file:
             f.write('\t'.join(str(i) for i in seed_pair) + '\n')
 
-def format_dbp15k(bin_dir):
+
+def _dump_triples(file, file_name, bin_dir, delimiter='\t'):
+    with open(bin_dir / (file_name + '.txt'), 'w', encoding='utf8') as f:
+        f.write(str(len(file)) + '\n')
+        for head, tail, relation in file:
+            f.write(str(head) + delimiter + str(tail) +
+                    delimiter + str(relation) + '\n')
+
+
+def _copy(file_list, from_bin_dir, to_bin_dir):
+    from_path_list = [from_bin_dir / file_path for file_path in file_list]
+    to_path_list = [to_bin_dir / file_path for file_path in file_list]
+    for from_path, to_path in zip(from_path_list, to_path_list):
+        shutil.copy(from_path, to_path)
+
+
+def format_dbp15k(bin_dir, TransE_conf=None):
+    '''
+    TransE_conf: for split triple dataset
+    '''
+    if not TransE_conf:
+        TransE_conf = {
+            'valid_ratio': 0.1,
+            'test_ratio': 0,
+        }
+
     bin_dir = Path(bin_dir)
     if not bin_dir.exists():
         bin_dir.mkdir()
@@ -62,19 +131,12 @@ def format_dbp15k(bin_dir):
     def _format_single_language(directory, bin_dir, language):
         def _dump_mapping(file, file_name, bin_dir, language):
             with open(bin_dir / (file_name + '_' + language + '.txt'), 'w', encoding='utf8') as f:
-                # print(file[:10])
+                # print_time_info(file[:10])
 
                 sorted_file = sorted(file.items(), key=lambda x: x[1])
                 f.write(str(len(sorted_file)) + '\n')
                 for item, i in sorted_file:
                     f.write(item + '\t' + str(i) + '\n')
-
-        def _dump_triples(file, file_name, bin_dir, language):
-            with open(bin_dir / (file_name + '_' + language + '.txt'), 'w', encoding='utf8') as f:
-                f.write(str(len(file)) + '\n')
-                for head, relation, tail in file:
-                    f.write(str(head) + '\t' + str(tail) +
-                            '\t' + str(relation) + '\n')
 
         entities = set()
         relations = set()
@@ -92,12 +154,12 @@ def format_dbp15k(bin_dir):
         entity2id = {entity: i for i, entity in enumerate(entities)}
         relation2id = {relation: i for i,
                        relation in enumerate(relations)}
-        triples = [(entity2id[line[0]], relation2id[line[1]],
-                    entity2id[line[2]]) for line in lines]
+        triples = [(entity2id[line[0]], entity2id[line[2]],
+                    relation2id[line[1]]) for line in lines]
 
         _dump_mapping(entity2id, 'entity2id', bin_dir, language)
         _dump_mapping(relation2id, 'relation2id', bin_dir, language)
-        _dump_triples(triples, 'triples', bin_dir, language)
+        _dump_triples(triples, 'triples_' + language, bin_dir)
         return {'entity': entity2id, 'relation': relation2id}, triples
 
     def _format_overall(directory, bin_dir, language_sr, language_tg='en'):
@@ -123,9 +185,59 @@ def format_dbp15k(bin_dir):
 
     for language, directory in language2dir.items():
         local_bin_dir = bin_dir / (language + '_' + 'en')
-        mapping_sr, mapping_tg, triples_sr, triples_tg, type2seeds = _format_overall(directory, local_bin_dir, language, 'en')
+        mapping_sr, mapping_tg, triples_sr, triples_tg, type2seeds = _format_overall(
+            directory, local_bin_dir, language, 'en')
         _format_JAPE(directory, local_bin_dir, mapping_sr, mapping_tg)
+        _format_OpenKE(directory, local_bin_dir, {
+                       language: triples_sr, 'en': triples_tg}, TransE_conf['valid_ratio'], TransE_conf['test_ratio'])
 
+
+def _format_OpenKE(directory, bin_dir, language2triples, valid_ratio, test_ratio):
+    '''
+    此处生成OpenKE的数据, 按照9:1划分训练和验证集
+    OpenKE\
+      en\
+         entity2id.txt
+         relation2id.txt
+         train2id.txt
+         valid2id.txt
+         type_constrain.txt
+      zh\
+    '''
+
+    def _split_dataset(triples, valid_ratio, test_ratio):
+        '''
+        random split
+        '''
+        random_seed = 1.0
+        triple_num = len(triples)
+        valid_num = round(valid_ratio * triple_num)
+        test_num = round(test_ratio * triple_num)
+        random.seed(random_seed)
+        random.shuffle(triples)
+        test_data = triples[:test_num]
+        valid_data = triples[test_num: test_num+valid_num]
+        train_data = triples[test_num+valid_num:]
+        return train_data, valid_data, test_data
+
+    local_bin_dir = bin_dir / 'OpenKE'
+    if not local_bin_dir.exists():
+        local_bin_dir.mkdir()
+
+    for language, triples in language2triples.items():
+        language_bin_dir = local_bin_dir / language
+        if not language_bin_dir.exists():
+            language_bin_dir.mkdir()
+
+        copy_list = ['entity2id' + '_' + language +
+                     '.txt', 'relation2id' + '_' + language + '.txt']
+        _copy(copy_list, bin_dir, language_bin_dir)
+        train_data, valid_data, test_data = _split_dataset(
+            triples, valid_ratio, test_ratio)
+        _dump_triples(train_data, 'train2id', language_bin_dir, delimiter=' ')
+        _dump_triples(valid_data, 'valid2id', language_bin_dir, delimiter=' ')
+        _dump_triples(test_data, 'test2id', language_bin_dir, delimiter=' ')
+        n2n(language_bin_dir)
 
 def _format_JAPE(directory, bin_dir, mapping_sr, mapping_tg):
     def _read_mapping(path):
@@ -172,12 +284,20 @@ def _format_JAPE(directory, bin_dir, mapping_sr, mapping_tg):
         local_mapping_sr, local_mapping_tg = _get_local_mapping(directory)
         train_entity_seeds, test_entity_seeds, train_relation_seeds = _get_seeds(
             local_mapping_sr, local_mapping_tg, directory)
-        train_entity_seeds = _transform2id(train_entity_seeds, mapping_sr['entity'], mapping_tg['entity'])
-        test_entity_seeds = _transform2id(test_entity_seeds, mapping_sr['entity'], mapping_tg['entity'])
-        train_relation_seeds = _transform2id(train_relation_seeds, mapping_sr['relation'], mapping_tg['relation'])
+        train_entity_seeds = _transform2id(
+            train_entity_seeds, mapping_sr['entity'], mapping_tg['entity'])
+        test_entity_seeds = _transform2id(
+            test_entity_seeds, mapping_sr['entity'], mapping_tg['entity'])
+        train_relation_seeds = _transform2id(
+            train_relation_seeds, mapping_sr['relation'], mapping_tg['relation'])
         _dump_seeds(train_entity_seeds, 'train_entity', local_bin_dir)
         _dump_seeds(test_entity_seeds, 'test_entity', local_bin_dir)
         _dump_seeds(train_relation_seeds, 'train_relation', local_bin_dir)
 
 def main(bin_dir):
-    format_dbp15k(bin_dir)
+    TransE_conf = {
+            'valid_ratio': 0.05,
+            'test_ratio': 0,
+        }
+    format_dbp15k(bin_dir, TransE_conf)
+    # Path()

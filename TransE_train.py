@@ -8,7 +8,7 @@ from project_path import bin_dir
 def train(gpu, data_dir):
     os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu)
     con = config.Config()
-    con.set_in_path(str(data_dir) + '/')
+    con.set_in_path(str(data_dir))
     con.set_work_threads(8)
     con.set_train_times(1000)
     con.set_nbatches(100)
@@ -33,12 +33,13 @@ def train(gpu, data_dir):
 
 
 def main():
-#   train transe on dbp15k fr-en
+    #   train transe on dbp15k fr-en
     gpu = sys.argv[1]
     language = sys.argv[2]
     dbp15k_dir = bin_dir / 'dbp15k'
-    now_train = dbp15k_dir / 'fr_en'
+    now_train = dbp15k_dir / 'fr_en' / 'OpenKE'
     train(gpu, now_train / language)
+
 
 if __name__ == '__main__':
     main()

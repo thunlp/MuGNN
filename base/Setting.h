@@ -15,7 +15,6 @@ void setInPath(char *path) {
 	inPath = "";
 	for (INT i = 0; i < len; i++)
 		inPath = inPath + path[i];
-	inPath = inPath + "/";
 	printf("Input Files Path : %s\n", inPath.c_str());
 }
 

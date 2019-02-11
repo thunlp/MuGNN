@@ -22,8 +22,8 @@ def train(gpu, data_dir):
     con.set_save_steps(10)
     con.set_valid_steps(10)
     con.set_early_stopping_patience(10)
-    con.set_checkpoint_dir(data_dir / "checkpoint")
-    con.set_result_dir(data_dir / "result")
+    con.set_checkpoint_dir(str(data_dir / "checkpoint"))
+    con.set_result_dir(str(data_dir / "result"))
     # set test to false
     con.set_test_link(False)
     con.set_test_triple(False)

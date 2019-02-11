@@ -86,9 +86,9 @@ def _dump_triples(file, file_name, bin_dir, delimiter='\t'):
                     delimiter + str(relation) + '\n')
 
 
-def _copy(file_list, from_bin_dir, to_bin_dir):
-    from_path_list = [from_bin_dir / file_path for file_path in file_list]
-    to_path_list = [to_bin_dir / file_path for file_path in file_list]
+def _copy(from_name_list, to_name_list, from_bin_dir, to_bin_dir):
+    from_path_list = [from_bin_dir / file_path for file_path in from_name_list]
+    to_path_list = [to_bin_dir / file_path for file_path in to_name_list]
     for from_path, to_path in zip(from_path_list, to_path_list):
         shutil.copy(from_path, to_path)
 
@@ -229,9 +229,10 @@ def _format_OpenKE(directory, bin_dir, language2triples, valid_ratio, test_ratio
         if not language_bin_dir.exists():
             language_bin_dir.mkdir()
 
-        copy_list = ['entity2id' + '_' + language +
+        from_name_list = ['entity2id' + '_' + language +
                      '.txt', 'relation2id' + '_' + language + '.txt']
-        _copy(copy_list, bin_dir, language_bin_dir)
+        to_name_list = ['entity2id.txt', 'relation2id.txt']
+        _copy(from_name_list, to_name_list, bin_dir, language_bin_dir)
         train_data, valid_data, test_data = _split_dataset(
             triples, valid_ratio, test_ratio)
         _dump_triples(train_data, 'train2id', language_bin_dir, delimiter=' ')

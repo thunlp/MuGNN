@@ -1,6 +1,7 @@
 # coding:utf-8
 import torch
 import torch.nn as nn
+import shutil
 from torch.autograd import Variable
 import torch.optim as optim
 import os
@@ -388,8 +389,9 @@ class Config(object):
         return self.lib.getValidHit10()
 
     def train(self):
-        if not os.path.exists(self.checkpoint_dir):
-            os.mkdir(self.checkpoint_dir)
+        if os.path.exists(self.checkpoint_dir):
+            shutil.rmtree(self.checkpoint_dir)
+        os.mkdir(self.checkpoint_dir)
         best_epoch = 0
         best_hit10 = 0.0
         best_model = None

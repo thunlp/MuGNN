@@ -71,16 +71,18 @@ def _dataset_split_validation_test(data2num, valid_ratio, test_ratio):
     return data2num_train, data2num_valid, data2num_test
 
 
-def _dump_seeds(file, file_name, bin_dir):
+def _dump_seeds(file, file_name, bin_dir, write_num=False):
     with open(bin_dir / (file_name + '_seeds.txt'), 'w', encoding='utf8') as f:
-        f.write(str(len(file)) + '\n')
+        if write_num:
+            f.write(str(len(file)) + '\n')
         for seed_pair in file:
             f.write('\t'.join(str(i) for i in seed_pair) + '\n')
 
 
-def _dump_triples(file, file_name, bin_dir, delimiter='\t'):
+def _dump_triples(file, file_name, bin_dir, delimiter='\t', write_num=False):
     with open(bin_dir / (file_name + '.txt'), 'w', encoding='utf8') as f:
-        f.write(str(len(file)) + '\n')
+        if write_num:
+            f.write(str(len(file)) + '\n')
         for head, tail, relation in file:
             f.write(str(head) + delimiter + str(tail) +
                     delimiter + str(relation) + '\n')
@@ -124,17 +126,17 @@ def format_dbp15k(bin_dir, TransE_conf=None):
             seed_pairs = [line.strip().split('\t') for line in lines]
             seed_pairs = [(file2id_sr[seed_pair[0]], file2id_tg[seed_pair[1]])
                           for seed_pair in seed_pairs]
-            _dump_seeds(seed_pairs, seed_type, bin_dir)
+            _dump_seeds(seed_pairs, seed_type, bin_dir, write_num=False)
             type2seeds[seed_type] = seed_pairs
         return type2seeds
 
     def _format_single_language(directory, bin_dir, language):
-        def _dump_mapping(file, file_name, bin_dir, language):
+        def _dump_mapping(file, file_name, bin_dir, language, write_num=True):
             with open(bin_dir / (file_name + '_' + language + '.txt'), 'w', encoding='utf8') as f:
                 # print_time_info(file[:10])
-
                 sorted_file = sorted(file.items(), key=lambda x: x[1])
-                f.write(str(len(sorted_file)) + '\n')
+                if write_num:
+                    f.write(str(len(sorted_file)) + '\n')
                 for item, i in sorted_file:
                     f.write(item + '\t' + str(i) + '\n')
 
@@ -233,15 +235,16 @@ def _format_OpenKE(directory, bin_dir, language2triples, valid_ratio, test_ratio
             language_bin_dir.mkdir()
 
         from_name_list = ['entity2id' + '_' + language +
-                     '.txt', 'relation2id' + '_' + language + '.txt']
+                          '.txt', 'relation2id' + '_' + language + '.txt']
         to_name_list = ['entity2id.txt', 'relation2id.txt']
         _copy(from_name_list, to_name_list, bin_dir, language_bin_dir)
         train_data, valid_data, test_data = _split_dataset(
             triples, valid_ratio, test_ratio)
-        _dump_triples(train_data, 'train2id', language_bin_dir, delimiter=' ')
-        _dump_triples(valid_data, 'valid2id', language_bin_dir, delimiter=' ')
-        _dump_triples(test_data, 'test2id', language_bin_dir, delimiter=' ')
+        _dump_triples(train_data, 'train2id', language_bin_dir, delimiter=' ', write_num=True)
+        _dump_triples(valid_data, 'valid2id', language_bin_dir, delimiter=' ', write_num=True)
+        _dump_triples(test_data, 'test2id', language_bin_dir, delimiter=' ', write_num=True)
         n2n(language_bin_dir)
+
 
 def _format_JAPE(directory, bin_dir, mapping_sr, mapping_tg):
     def _read_mapping(path):
@@ -298,10 +301,11 @@ def _format_JAPE(directory, bin_dir, mapping_sr, mapping_tg):
         _dump_seeds(test_entity_seeds, 'test_entity', local_bin_dir)
         _dump_seeds(train_relation_seeds, 'train_relation', local_bin_dir)
 
+
 def main(bin_dir):
     TransE_conf = {
-            'valid_ratio': 0.05,
-            'test_ratio': 0,
-        }
+        'valid_ratio': 0.05,
+        'test_ratio': 0,
+    }
     format_dbp15k(bin_dir, TransE_conf)
     # Path()

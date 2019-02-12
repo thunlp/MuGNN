@@ -10,8 +10,8 @@ from .Model import Model
 class TransE(Model):
 	def __init__(self, config):
 		super(TransE, self).__init__(config)
-		self.ent_embeddings = nn.Embedding(self.config.entTotal, self.config.hidden_size)
-		self.rel_embeddings = nn.Embedding(self.config.relTotal, self.config.hidden_size)
+		self.ent_embeddings = nn.Embedding(self.config.entTotal, self.config.hidden_size, max_norm=self.config.max_norm)
+		self.rel_embeddings = nn.Embedding(self.config.relTotal, self.config.hidden_size, max_norm=self.config.max_norm)
 		self.criterion = nn.MarginRankingLoss(self.config.margin, False)
 		self.init_weights()
 		

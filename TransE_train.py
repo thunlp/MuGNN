@@ -27,6 +27,10 @@ def train(gpu, data_dir):
     # set test to false
     con.set_test_link(True)
     con.set_test_triple(True)
+
+    # set max norm so that we are the same with JAPE
+    con.set_max_norm(1.0)
+    
     con.init()
     con.set_train_model(TransE)
     con.train()

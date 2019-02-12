@@ -117,6 +117,7 @@ class Config(object):
         self.trainModel = None
         self.testModel = None
         self.pretrain_model = None
+        self.max_norm = None
 
     def init(self):
         self.lib.setInPath(
@@ -188,6 +189,9 @@ class Config(object):
         self.test_neg_r_addr = self.test_neg_r.__array_interface__["data"][0]
         self.relThresh = np.zeros(self.relTotal, dtype=np.float32)
         self.relThresh_addr = self.relThresh.__array_interface__["data"][0]
+
+    def set_max_norm(max_norm):
+        self.max_norm = max_norm
 
     def set_test_link(self, test_link):
         self.test_link = test_link

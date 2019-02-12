@@ -90,11 +90,16 @@ usage: java -jar amie_plus.jar [OPTIONS] <TSV FILES>
  -verbose                          Maximal verbosity
 '''
 
-def mine_single_language_rule_with_amie(triples):
+
+def mine_single_language_rule_with_amie(path2triples, path2rules):
     '''
     '''
-    def pattern1():
-        pass
+    minpca = 0.8
+    maxad = 2
+    command = 'java -jar amie_plus.jar -maxad %d -minpca %f %s > %s' % (
+        maxad, minpca, path2triples, path2rules)
+
 
 def main():
-    pass
+    from project_path import bin_dir
+    # path = bin_dir / 

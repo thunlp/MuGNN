@@ -180,6 +180,19 @@ def format_dbp15k(bin_dir, TransE_conf=None):
 
         return (mapping_sr, mapping_tg, triples_sr, triples_tg, type2seeds)
 
+    def _format_amie(bin_dir, language2triples, language2mapping):
+        local_bin_dir = bin_dir / 'AMIE'
+        if not local_bin_dir.exists():
+            local_bin_dir.mkdir()
+        for language, triples in language2triples.items():
+            entity2id = language2mapping[language]['entity']
+            relation2id = language2mapping[language]['relation']
+            id2entity = {i: entity for entity, i in entity2id.items()}
+            id2relation = {i: relation for relation, i in relation2id.items()}
+            triples = [(id2entity[head], id2relation[relation], id2entity[tail]) for head, tail, relation in triples]
+            triples = [["<" + item + ">" for item in triple] for triple in triples]
+            _dump_triples(triples, 'triples_' + language, local_bin_dir)
+
     _local_data_dir = kg_data_dir / 'dbp15k'
     language_pair_paths = list(_local_data_dir.glob('*_en'))
     language2dir = {path.name.split(
@@ -192,6 +205,8 @@ def format_dbp15k(bin_dir, TransE_conf=None):
         _format_JAPE(directory, local_bin_dir, mapping_sr, mapping_tg)
         _format_OpenKE(directory, local_bin_dir, {
                        language: triples_sr, 'en': triples_tg}, TransE_conf['valid_ratio'], TransE_conf['test_ratio'])
+        _format_amie(local_bin_dir, {language: triples_sr, 'en': triples_tg}, {
+                     language: mapping_sr, 'en': mapping_tg})
 
 
 def _format_OpenKE(directory, bin_dir, language2triples, valid_ratio, test_ratio):
@@ -240,9 +255,12 @@ def _format_OpenKE(directory, bin_dir, language2triples, valid_ratio, test_ratio
         _copy(from_name_list, to_name_list, bin_dir, language_bin_dir)
         train_data, valid_data, test_data = _split_dataset(
             triples, valid_ratio, test_ratio)
-        _dump_triples(train_data, 'train2id', language_bin_dir, delimiter=' ', write_num=True)
-        _dump_triples(valid_data, 'valid2id', language_bin_dir, delimiter=' ', write_num=True)
-        _dump_triples(test_data, 'test2id', language_bin_dir, delimiter=' ', write_num=True)
+        _dump_triples(train_data, 'train2id', language_bin_dir,
+                      delimiter=' ', write_num=True)
+        _dump_triples(valid_data, 'valid2id', language_bin_dir,
+                      delimiter=' ', write_num=True)
+        _dump_triples(test_data, 'test2id', language_bin_dir,
+                      delimiter=' ', write_num=True)
         n2n(language_bin_dir)
 
 

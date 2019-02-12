@@ -20,7 +20,7 @@ def to_var(x):
 class Config(object):
     def __init__(self):
         base_file = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "../release/Base.so")
+            os.path.join(os.path.dirname(__file__), "../executable/Base.so")
         )
         self.lib = ctypes.cdll.LoadLibrary(base_file)
         """argtypes"""

@@ -1,7 +1,7 @@
 Loading files... 
   Starting triples_fr.txt
   Finished triples_fr.txt, still running: 0
-Loaded 105998 facts in 0.92 s using -221 MB
+Loaded 105998 facts in 0.96 s using -232 MB
 Using HeadCoverage as pruning metric with minimum threshold 0.01
 Using recursivity limit 3
 Default mining assistant that defines support by counting support on both head variables
@@ -11,45 +11,107 @@ Constants in the arguments of relations are disabled
 Lossless (query refinement) heuristics enabled
 Starting the mining phase... Using 24 threads
 Rule	Head Coverage	Std Confidence	PCA Confidence	Positive Examples	Body size	PCA Body size	Functional variable	Std. Lower Bound	PCA Lower Bound	PCA Conf estimation
-?b  <http://fr.dbpedia.org/property/chefDuGouvernement>  ?a   => ?a  <http://fr.dbpedia.org/property/président>  ?b	0.01791639	0.490909091	0.818181818	27	55	33	?a	0.0	0.0	0.0
-?b  <http://fr.dbpedia.org/property/vicePrésident>  ?a   => ?a  <http://fr.dbpedia.org/property/président>  ?b	0.02123424	0.533333333	0.941176471	32	60	34	?a	0.0	0.0	0.0
-?b  <http://fr.dbpedia.org/property/chefLieu>  ?a   => ?a  <http://fr.dbpedia.org/property/division>  ?b	0.034653465	0.068627451	1	7	102	7	?a	0.0	0.0	0.0
-?b  <http://fr.dbpedia.org/property/nomCapitale>  ?a   => ?a  <http://fr.dbpedia.org/property/dr>  ?b	0.011058452	0.233333333	1	7	30	7	?a	0.0	0.0	0.0
+?a  <http://fr.dbpedia.org/property/toutEcriture>  ?b   => ?a  <http://fr.dbpedia.org/property/compositeur>  ?b	0.011160714	0.042735043	1	5	117	5	?a	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/text>  ?a   => ?a  <http://fr.dbpedia.org/property/ligue>  ?b	0.106628242	0.74	1	37	50	37	?a	0.0	0.0	0.0
 ?b  <http://fr.dbpedia.org/property/coTitulaire>  ?a   => ?a  <http://fr.dbpedia.org/property/conjoint>  ?b	0.014519056	0.156862745	0.8	8	51	10	?b	0.0	0.0	0.0
 ?a  <http://fr.dbpedia.org/property/coTitulaire>  ?b   => ?a  <http://fr.dbpedia.org/property/conjoint>  ?b	0.014519056	0.156862745	0.8	8	51	10	?b	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/albumSuivant>  ?a   => ?a  <http://fr.dbpedia.org/property/albumPrécédent>  ?b	0.804143126	0.808712121	0.966063348	427	528	442	?a	0.0	0.0	0.0
 ?b  <http://fr.dbpedia.org/property/conjoint>  ?a   => ?a  <http://fr.dbpedia.org/property/conjoint>  ?b	0.735027223	0.735027223	0.968899522	405	551	418	?b	0.0	0.0	0.0
 ?a  <http://fr.dbpedia.org/property/auteurCompositeur>  ?b   => ?a  <http://fr.dbpedia.org/property/toutEcriture>  ?b	0.051282051	0.02	0.857142857	6	300	7	?a	0.0	0.0	0.0
 ?a  <http://fr.dbpedia.org/property/compositeur>  ?b   => ?a  <http://fr.dbpedia.org/property/toutEcriture>  ?b	0.042735043	0.011160714	1	5	448	5	?a	0.0	0.0	0.0
-?b  <http://fr.dbpedia.org/property/albumSuivant>  ?a   => ?a  <http://fr.dbpedia.org/property/albumPrécédent>  ?b	0.804143126	0.808712121	0.966063348	427	528	442	?a	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/personnes>  ?a   => ?a  <http://fr.dbpedia.org/property/sépulture>  ?b	0.010526316	0.666666667	1	2	3	2	?a	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/nomCapitale>  ?a   => ?a  <http://fr.dbpedia.org/property/dr>  ?b	0.011058452	0.233333333	1	7	30	7	?a	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/albumPrécédent>  ?a   => ?a  <http://fr.dbpedia.org/property/albumSuivant>  ?b	0.808712121	0.804143126	0.957399103	427	531	446	?a	0.0	0.0	0.0
 ?b  <http://fr.dbpedia.org/property/dérivés>  ?a   => ?a  <http://fr.dbpedia.org/property/fam>  ?b	0.114035088	0.684210526	0.8125	13	19	16	?a	0.0	0.0	0.0
 ?b  <http://fr.dbpedia.org/property/nationalité>  ?a   => ?a  <http://fr.dbpedia.org/property/nomDirigeant>  ?b	0.386792453	0.050931677	1	82	1610	82	?b	0.0	0.0	0.0
-?b  <http://fr.dbpedia.org/property/text>  ?a   => ?a  <http://fr.dbpedia.org/property/ligue>  ?b	0.106628242	0.74	1	37	50	37	?a	0.0	0.0	0.0
-?b  <http://fr.dbpedia.org/property/albumPrécédent>  ?a   => ?a  <http://fr.dbpedia.org/property/albumSuivant>  ?b	0.808712121	0.804143126	0.957399103	427	531	446	?a	0.0	0.0	0.0
-?a  <http://fr.dbpedia.org/property/nom3Langue>  ?b   => ?a  <http://fr.dbpedia.org/property/langues>  ?b	0.011961722	0.833333333	1	5	6	5	?a	0.0	0.0	0.0
-?a  <http://fr.dbpedia.org/property/nomLangue>  ?b   => ?a  <http://fr.dbpedia.org/property/langues>  ?b	0.040669856	0.515151515	0.894736842	17	33	19	?a	0.0	0.0	0.0
-?a  <http://fr.dbpedia.org/property/toutEcriture>  ?b   => ?a  <http://fr.dbpedia.org/property/compositeur>  ?b	0.011160714	0.042735043	1	5	117	5	?a	0.0	0.0	0.0
-?b  <http://fr.dbpedia.org/property/personnes>  ?a   => ?a  <http://fr.dbpedia.org/property/sépulture>  ?b	0.010526316	0.666666667	1	2	3	2	?a	0.0	0.0	0.0
-?a  <http://fr.dbpedia.org/property/leaderc>  ?b   => ?a  <http://fr.dbpedia.org/property/leadera>  ?b	0.045714286	0.258064516	0.888888889	8	31	9	?b	0.0	0.0	0.0
-?a  <http://fr.dbpedia.org/property/leaderb>  ?b   => ?a  <http://fr.dbpedia.org/property/leadera>  ?b	0.04	0.132075472	0.875	7	53	8	?b	0.0	0.0	0.0
-?b  <http://fr.dbpedia.org/property/préfectureDeDépartement>  ?a   => ?a  <http://fr.dbpedia.org/property/région>  ?b	0.017075774	0.380952381	1	16	42	16	?a	0.0	0.0	0.0
-?b  <http://fr.dbpedia.org/property/mrc>  ?a   => ?a  <http://fr.dbpedia.org/property/région>  ?b	0.055496265	0.666666667	0.8125	52	78	64	?a	0.0	0.0	0.0
-?b  <http://fr.dbpedia.org/property/plusTitré>  ?a   => ?a  <http://fr.dbpedia.org/property/palmarèsNational>  ?b	0.091503268	0.708860759	0.949152542	56	79	59	?a	0.0	0.0	0.0
-?b  <http://fr.dbpedia.org/property/présidentFédéral>  ?a   => ?a  <http://fr.dbpedia.org/property/chancelier>  ?b	0.152380952	0.941176471	0.941176471	32	34	34	?a	0.0	0.0	0.0
-?b  <http://fr.dbpedia.org/property/mère>  ?a   => ?a  <http://fr.dbpedia.org/property/enfants>  ?b	0.343173432	0.586134454	0.830357143	279	476	336	?b	0.0	0.0	0.0
 ?b  <http://fr.dbpedia.org/property/est>  ?a   => ?a  <http://fr.dbpedia.org/property/ouest>  ?b	0.537015276	0.544696067	0.846296296	457	839	540	?b	0.0	0.0	0.0
-?b  <http://fr.dbpedia.org/property/lieutenantGouverneur>  ?a   => ?a  <http://fr.dbpedia.org/property/premierMinistre>  ?b	0.012773723	0.677419355	0.913043478	21	31	23	?a	0.0	0.0	0.0
-?a  <http://fr.dbpedia.org/property/majorite>  ?b   => ?a  <http://fr.dbpedia.org/property/partis>  ?b	0.349765258	0.925465839	0.955128205	149	161	156	?a	0.0	0.0	0.0
-?b  <http://fr.dbpedia.org/property/précédent>  ?a   => ?a  <http://fr.dbpedia.org/property/suivant>  ?b	0.724770642	0.711711712	1	79	111	79	?a	0.0	0.0	0.0
-?a  <http://fr.dbpedia.org/property/légende>  ?b   => ?a  <http://fr.dbpedia.org/property/titulaireActuel>  ?b	0.055944056	0.285714286	1	8	28	8	?b	0.0	0.0	0.0
 ?b  <http://fr.dbpedia.org/property/nom>  ?a   => ?a  <http://fr.dbpedia.org/property/titulaireActuel>  ?b	0.048951049	0.015981735	0.875	7	438	8	?b	0.0	0.0	0.0
+?a  <http://fr.dbpedia.org/property/légende>  ?b   => ?a  <http://fr.dbpedia.org/property/titulaireActuel>  ?b	0.055944056	0.285714286	1	8	28	8	?b	0.0	0.0	0.0
 ?b  <http://fr.dbpedia.org/property/liste>  ?a   => ?a  <http://fr.dbpedia.org/property/titulaireActuel>  ?b	0.370629371	0.063245823	0.929824561	53	838	57	?b	0.0	0.0	0.0
-?a  <http://fr.dbpedia.org/property/editeur>  ?b   => ?a  <http://fr.dbpedia.org/property/éditeur>  ?b	0.018691589	0.571428571	1	4	7	4	?a	0.0	0.0	0.0
-?a  <http://fr.dbpedia.org/property/toutEcriture>  ?b   => ?a  <http://fr.dbpedia.org/property/auteurCompositeur>  ?b	0.02	0.051282051	1	6	117	6	?a	0.0	0.0	0.0
-?a  <http://fr.dbpedia.org/property/writer>  ?b   => ?a  <http://fr.dbpedia.org/property/auteurCompositeur>  ?b	0.01	0.018292683	1	3	164	3	?a	0.0	0.0	0.0
-?a  <http://fr.dbpedia.org/property/teteliste>  ?b   => ?a  <http://fr.dbpedia.org/property/chef>  ?b	0.020761246	0.6	0.857142857	6	10	7	?a	0.0	0.0	0.0
-?a  <http://fr.dbpedia.org/property/légende>  ?b   => ?a  <http://fr.dbpedia.org/property/chef>  ?b	0.01384083	0.142857143	1	4	28	4	?a	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/présidentFédéral>  ?a   => ?a  <http://fr.dbpedia.org/property/chancelier>  ?b	0.152380952	0.941176471	0.941176471	32	34	34	?a	0.0	0.0	0.0
+?a  <http://fr.dbpedia.org/property/nom>  ?b   => ?a  <http://fr.dbpedia.org/property/fonction>  ?b	0.046121593	0.150684932	0.825	66	438	80	?a	0.0	0.0	0.0
 ?b  <http://fr.dbpedia.org/property/dernierSouverain>  ?a   => ?a  <http://fr.dbpedia.org/property/dynastie>  ?b	0.021327014	0.642857143	1	9	14	9	?a	0.0	0.0	0.0
 ?b  <http://fr.dbpedia.org/property/chefActuel>  ?a   => ?a  <http://fr.dbpedia.org/property/dynastie>  ?b	0.011848341	0.625	1	5	8	5	?a	0.0	0.0	0.0
-?b  <http://fr.dbpedia.org/property/avant>  ?a   => ?a  <http://fr.dbpedia.org/property/s>  ?b	0.023529412	0.003344482	0.8	4	1196	5	?b	0.0	0.0	0.0
-?b  <http://fr.dbpedia.org/property/sudEst>  ?a   => ?a  <http://fr.dbpedia.org/property/nordOuest>  ?b	0.530150754	0.564171123	0.821011673	422	748	514	?a	0.0	0.0	0.0
+?a  <http://fr.dbpedia.org/property/majorite>  ?b   => ?a  <http://fr.dbpedia.org/property/partis>  ?b	0.349765258	0.925465839	0.955128205	149	161	156	?a	0.0	0.0	0.0
 ?b  <http://fr.dbpedia.org/property/suivant>  ?a   => ?a  <http://fr.dbpedia.org/property/précédent>  ?b	0.711711712	0.724770642	0.9875	79	109	80	?a	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/avant>  ?a   => ?a  <http://fr.dbpedia.org/property/s>  ?b	0.023529412	0.003344482	0.8	4	1196	5	?b	0.0	0.0	0.0
+?a  <http://fr.dbpedia.org/property/liste>  ?b   => ?a  <http://fr.dbpedia.org/property/fonction>  ?b	0.237596087	0.405727924	0.837438424	340	838	406	?a	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/lieutenantGouverneur>  ?a   => ?a  <http://fr.dbpedia.org/property/premierMinistre>  ?b	0.012773723	0.677419355	0.913043478	21	31	23	?a	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/mrc>  ?a   => ?a  <http://fr.dbpedia.org/property/région>  ?b	0.055496265	0.666666667	0.8125	52	78	64	?a	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/préfectureDeDépartement>  ?a   => ?a  <http://fr.dbpedia.org/property/région>  ?b	0.017075774	0.380952381	1	16	42	16	?a	0.0	0.0	0.0
+?a  <http://fr.dbpedia.org/property/editeur>  ?b   => ?a  <http://fr.dbpedia.org/property/éditeur>  ?b	0.018691589	0.571428571	1	4	7	4	?a	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/vicePrésident>  ?a   => ?a  <http://fr.dbpedia.org/property/président>  ?b	0.02123424	0.533333333	0.941176471	32	60	34	?a	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/chefDuGouvernement>  ?a   => ?a  <http://fr.dbpedia.org/property/président>  ?b	0.01791639	0.490909091	0.818181818	27	55	33	?a	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/chefLieu>  ?a   => ?a  <http://fr.dbpedia.org/property/division>  ?b	0.034653465	0.068627451	1	7	102	7	?a	0.0	0.0	0.0
+?a  <http://fr.dbpedia.org/property/chefLieu>  ?b   => ?a  <http://fr.dbpedia.org/property/capitale>  ?b	0.01754386	0.058823529	1	6	102	6	?a	0.0	0.0	0.0
+?a  <http://fr.dbpedia.org/property/site>  ?b   => ?a  <http://fr.dbpedia.org/property/stade>  ?b	0.012687428	0.5	1	11	22	11	?b	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/plusTitré>  ?a   => ?a  <http://fr.dbpedia.org/property/palmarèsNational>  ?b	0.091503268	0.708860759	0.949152542	56	79	59	?a	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/mère>  ?a   => ?a  <http://fr.dbpedia.org/property/enfants>  ?b	0.343173432	0.586134454	0.830357143	279	476	336	?b	0.0	0.0	0.0
+?a  <http://fr.dbpedia.org/property/leaderc>  ?b   => ?a  <http://fr.dbpedia.org/property/leadera>  ?b	0.045714286	0.258064516	0.888888889	8	31	9	?b	0.0	0.0	0.0
+?a  <http://fr.dbpedia.org/property/leaderb>  ?b   => ?a  <http://fr.dbpedia.org/property/leadera>  ?b	0.04	0.132075472	0.875	7	53	8	?b	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/premTitulaire>  ?a   => ?a  <http://fr.dbpedia.org/property/fonction>  ?b	0.019566737	0.318181818	0.8	28	88	35	?a	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/sudEst>  ?a   => ?a  <http://fr.dbpedia.org/property/nordOuest>  ?b	0.530150754	0.564171123	0.821011673	422	748	514	?a	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/premTitulaire>  ?a   => ?a  <http://fr.dbpedia.org/property/nom>  ?b	0.03652968	0.181818182	1	16	88	16	?a	0.0	0.0	0.0
+?a  <http://fr.dbpedia.org/property/député>  ?b   => ?a  <http://fr.dbpedia.org/property/nom>  ?b	0.02283105	0.5	1	10	20	10	?a	0.0	0.0	0.0
+?a  <http://fr.dbpedia.org/property/fonction>  ?b   => ?a  <http://fr.dbpedia.org/property/nom>  ?b	0.150684932	0.046121593	0.857142857	66	1431	77	?a	0.0	0.0	0.0
+?a  <http://fr.dbpedia.org/property/allégeance>  ?b   => ?a  <http://fr.dbpedia.org/property/origine>  ?b	0.01754386	0.071428571	1	2	28	2	?a	0.0	0.0	0.0
+?a  <http://fr.dbpedia.org/property/liste>  ?b   => ?a  <http://fr.dbpedia.org/property/nom>  ?b	0.155251142	0.081145585	0.839506173	68	838	81	?a	0.0	0.0	0.0
+?a  <http://fr.dbpedia.org/property/avant>  ?b   => ?a  <http://fr.dbpedia.org/property/p>  ?b	0.025	0.002508361	1	3	1196	3	?b	0.0	0.0	0.0
+?a  <http://fr.dbpedia.org/property/nomLangue>  ?b   => ?a  <http://fr.dbpedia.org/property/langues>  ?b	0.040669856	0.515151515	0.894736842	17	33	19	?a	0.0	0.0	0.0
+?a  <http://fr.dbpedia.org/property/nom3Langue>  ?b   => ?a  <http://fr.dbpedia.org/property/langues>  ?b	0.011961722	0.833333333	1	5	6	5	?a	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/après>  ?a   => ?a  <http://fr.dbpedia.org/property/p>  ?b	0.033333333	0.003308519	0.8	4	1209	5	?b	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/structure>  ?a   => ?a  <http://fr.dbpedia.org/property/structure>  ?b	0.818965517	0.818965517	0.840707965	190	232	226	?b	0.0	0.0	0.0
+?a  <http://fr.dbpedia.org/property/toutEcriture>  ?b   => ?a  <http://fr.dbpedia.org/property/auteurCompositeur>  ?b	0.02	0.051282051	1	6	117	6	?a	0.0	0.0	0.0
+?a  <http://fr.dbpedia.org/property/writer>  ?b   => ?a  <http://fr.dbpedia.org/property/auteurCompositeur>  ?b	0.01	0.018292683	1	3	164	3	?a	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/premTitulaire>  ?a   => ?a  <http://fr.dbpedia.org/property/liste>  ?b	0.035799523	0.340909091	0.810810811	30	88	37	?a	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/précédent>  ?a   => ?a  <http://fr.dbpedia.org/property/suivant>  ?b	0.724770642	0.711711712	1	79	111	79	?a	0.0	0.0	0.0
+?a  <http://fr.dbpedia.org/property/toutParoles>  ?b   => ?a  <http://fr.dbpedia.org/property/musique>  ?b	0.123966942	0.454545455	0.882352941	15	33	17	?b	0.0	0.0	0.0
+?a  <http://fr.dbpedia.org/property/compositeurs>  ?b   => ?a  <http://fr.dbpedia.org/property/musique>  ?b	0.033057851	0.8	0.8	4	5	5	?b	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/titulaireActuel>  ?a   => ?a  <http://fr.dbpedia.org/property/liste>  ?b	0.063245823	0.370629371	0.981481481	53	143	54	?a	0.0	0.0	0.0
+?a  <http://fr.dbpedia.org/property/assemblée1groupe>  ?b   => ?a  <http://fr.dbpedia.org/property/nomsMembresAssemblée>  ?b	0.100286533	0.454545455	0.875	35	77	40	?a	0.0	0.0	0.0
+?a  <http://fr.dbpedia.org/property/assemblée2groupe>  ?b   => ?a  <http://fr.dbpedia.org/property/nomsMembresAssemblée>  ?b	0.085959885	0.441176471	0.909090909	30	68	33	?a	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/comtés>  ?a   => ?a  <http://fr.dbpedia.org/property/chefLieu>  ?b	0.039215686	0.571428571	1	4	7	4	?a	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/pisteSuivante>  ?a   => ?a  <http://fr.dbpedia.org/property/pistePrécédente>  ?b	0.54950495	0.555	0.965217391	111	200	115	?a	0.0	0.0	0.0
+?a  <http://fr.dbpedia.org/property/capitale>  ?b   => ?a  <http://fr.dbpedia.org/property/chefLieu>  ?b	0.058823529	0.01754386	1	6	342	6	?a	0.0	0.0	0.0
+?a  <http://fr.dbpedia.org/property/teteliste>  ?b   => ?a  <http://fr.dbpedia.org/property/chef>  ?b	0.020761246	0.6	0.857142857	6	10	7	?a	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/singleSuivant>  ?a   => ?a  <http://fr.dbpedia.org/property/singlePrécédent>  ?b	0.660777385	0.659611993	0.951653944	374	567	393	?a	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/légende>  ?a   => ?a  <http://fr.dbpedia.org/property/gouvernement>  ?b	0.01183432	0.142857143	0.8	4	28	5	?a	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/chambres>  ?a   => ?a  <http://fr.dbpedia.org/property/voirAussi>  ?b	0.03	0.6	1	6	10	6	?b	0.0	0.0	0.0
+?a  <http://fr.dbpedia.org/property/légende>  ?b   => ?a  <http://fr.dbpedia.org/property/chef>  ?b	0.01384083	0.142857143	1	4	28	4	?a	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/titre>  ?a   => ?a  <http://fr.dbpedia.org/property/artiste>  ?b	0.049371216	0.572972973	0.841269841	106	185	126	?a	0.0	0.0	0.0
+?a  <http://fr.dbpedia.org/property/nomDuParlement>  ?b   => ?a  <http://fr.dbpedia.org/property/voirAussi>  ?b	0.01	0.666666667	1	2	3	2	?b	0.0	0.0	0.0
+?a  <http://fr.dbpedia.org/property/parti>  ?b   => ?a  <http://fr.dbpedia.org/property/coalition>  ?b	0.209713024	0.039239983	0.863636364	95	2421	110	?a	0.0	0.0	0.0
+?a  <http://fr.dbpedia.org/property/auteurCompositeur>  ?b   => ?a  <http://fr.dbpedia.org/property/auteur>  ?b	0.02006689	0.08	1	24	300	24	?a	0.0	0.0	0.0
+?a  <http://fr.dbpedia.org/property/featuring>  ?b   => ?a  <http://fr.dbpedia.org/property/auteur>  ?b	0.017558528	0.411764706	0.807692308	21	51	26	?a	0.0	0.0	0.0
+?a  <http://fr.dbpedia.org/property/toutParoles>  ?b   => ?a  <http://fr.dbpedia.org/property/auteur>  ?b	0.014214047	0.515151515	1	17	33	17	?a	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/nomDirigeant>  ?a   => ?a  <http://fr.dbpedia.org/property/nationalité>  ?b	0.050931677	0.386792453	0.987951807	82	212	83	?a	0.0	0.0	0.0
+?a  <http://fr.dbpedia.org/property/parti>  ?b   => ?a  <http://fr.dbpedia.org/property/majorite>  ?b	0.01242236	0.000826105	1	2	2421	2	?a	0.0	0.0	0.0
+?a  <http://fr.dbpedia.org/property/héritier>  ?b   => ?a  <http://fr.dbpedia.org/property/après>  ?b	0.019851117	0.413793103	0.888888889	24	58	27	?b	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/pistePrécédente>  ?a   => ?a  <http://fr.dbpedia.org/property/pisteSuivante>  ?b	0.555	0.54950495	0.965217391	111	202	115	?a	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/héritier>  ?a   => ?a  <http://fr.dbpedia.org/property/monarque>  ?b	0.014450867	0.172413793	1	10	58	10	?a	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/monarque>  ?a   => ?a  <http://fr.dbpedia.org/property/présidentDuConseil>  ?b	0.040697674	0.030346821	0.84	21	692	25	?b	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/chambre>  ?a   => ?a  <http://fr.dbpedia.org/property/voirAussi>  ?b	0.01	0.25	1	2	8	2	?b	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/missionPrécédente>  ?a   => ?a  <http://fr.dbpedia.org/property/missionSuivante>  ?b	0.901639344	0.93220339	1	110	118	110	?a	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/région>  ?a   => ?a  <http://fr.dbpedia.org/property/départements>  ?b	0.565891473	0.077908218	0.960526316	73	937	76	?b	0.0	0.0	0.0
+?a  <http://fr.dbpedia.org/property/finaliste>  ?b   => ?a  <http://fr.dbpedia.org/property/équipe>  ?b	0.022222222	0.896551724	0.928571429	26	29	28	?b	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/single>  ?a   => ?a  <http://fr.dbpedia.org/property/album>  ?b	0.013118063	0.565217391	0.866666667	13	23	15	?a	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/artiste>  ?a   => ?a  <http://fr.dbpedia.org/property/titre>  ?b	0.572972973	0.049371216	0.990654206	106	2147	107	?b	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/club>  ?a   => ?a  <http://fr.dbpedia.org/property/sel>  ?b	0.020064493	0.173913043	0.861538462	56	322	65	?a	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/sudOuest>  ?a   => ?a  <http://fr.dbpedia.org/property/nordEst>  ?b	0.539106145	0.528043776	0.814345992	386	731	474	?a	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/compositeur>  ?a   => ?a  <http://fr.dbpedia.org/property/titre>  ?b	0.032432432	0.013392857	1	6	448	6	?b	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/après>  ?a   => ?a  <http://fr.dbpedia.org/property/missionPrécédente>  ?b	0.084745763	0.008271299	0.833333333	10	1209	12	?a	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/missionSuivante>  ?a   => ?a  <http://fr.dbpedia.org/property/missionPrécédente>  ?b	0.93220339	0.901639344	1	110	122	110	?a	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/sud>  ?a   => ?a  <http://fr.dbpedia.org/property/nord>  ?b	0.546979866	0.553167421	0.837328767	489	884	584	?a	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/toutMusique>  ?a   => ?a  <http://fr.dbpedia.org/property/titre>  ?b	0.016216216	0.111111111	1	3	27	3	?b	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/nord>  ?a   => ?a  <http://fr.dbpedia.org/property/sud>  ?b	0.553167421	0.546979866	0.851916376	489	894	574	?b	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/singlePrécédent>  ?a   => ?a  <http://fr.dbpedia.org/property/singleSuivant>  ?b	0.659611993	0.660777385	0.956521739	374	566	391	?a	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/nordOuest>  ?a   => ?a  <http://fr.dbpedia.org/property/sudEst>  ?b	0.564171123	0.530150754	0.808429119	422	796	522	?a	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/ouest>  ?a   => ?a  <http://fr.dbpedia.org/property/est>  ?b	0.544696067	0.537015276	0.818996416	457	851	558	?b	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/héritier>  ?a   => ?a  <http://fr.dbpedia.org/property/prédécesseur>  ?b	0.010322581	0.689655172	0.833333333	40	58	48	?b	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/valeur>  ?a   => ?a  <http://fr.dbpedia.org/property/parti>  ?b	0.02023957	0.426086957	0.924528302	49	115	53	?a	0.0	0.0	0.0
+?a  <http://fr.dbpedia.org/property/héritier>  ?b   => ?a  <http://fr.dbpedia.org/property/successeur>  ?b	0.010940349	0.724137931	0.933333333	42	58	45	?b	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/prédécesseur>  ?a   => ?a  <http://fr.dbpedia.org/property/successeur>  ?b	0.737431623	0.730580645	0.843815201	2831	3875	3355	?b	0.0	0.0	0.0
+?b  <http://fr.dbpedia.org/property/successeur>  ?a   => ?a  <http://fr.dbpedia.org/property/prédécesseur>  ?b	0.730580645	0.737431623	0.844066786	2831	3839	3354	?b	0.0	0.0	0.0
+Mining done in 1.41 s
+Total time 2.37 s
+101 rules mined.

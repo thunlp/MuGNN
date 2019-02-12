@@ -1,3 +1,5 @@
+import re
+from tools.print_time_info import print_time_info
 
 # usage of AMIE+ executable file
 '''
@@ -98,28 +100,54 @@ def mine_rule_with_amie(path2triples, path2rules):
     from project_path import executable_dir
     minpca = 0.8
     maxad = 2
+    num_process = 2
     jar_patch_path = executable_dir / 'amie_plus.jar'
-    command = 'java -jar %s -maxad %d -minpca %f %s > %s &' % (
-        jar_patch_path, maxad, minpca, path2triples, path2rules)
-    
+    command = 'java -jar %s -maxad %d -minpca %f -nc %d %s > %s &' % (
+        jar_patch_path, maxad, minpca, num_process, path2triples, path2rules)
+
     res = subprocess.call(command, shell=True)
-    print(res)
+    if res == 0:
+        print_time_info('Mining started.')
+    else:
+        print_time_info('Something went wrong.')
+
+
+def rule_parser(file_path, language):
+    '''
+    Accept the output of an AMIE+ .jar software and transform to ...
+    '''
+    if language == 'en':
+        language = ''
+    else:
+        language += '.'
+    atom_regex = re.compile(
+        r'\?([a-z])  <(http://%sdbpedia.org/property/.*?)>  \?([a-z])' % language)
+
+    def atom_parser(string):
+        atoms = []
+        for atom in atom_regex.finditer(string):
+            # (head, tail, relation)
+            atoms.append((atom.group(1), atom.group(3), atom.group(2)))
+        if not atoms:
+            print('-------------------------')
+            print_time_info(string)
+            raise ValueError('Parse atom failed.')
+        return atoms
+
+    with open(file_path, 'r', encoding='utf8') as f:
+        lines = f.readlines()
+        lines = [line.strip() for line in lines if line[0] == '?']
+        rule_confs = [(lambda x: (x[0], float(x[3])))(
+            line.split('\t')) for line in lines]
     
-
-def mine_rule_for_dbp15k():
-    from project_path import bin_dir
-    bin_dir = bin_dir / 'dbp15k'
-    language_pair_dirs = list(bin_dir.glob('*_en'))
-    for directory in language_pair_dirs:
-        local_bin_dir = directory / 'AMIE'
-        file_paths = local_bin_dir.glob('triples_*.txt')
-        for file_path in file_paths:
-            file_name = file_path.name
-            output_path = local_bin_dir / ('rule_for_' + file_name)
-            mine_rule_with_amie(file_path, output_path)
-
-
-def main():
-    from project_path import bin_dir
-    # path = bin_dir /
-    mine_rule_for_dbp15k()
+    rules = []
+    for rule, confs in rule_confs:
+        premises, hypothesis = rule.split('=>')
+        premises = atom_parser(premises)
+        hypothesis = atom_parser(hypothesis)
+        if not len(hypothesis) == 1:
+            print('-------------------------')
+            print_time_info(rule)
+            raise ValueError('Parse rule failed.')
+        rules.append({'premises': premises, 'hypothesis': hypothesis})
+    return rules

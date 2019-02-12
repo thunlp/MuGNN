@@ -97,7 +97,7 @@ def mine_rule_with_amie(path2triples, path2rules):
     import subprocess
     from project_path import executable_dir
     minpca = 0.8
-    maxad = 2
+    maxad = 3
     jar_patch_path = executable_dir / 'amie_plus.jar'
     command = 'java -jar %s -maxad %d -minpca %f %s > %s &' % (
         jar_patch_path, maxad, minpca, path2triples, path2rules)

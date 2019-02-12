@@ -97,11 +97,12 @@ def mine_rule_with_amie(path2triples, path2rules):
     import subprocess
     minpca = 0.8
     maxad = 2
-    command = 'java -jar amie_plus.jar -maxad %d -minpca %f %s > %s' % (
+    command = 'java -jar amie_plus.jar -maxad %d -minpca %f %s > %s &' % (
         maxad, minpca, path2triples, path2rules)
-    res = subprocess.check_output(command.split(' '))
-
-
+    try:
+        res = subprocess.check_output(command.split(' '))
+    except:
+        print(res)
 
 def mine_rule_for_dbp15k():
     from project_path import bin_dir

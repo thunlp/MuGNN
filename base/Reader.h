@@ -175,6 +175,7 @@ void importTestFiles() {
     printf("The total of valid triples is %ld.\n", validTotal);
 
     testLef = (INT *)calloc(relationTotal, sizeof(INT));
+    printf("I am here.");
     testRig = (INT *)calloc(relationTotal, sizeof(INT));
     memset(testLef, -1, sizeof(INT) * relationTotal);
     memset(testRig, -1, sizeof(INT) * relationTotal);

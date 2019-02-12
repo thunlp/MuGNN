@@ -143,3 +143,10 @@ result
 # for ide
 .idea
 .vscode
+
+# for vim
+*.swp
+
+## for training
+checkpoint_max_normed
+result_max_normed

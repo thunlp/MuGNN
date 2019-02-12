@@ -430,7 +430,7 @@ class Config(object):
             best_hit10 = self.valid(self.trainModel)
         print("Best epoch is %d | hit@10 of valid set is %f" % (best_epoch, best_hit10))
         print("Store checkpoint of best result at epoch %d..." % (best_epoch))
-        if not os.path.isdir(self.result_dir):
+        if not os.path.exists(self.result_dir):
             os.mkdir(self.result_dir)
         self.save_best_checkpoint(best_model)
         self.save_embedding_matrix(best_model)

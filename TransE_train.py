@@ -35,9 +35,10 @@ def train(gpu, data_dir):
 def main():
     #   train transe on dbp15k fr-en
     gpu = sys.argv[1]
-    language = sys.argv[2]
+    language_pair = sys.argv[2]
+    language = sys.argv[3]
     dbp15k_dir = bin_dir / 'dbp15k'
-    now_train = dbp15k_dir / 'fr_en' / 'OpenKE'
+    now_train = dbp15k_dir / language_pair / 'OpenKE'
     train(gpu, now_train / language)
 
 

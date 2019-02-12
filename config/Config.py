@@ -190,7 +190,7 @@ class Config(object):
         self.relThresh = np.zeros(self.relTotal, dtype=np.float32)
         self.relThresh_addr = self.relThresh.__array_interface__["data"][0]
 
-    def set_max_norm(max_norm):
+    def set_max_norm(self, max_norm):
         self.max_norm = max_norm
 
     def set_test_link(self, test_link):

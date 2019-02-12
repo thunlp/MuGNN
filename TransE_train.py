@@ -22,15 +22,18 @@ def train(gpu, data_dir):
     con.set_save_steps(10)
     con.set_valid_steps(10)
     con.set_early_stopping_patience(10)
-    con.set_checkpoint_dir(str(data_dir / "checkpoint"))
-    con.set_result_dir(str(data_dir / "result"))
+    
+    # set max norm so that we are the same with JAPE
+    con.set_max_norm(1.0)
+    con.set_checkpoint_dir(str(data_dir / "checkpoint_max_normed"))
+    con.set_result_dir(str(data_dir / "result_max_normed"))
+
     # set test to false
     con.set_test_link(True)
     con.set_test_triple(True)
 
-    # set max norm so that we are the same with JAPE
-    con.set_max_norm(1.0)
     
+
     con.init()
     con.set_train_model(TransE)
     con.train()

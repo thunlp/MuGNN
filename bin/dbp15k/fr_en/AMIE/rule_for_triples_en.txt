@@ -1,7 +1,7 @@
 Loading files... 
   Starting triples_en.txt
   Finished triples_en.txt, still running: 0
-Loaded 115722 facts in 0.92 s using -243 MB
+Loaded 115722 facts in 1.28 s using -243 MB
 Using HeadCoverage as pruning metric with minimum threshold 0.01
 Using recursivity limit 3
 Default mining assistant that defines support by counting support on both head variables
@@ -11,7 +11,42 @@ Constants in the arguments of relations are disabled
 Lossless (query refinement) heuristics enabled
 Starting the mining phase... Using 24 threads
 Rule	Head Coverage	Std Confidence	PCA Confidence	Positive Examples	Body size	PCA Body size	Functional variable	Std. Lower Bound	PCA Lower Bound	PCA Conf estimation
-?b  <http://dbpedia.org/property/ld>  ?a   => ?a  <http://dbpedia.org/property/fam>  ?b	0.026086957	0.75	1	3	4	3	?a	0.0	0.0	0.0
-?b  <http://dbpedia.org/property/stand>  ?a   => ?a  <http://dbpedia.org/property/fam>  ?b	0.017391304	0.666666667	1	2	3	2	?a	0.0	0.0	0.0
+?b  <http://dbpedia.org/property/europarties>  ?a   => ?a  <http://dbpedia.org/property/europarl>  ?b	0.03649635	0.833333333	1	5	6	5	?a	0.0	0.0	0.0
+?a  <http://dbpedia.org/property/crew4Up>  ?b   => ?a  <http://dbpedia.org/property/crewMembers>  ?b	0.096646943	1	1	49	49	49	?b	0.0	0.0	0.0
+?b  <http://dbpedia.org/property/title>  ?a   => ?a  <http://dbpedia.org/property/crewMembers>  ?b	0.041420118	0.003906977	0.913043478	21	5375	23	?b	0.0	0.0	0.0
+?b  <http://dbpedia.org/property/missions>  ?a   => ?a  <http://dbpedia.org/property/crewMembers>  ?b	0.063116371	0.820512821	0.842105263	32	39	38	?b	0.0	0.0	0.0
+?a  <http://dbpedia.org/property/crew5Up>  ?b   => ?a  <http://dbpedia.org/property/crewMembers>  ?b	0.072978304	0.840909091	0.840909091	37	44	44	?b	0.0	0.0	0.0
+?a  <http://dbpedia.org/property/crew1Up>  ?b   => ?a  <http://dbpedia.org/property/crewMembers>  ?b	0.132149901	0.712765957	0.817073171	67	94	82	?b	0.0	0.0	0.0
 ?b  <http://dbpedia.org/property/lieutenantGovernor>  ?a   => ?a  <http://dbpedia.org/property/premier>  ?b	0.4	0.927536232	1	64	69	64	?a	0.0	0.0	0.0
 ?b  <http://dbpedia.org/property/governor>  ?a   => ?a  <http://dbpedia.org/property/premier>  ?b	0.14375	0.205357143	0.884615385	23	112	26	?a	0.0	0.0	0.0
+?b  <http://dbpedia.org/property/ld>  ?a   => ?a  <http://dbpedia.org/property/fam>  ?b	0.026086957	0.75	1	3	4	3	?a	0.0	0.0	0.0
+?b  <http://dbpedia.org/property/stand>  ?a   => ?a  <http://dbpedia.org/property/fam>  ?b	0.017391304	0.666666667	1	2	3	2	?a	0.0	0.0	0.0
+?b  <http://dbpedia.org/property/nextMission>  ?a   => ?a  <http://dbpedia.org/property/previousMission>  ?b	0.931972789	0.907284768	1	137	151	137	?a	0.0	0.0	0.0
+?a  <http://dbpedia.org/property/before>  ?b   => ?a  <http://dbpedia.org/property/previousMission>  ?b	0.020408163	0.001241722	1	3	2416	3	?a	0.0	0.0	0.0
+?b  <http://dbpedia.org/property/after>  ?a   => ?a  <http://dbpedia.org/property/previousMission>  ?b	0.013605442	0.000815993	1	2	2451	2	?a	0.0	0.0	0.0
+?b  <http://dbpedia.org/property/name>  ?a   => ?a  <http://dbpedia.org/property/name>  ?b	0.73880597	0.73880597	0.876106195	99	134	113	?b	0.0	0.0	0.0
+?b  <http://dbpedia.org/property/employees>  ?a   => ?a  <http://dbpedia.org/property/alliances>  ?b	0.034285714	0.75	1	6	8	6	?a	0.0	0.0	0.0
+?b  <http://dbpedia.org/property/members>  ?a   => ?a  <http://dbpedia.org/property/alliances>  ?b	0.154285714	0.586956522	0.964285714	27	46	28	?a	0.0	0.0	0.0
+?b  <http://dbpedia.org/property/alliances>  ?a   => ?a  <http://dbpedia.org/property/alliances>  ?b	0.011428571	0.011428571	1	2	175	2	?a	0.0	0.0	0.0
+?b  <http://dbpedia.org/property/justice>  ?a   => ?a  <http://dbpedia.org/property/president>  ?b	0.034348671	0.815384615	1	53	65	53	?a	0.0	0.0	0.0
+?b  <http://dbpedia.org/property/state>  ?a   => ?a  <http://dbpedia.org/property/president>  ?b	0.014257939	0.075601375	1	22	291	22	?a	0.0	0.0	0.0
+?b  <http://dbpedia.org/property/treasury>  ?a   => ?a  <http://dbpedia.org/property/president>  ?b	0.012313675	0.904761905	1	19	21	19	?a	0.0	0.0	0.0
+?b  <http://dbpedia.org/property/vicepresident>  ?a   => ?a  <http://dbpedia.org/property/president>  ?b	0.031756319	0.671232877	0.907407407	49	73	54	?a	0.0	0.0	0.0
+?b  <http://dbpedia.org/property/leader>  ?a   => ?a  <http://dbpedia.org/property/seats1Title>  ?b	0.080924855	0.026119403	1	14	536	14	?a	0.0	0.0	0.0
+?a  <http://dbpedia.org/property/leader2Title>  ?b   => ?a  <http://dbpedia.org/property/seats1Title>  ?b	0.011560694	1	1	2	2	2	?a	0.0	0.0	0.0
+?a  <http://dbpedia.org/property/allegiance>  ?b   => ?a  <http://dbpedia.org/property/residence>  ?b	0.013043478	0.049180328	1	3	61	3	?a	0.0	0.0	0.0
+?a  <http://dbpedia.org/property/demoCd>  ?b   => ?a  <http://dbpedia.org/property/demoCsd>  ?b	0.015759312	0.146666667	0.916666667	11	75	12	?b	0.0	0.0	0.0
+?b  <http://dbpedia.org/property/leaderName>  ?a   => ?a  <http://dbpedia.org/property/demoCsd>  ?b	0.606017192	0.538853503	0.972413793	423	785	435	?b	0.0	0.0	0.0
+?b  <http://dbpedia.org/property/spouse>  ?a   => ?a  <http://dbpedia.org/property/spouse>  ?b	0.779874214	0.779874214	0.966861598	496	636	513	?b	0.0	0.0	0.0
+?b  <http://dbpedia.org/property/inaugural>  ?a   => ?a  <http://dbpedia.org/property/office>  ?b	0.011337868	0.204081633	0.909090909	10	49	11	?a	0.0	0.0	0.0
+?a  <http://dbpedia.org/property/deathPlace>  ?b   => ?a  <http://dbpedia.org/property/placeOfDeath>  ?b	0.837104072	0.082331998	0.880952381	185	2247	210	?a	0.0	0.0	0.0
+?a  <http://dbpedia.org/property/layoutArtist>  ?b   => ?a  <http://dbpedia.org/property/studio>  ?b	0.01	1	1	1	1	1	?a	0.0	0.0	0.0
+?a  <http://dbpedia.org/property/storyArtist>  ?b   => ?a  <http://dbpedia.org/property/studio>  ?b	0.01	1	1	1	1	1	?a	0.0	0.0	0.0
+?a  <http://dbpedia.org/property/musician>  ?b   => ?a  <http://dbpedia.org/property/studio>  ?b	0.01	1	1	1	1	1	?a	0.0	0.0	0.0
+?a  <http://dbpedia.org/property/animator>  ?b   => ?a  <http://dbpedia.org/property/studio>  ?b	0.01	1	1	1	1	1	?a	0.0	0.0	0.0
+?a  <http://dbpedia.org/property/backgroundArtist>  ?b   => ?a  <http://dbpedia.org/property/studio>  ?b	0.01	1	1	1	1	1	?a	0.0	0.0	0.0
+?b  <http://dbpedia.org/property/notableWorks>  ?a   => ?a  <http://dbpedia.org/property/studio>  ?b	0.01	0.034482759	1	1	29	1	?a	0.0	0.0	0.0
+?b  <http://dbpedia.org/property/father>  ?a   => ?a  <http://dbpedia.org/property/issue>  ?b	0.425298805	0.688709677	0.838899804	427	620	509	?b	0.0	0.0	0.0
+?b  <http://dbpedia.org/property/mother>  ?a   => ?a  <http://dbpedia.org/property/issue>  ?b	0.358565737	0.753138075	0.863309353	360	478	417	?b	0.0	0.0	0.0
+?b  <http://dbpedia.org/property/alliance>  ?a   => ?a  <http://dbpedia.org/property/founder>  ?b	0.01980198	0.5	1	2	4	2	?b	0.0	0.0	0.0
+?b  <http://dbpedia.org/property/successor>  ?a   => ?a  <http://dbpedia.org/property/predecessor>  ?b	0.743262017	0.752038234	0.857371795	2675	3557	3120	?b	0.0	0.0	0.0

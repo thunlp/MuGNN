@@ -208,6 +208,7 @@ def _format_OpenKE(directory, bin_dir, language2triples, valid_ratio, test_ratio
     def _split_dataset(triples, valid_ratio, test_ratio):
         '''
         random split
+        force test data equals valid data if test ratio is 0
         '''
         random_seed = 1.0
         triple_num = len(triples)
@@ -218,6 +219,8 @@ def _format_OpenKE(directory, bin_dir, language2triples, valid_ratio, test_ratio
         test_data = triples[:test_num]
         valid_data = triples[test_num: test_num+valid_num]
         train_data = triples[test_num+valid_num:]
+        if not test_data:
+            test_data = valid_data
         return train_data, valid_data, test_data
 
     local_bin_dir = bin_dir / 'OpenKE'

@@ -18,10 +18,10 @@ class TransD(Model):
 		self.init_weights()
 		
 	def init_weights(self):
-		nn.init.xavier_uniform(self.ent_embeddings.weight.data)
-		nn.init.xavier_uniform(self.rel_embeddings.weight.data)
-		nn.init.xavier_uniform(self.ent_transfer.weight.data)
-		nn.init.xavier_uniform(self.rel_transfer.weight.data)
+		nn.init.xavier_uniform_(self.ent_embeddings.weight.data)
+		nn.init.xavier_uniform_(self.rel_embeddings.weight.data)
+		nn.init.xavier_uniform_(self.ent_transfer.weight.data)
+		nn.init.xavier_uniform_(self.rel_transfer.weight.data)
 
 	def _calc(self, h, t, r):
 		return torch.norm(h + r - t, self.config.p_norm, -1)

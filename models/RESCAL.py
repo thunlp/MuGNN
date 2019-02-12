@@ -16,8 +16,8 @@ class RESCAL(Model):
 		self.init_weights()
 		
 	def init_weights(self):
-		nn.init.xavier_uniform(self.ent_embeddings.weight.data)
-		nn.init.xavier_uniform(self.rel_matrices.weight.data)
+		nn.init.xavier_uniform_(self.ent_embeddings.weight.data)
+		nn.init.xavier_uniform_(self.rel_matrices.weight.data)
 
 	def _calc(self, h, t, r):
 		t = t.view(-1, self.config.hidden_size, 1)

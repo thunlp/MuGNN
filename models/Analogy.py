@@ -20,12 +20,12 @@ class Analogy(Model):
 		self.init_weights()
 		
 	def init_weights(self):
-		nn.init.xavier_uniform(self.ent_re_embeddings.weight.data)
-		nn.init.xavier_uniform(self.ent_im_embeddings.weight.data)
-		nn.init.xavier_uniform(self.rel_re_embeddings.weight.data)
-		nn.init.xavier_uniform(self.rel_im_embeddings.weight.data)
-		nn.init.xavier_uniform(self.ent_embeddings.weight.data)
-		nn.init.xavier_uniform(self.rel_embeddings.weight.data)
+		nn.init.xavier_uniform_(self.ent_re_embeddings.weight.data)
+		nn.init.xavier_uniform_(self.ent_im_embeddings.weight.data)
+		nn.init.xavier_uniform_(self.rel_re_embeddings.weight.data)
+		nn.init.xavier_uniform_(self.rel_im_embeddings.weight.data)
+		nn.init.xavier_uniform_(self.ent_embeddings.weight.data)
+		nn.init.xavier_uniform_(self.rel_embeddings.weight.data)
 	def _calc(self, h_re, h_im, h, t_re, t_im, t, r_re, r_im, r):
 		return - torch.sum(r_re * h_re * t_re + r_re * h_im * t_im + r_im * h_re * t_im - r_im * h_im * t_re, -1) - torch.sum(h * t * r, -1)	
 	

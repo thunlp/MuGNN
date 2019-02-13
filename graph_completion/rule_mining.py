@@ -1,4 +1,5 @@
-import re, json
+import re
+import json
 from tools.print_time_info import print_time_info
 
 # usage of AMIE+ executable file
@@ -129,16 +130,32 @@ def rule_parser(file_path):
             raise ValueError('Parse atom failed.')
         return atoms
 
+    def premises_reformat(premises):
+        varaibles = set()
+        for atom in premises:
+            varaibles.add(atom[0])
+            varaibles.add(atom[1])
+        varaibles = list(varaibles)
+        varaibles.sort()
+        mapping = {}
+        for i, a in enumerate(varaibles):
+            mapping[a] = chr(ord('a') + i)
+        for i in range(len(premises)):
+            head, tail, relation = premises[i]
+            premises[i] = (mapping[head], mapping[tail], relation)
+        return premises
+
     with open(file_path, 'r', encoding='utf8') as f:
         lines = f.readlines()
         lines = [line.strip() for line in lines if line[0] == '?']
         rule_confs = [(lambda x: (x[0], float(x[3])))(
             line.split('\t')) for line in lines]
-    
+
     rules = []
     for rule, conf in rule_confs:
         premises, hypothesis = rule.split('=>')
         premises = atom_parser(premises)
+        premises = premises_reformat(premises)
         hypothesis = atom_parser(hypothesis)
         if not len(hypothesis) == 1:
             print('-------------------------')
@@ -148,11 +165,14 @@ def rule_parser(file_path):
         # premises, hypothesis
     return rules
 
+
 def parse_and_dump_rules(read_path, dump_path, mapping):
     rules = rule_parser(read_path)
     with open(dump_path, 'w', encoding='utf8') as f:
         for premises, hypothesis, conf in rules:
-            premises = [(head, tail, mapping[relation]) for head, tail, relation in premises]
+            premises = [(head, tail, mapping[relation])
+                        for head, tail, relation in premises]
             head, tail, relation = hypothesis
             hypothesis = (head, tail, mapping[relation])
-            f.write(json.dumps((premises, hypothesis, conf), ensure_ascii=False) + '\n')
+            f.write(json.dumps((premises, hypothesis, conf),
+                               ensure_ascii=False) + '\n')

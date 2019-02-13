@@ -179,7 +179,6 @@ def format_dbp15k(bin_dir, TransE_conf=None):
             directory, bin_dir, language_tg)
         type2seeds = _format_seeds(
             mapping_sr, mapping_tg, bin_dir, directory, language)
-
         return (mapping_sr, mapping_tg, triples_sr, triples_tg, type2seeds)
 
     def _format_amie(bin_dir, language2triples, language2mapping):

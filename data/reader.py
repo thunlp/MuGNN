@@ -14,8 +14,18 @@ def read_seeds(path):
     return read_file(path, lambda lines: [tuple(line.strip().split('\t')) for line in lines])
 
 
-def read_rules(path):
-    return read_file(path, lambda lines: [[[tuple(pp) for pp in p] for p in json.loads(line)] for line in lines])
+def read_rules(path, relation2id):
+    def _read_rules(lines):
+        lines = [json.loads(line) for line in lines]
+        for i in range(len(lines)):
+            premises, hypothesis, conf = lines[i]
+            premises = [tuple(head, tail, relation2id[relation])
+                        for head, tail, relation in premises]
+            hypothesis = tuple(
+                hypothesis[0], hypothesis[1], relation2id[hypothesis[2]])
+            lines[i] = (premises, hypothesis, float(conf))
+        return lines
+    return read_file(path, _read_rules)
 
 
 def read_file(path, parse_func):

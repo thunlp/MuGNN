@@ -136,7 +136,7 @@ def rule_parser(file_path):
             line.split('\t')) for line in lines]
     
     rules = []
-    for rule, confs in rule_confs:
+    for rule, conf in rule_confs:
         premises, hypothesis = rule.split('=>')
         premises = atom_parser(premises)
         hypothesis = atom_parser(hypothesis)
@@ -144,14 +144,15 @@ def rule_parser(file_path):
             print('-------------------------')
             print_time_info(rule)
             raise ValueError('Parse rule failed.')
-        rules.append((premises, hypothesis))
+        rules.append((premises, hypothesis[0], conf))
         # premises, hypothesis
     return rules
 
 def parse_and_dump_rules(read_path, dump_path, mapping):
     rules = rule_parser(read_path)
     with open(dump_path, 'w', encoding='utf8') as f:
-        for premises, hypothesis in rules:
+        for premises, hypothesis, conf in rules:
             premises = [(head, tail, mapping[relation]) for head, tail, relation in premises]
-            hypothesis = [(head, tail, mapping[relation]) for head, tail, relation in hypothesis]
-            f.write(json.dumps((premises, hypothesis), ensure_ascii=False) + '\n')
+            head, tail, relation = hypothesis
+            hypothesis = (head, tail, mapping[relation])
+            f.write(json.dumps((premises, hypothesis, conf), ensure_ascii=False) + '\n')

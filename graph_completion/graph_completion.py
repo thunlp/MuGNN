@@ -13,7 +13,7 @@ def _load_languge(directory, language):
     entity2id = read_mapping(directory / ('entity2id_' + language + '.txt'))
     relation2id = read_mapping(
         directory / ('relation2id_' + language + '.txt'))
-    rules = read_rules(directory / 'AMIE' / ('rules_for_triples_' + language + '.txt'))
+    rules = read_rules(directory / 'AMIE' / ('rules_for_triples_' + language + '.txt'), relation2id)
     id2entity = {i: entity for entity, i in entity2id.items()}
     id2relation = {i: relation for relation, i in relation2id.items()}
     return triples, id2entity, id2relation, rules
@@ -38,6 +38,10 @@ def single_graph_completion(triples, entity2id, relation2id):
     pass
 
 
+def rule_transfer(rules_sr, rules_tg, relation_seeds):
+    def _rule_transfer(from_rules, to_rules, r2r):
+        pass
+        
 def completion_by_aligned_entities(triples_sr, triples_tg, entity_seeds, relation_seeds):
     '''
     auto graph completion with (e1, r1, e2) -> (e1', r1', e2'), in which (e1, r1, e2) is in KG but (e1', r1', e2') is not in KG'

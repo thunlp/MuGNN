@@ -126,12 +126,13 @@ def format_dbp15k(bin_dir, TransE_conf=None):
 
     def _format_seeds(mapping_sr, mapping_tg, bin_dir, directory, language):
 
-        file2path = {'entity': 'ent_ILLS', 'relation': 'rel_ILLS'}
+        file2path = {'entity': 'ent_ILLs', 'relation': 'rel_ILLs'}
         type2seeds = {}
         for seed_type, path in file2path.items():
             file2id_sr = mapping_sr[seed_type]
             file2id_tg = mapping_tg[seed_type]
-            with open(directory / path, 'r', encoding='utf8') as f:
+            file_path = directory / path
+            with file_path.open('r', encoding='utf8') as f:
                 lines = f.readlines()
             seed_pairs = [line.strip().split('\t') for line in lines]
             seed_pairs = [(file2id_sr[seed_pair[0]], file2id_tg[seed_pair[1]])
@@ -214,8 +215,8 @@ def format_dbp15k(bin_dir, TransE_conf=None):
         mapping_sr, mapping_tg, triples_sr, triples_tg, type2seeds = _format_overall(
             directory, local_bin_dir, language, 'en')
         _format_JAPE(directory, local_bin_dir, mapping_sr, mapping_tg)
-        _format_OpenKE(directory, local_bin_dir, {
-                       language: triples_sr, 'en': triples_tg}, TransE_conf['valid_ratio'], TransE_conf['test_ratio'])
+        # _format_OpenKE(directory, local_bin_dir, {
+        #                language: triples_sr, 'en': triples_tg}, TransE_conf['valid_ratio'], TransE_conf['test_ratio'])
         _format_amie(local_bin_dir, {language: triples_sr, 'en': triples_tg}, {
                      language: mapping_sr, 'en': mapping_tg})
 

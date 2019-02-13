@@ -131,14 +131,14 @@ def rule_parser(file_path):
         return atoms
 
     def premises_reformat(premises):
-        varaibles = set()
+        variables = set()
         for atom in premises:
-            varaibles.add(atom[0])
-            varaibles.add(atom[1])
-        varaibles = list(varaibles)
-        varaibles.sort()
+            variables.add(atom[0])
+            variables.add(atom[1])
+        variables = list(variables)
+        variables.sort()
         mapping = {}
-        for i, a in enumerate(varaibles):
+        for i, a in enumerate(variables):
             mapping[a] = chr(ord('a') + i)
         for i in range(len(premises)):
             head, tail, relation = premises[i]

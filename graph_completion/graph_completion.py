@@ -1,3 +1,4 @@
+import itertools, rdflib
 from data.reader import read_mapping, read_triples, read_seeds, read_rules
 from tools.print_time_info import print_time_info
 
@@ -57,13 +58,47 @@ def _print_new_rules(bi_new_rules, id2relation_sr, id2relation_tg):
                 print_rule(rule, id2relation_tg)
 
 
-def single_graph_completion(triples, entity2id, relation2id):
+def rule_based_graph_completion(triples, rules):
     '''
     return new triples
     '''
-    pass
+    def _rules_partition_by_length(rules):
+        len2rules = {}
+        for rule in rules:
+            premises = rule[0]
+            length = len(premises)
+            if length in len2rules:
+                len2rules[length].append(rule)
+            else:
+                len2rules[length] = [rule]
+        return len2rules
+    
+    def _triples_combinations_by_length(triples, lengths):
+        def _filter_combination(combinations):
+            length = len(combinations[0])
+            valid_combinations = []
+            for combination in combinations:
+                variables = set()    
+                for head, tail, relation in combination:
+                    variables.add(head)
+                    variables.add(tail)
+                if len(variables) <= length + 1:
+                    valid_combinations.append(combination)
+            return valid_combinations
 
+        len2triple_combinations = {}
+        for length in lengths:
+            combinations = list(itertools.combinations(triples, length))
+            combinations = _filter_combination(combinations)
+            len2triple_combinations[length] = combinations
+        return len2triple_combinations
 
+    len2rules = _rules_partition_by_length(rules)
+    len2triple_combinations = _triples_combinations_by_length(triples, len2rules.keys())
+    for length, rules in len2rules.items():
+        combinations = len2triple_combinations[length]
+        # for rule in rules:
+            
 def rule_transfer(rules_sr, rules_tg, relation_seeds):
     '''
     目前仅能处理len(premises) <= 2的情况

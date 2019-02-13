@@ -334,10 +334,6 @@ def _format_JAPE(directory, bin_dir, mapping_sr, mapping_tg):
         _dump_seeds(train_relation_seeds, 'train_relation', local_bin_dir)
 
 
-def main(bin_dir):
-    TransE_conf = {
-        'valid_ratio': 0.0,
-        'test_ratio': 0.0,
-    }
-    format_dbp15k(bin_dir, TransE_conf)
+# def main(bin_dir):
+    
     # Path()

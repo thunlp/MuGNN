@@ -1,4 +1,6 @@
-from rule.rule_mining import mine_rule_with_amie, rule_parser
+import time
+from rule.rule_mining import mine_rule_with_amie, parse_and_dump_rules
+from data import reader
 
 def mine_rule_for_dbp15k():
     from project_path import bin_dir
@@ -11,8 +13,16 @@ def mine_rule_for_dbp15k():
             file_name = file_path.name
             output_path = local_bin_dir / ('rule_for_' + file_name)
             mine_rule_with_amie(file_path, output_path)
+    time.sleep(120)
+    for directory in language_pair_dirs:
+        local_bin_dir = directory / 'AMIE'
+        file_paths = local_bin_dir.glob('rule_for_triples_*.txt')
+        for file_path in file_paths:
+            language = file_path.name.split('_')[-1][:2]
+            all2id = reader.read_mapping(local_bin_dir / 'all2id_' + language + '.txt')
+            parse_and_dump_rules(file_path, file_path, {i: item for item, i in all2id.items()})
 
-
+            
 def main():
     from project_path import bin_dir
     # path = bin_dir /
@@ -23,4 +33,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-    

@@ -1,4 +1,4 @@
-import re
+import re, json
 from tools.print_time_info import print_time_info
 
 # usage of AMIE+ executable file
@@ -104,7 +104,6 @@ def mine_rule_with_amie(path2triples, path2rules):
     jar_patch_path = executable_dir / 'amie_plus.jar'
     command = 'java -jar %s -maxad %d -minpca %f -nc %d %s > %s &' % (
         jar_patch_path, maxad, minpca, num_process, path2triples, path2rules)
-
     res = subprocess.call(command, shell=True)
     if res == 0:
         print_time_info('Mining started.')
@@ -112,16 +111,12 @@ def mine_rule_with_amie(path2triples, path2rules):
         print_time_info('Something went wrong.')
 
 
-def rule_parser(file_path, language):
+def rule_parser(file_path):
     '''
     Accept the output of an AMIE+ .jar software and transform to ...
     '''
-    if language == 'en':
-        language = ''
-    else:
-        language += '.'
     atom_regex = re.compile(
-        r'\?([a-z])  <(http://%sdbpedia.org/property/.*?)>  \?([a-z])' % language)
+        r'\?([a-z])  <([0-9]*?)>  \?([a-z])')
 
     def atom_parser(string):
         atoms = []
@@ -149,5 +144,14 @@ def rule_parser(file_path, language):
             print('-------------------------')
             print_time_info(rule)
             raise ValueError('Parse rule failed.')
-        rules.append({'premises': premises, 'hypothesis': hypothesis})
+        rules.append((premises, hypothesis))
+        # premises, hypothesis
     return rules
+
+def parse_and_dump_rules(read_path, dump_path, mapping):
+    rules = rule_parser(read_path)
+    with open(dump_path, 'w', encoding='utf8') as f:
+        for premises, hypothesis in rules:
+            premises = [mapping[premise] for premise in premises]
+            hypothesis = [mapping[hypo] for hypo in hypothesis]
+            f.write(json.dumps((premises, hypothesis), ensure_ascii=False) + '\n')

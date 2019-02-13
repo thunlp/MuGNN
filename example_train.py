@@ -19,7 +19,7 @@ def mine_rule_for_dbp15k():
         file_paths = local_bin_dir.glob('rule_for_triples_*.txt')
         for file_path in file_paths:
             language = file_path.name.split('_')[-1][:2]
-            all2id = reader.read_mapping(local_bin_dir / 'all2id_' + language + '.txt')
+            all2id = reader.read_mapping(local_bin_dir / ('all2id_' + language + '.txt'))
             parse_and_dump_rules(file_path, file_path, {i: item for item, i in all2id.items()})
 
             

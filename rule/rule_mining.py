@@ -152,6 +152,6 @@ def parse_and_dump_rules(read_path, dump_path, mapping):
     rules = rule_parser(read_path)
     with open(dump_path, 'w', encoding='utf8') as f:
         for premises, hypothesis in rules:
-            premises = [(head, tail, mapping(relation)) for head, tail, relation in premises]
-            hypothesis = [(head, tail, mapping(relation)) for head, tail, relation in hypothesis]
+            premises = [(head, tail, mapping[relation]) for head, tail, relation in premises]
+            hypothesis = [(head, tail, mapping[relation]) for head, tail, relation in hypothesis]
             f.write(json.dumps((premises, hypothesis), ensure_ascii=False) + '\n')

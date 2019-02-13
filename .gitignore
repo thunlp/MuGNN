@@ -147,6 +147,10 @@ result
 # for vim
 *.swp
 
-## for training
+# for training
 checkpoint_max_normed
 result_max_normed
+
+#
+
+bin

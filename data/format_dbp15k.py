@@ -188,7 +188,6 @@ def format_dbp15k(bin_dir, TransE_conf=None):
         for language, triples in language2triples.items():
             entity2id = language2mapping[language]['entity']
             relation2id = language2mapping[language]['relation']
-
             all2id = {}
             for entity in entity2id:
                 all2id[entity] = len(all2id)

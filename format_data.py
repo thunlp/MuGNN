@@ -1,5 +1,5 @@
 import time
-from rule.rule_mining import mine_rule_with_amie, parse_and_dump_rules
+from graph_completion.rule_mining import mine_rule_with_amie, parse_and_dump_rules
 from data import reader
 from project_path import bin_dir
 from data.format_dbp15k import format_dbp15k

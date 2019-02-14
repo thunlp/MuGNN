@@ -203,6 +203,9 @@ class CrossGraphCompletion(object):
                             train_seeds_ratio)
             raise ValueError()
 
+        self.new_rules = {}
+        self.new_triple_confs = {}
+
         language_sr, language_tg = directory.name.split('_')
 
         triples_sr, id2entity_sr, id2relation_sr, rules_sr = _load_languge(
@@ -212,24 +215,23 @@ class CrossGraphCompletion(object):
         entity_seeds, relation_seeds = _load_seeds(
             directory, train_seeds_ratio)
 
-        new_triple_confs = {}
-        new_rules = {}
+        
         triples_sr, triples_tg, bi_new_triple_confs = completion_by_aligned_entities(
             triples_sr, triples_tg, entity_seeds, relation_seeds)
-        new_triple_confs['completion_by_aligned_entities'] = bi_new_triple_confs
+        self.new_triple_confs['completion_by_aligned_entities'] = bi_new_triple_confs
         _print_result_log(bi_new_triple_confs, directory.name,
                           'completion_by_aligned_entities', 'triple')
 
         rules_sr, rules_tg, bi_new_rules = rule_transfer(
             rules_sr, rules_tg, relation_seeds)
-        new_rules['rule_transfer'] = bi_new_rules
+        self.new_rules['rule_transfer'] = bi_new_rules
         _print_result_log(bi_new_rules, directory.name,
                           'rule_transfer', 'rule')
         # _print_new_rules(bi_new_rules, id2entity_sr, id2relation_tg)
 
         triples_sr, triples_tg, bi_new_triple_confs = rule_based_graph_completion(
             triples_sr, triples_tg, rules_sr, rules_tg)
-        new_triple_confs['rule_based_graph_completion'] = bi_new_triple_confs
+        self.new_triple_confs['rule_based_graph_completion'] = bi_new_triple_confs
         _print_result_log(bi_new_triple_confs, directory.name,
                           'rule_based_graph_completion', 'triple')
         # _print_new_triple_confs(bi_new_triple_confs, id2entity_sr, id2entity_tg, id2relation_sr, id2relation_tg)

@@ -4,6 +4,14 @@ from data.reader import read_mapping, read_triples, read_seeds, read_rules
 from tools.print_time_info import print_time_info
 
 
+def dict_union(dict1, dict2):
+    '''
+    use is with careful
+    '''
+    for key, value in dict2.items():
+        dict1[key] = value
+    return dict1
+
 def _check(ori, new, num):
     if len(ori) != len(new):
         print_time_info('Check failed %d.' % num, print_error=True)
@@ -66,21 +74,18 @@ def _print_new_triple_confs(bi_new_triple_confs, id2entity_sr, id2entity_tg, id2
             print(' ', conf)
 
 
-def rule_based_graph_completion(triples_sr, triples_tg, rules_sr, rules_tg):
+def rule_based_graph_completion(triple_graph_sr, triple_graph_tg, rules_sr, rules_tg):
     '''
     triples = [(head, tail, relation)]
     return new [((head, tail, relation), conf)...]
     '''
     print_time_info('Rule based graph completion started!')
 
-    def _rule_based_graph_completion(triples, rules):
-        tg = TripleGraph()
-        tg.load(triples)
-        triples = set(triples)
+    def _rule_based_graph_completion(triple_graph, rules):
+        triples = triple_graph.triples
         new_triple_confs = {}
-
         for rule in rules:
-            new_triple_conf_candidates = tg.inference_by_rule(rule)
+            new_triple_conf_candidates = triple_graph.inference_by_rule(rule)
             for new_triple, conf in new_triple_conf_candidates:
                 if not new_triple in triples:
                     if new_triple not in new_triple_confs:
@@ -88,9 +93,10 @@ def rule_based_graph_completion(triples_sr, triples_tg, rules_sr, rules_tg):
                     else:
                         ori_conf = new_triple_confs[new_triple]
                         new_triple_confs[new_triple] = max(conf, ori_conf)
+        
         return new_triple_confs
-    new_triple_confs_sr = _rule_based_graph_completion(triples_sr, rules_sr)
-    new_triple_confs_tg = _rule_based_graph_completion(triples_tg, rules_tg)
+    new_triple_confs_sr = _rule_based_graph_completion(triple_graph_sr, rules_sr)
+    new_triple_confs_tg = _rule_based_graph_completion(triple_graph_tg, rules_tg)
     print_time_info('Rule based graph completion finished!')
     return new_triple_confs_sr, new_triple_confs_tg
 
@@ -200,7 +206,6 @@ class CrossGraphCompletion(object):
 
         self.entity_seeds = []
         self.relation_seeds = []
-
         self.triples_sr = []
         self.triples_tg = []
         self.new_triple_confs_sr = {}
@@ -213,6 +218,8 @@ class CrossGraphCompletion(object):
         self.id2entity_tg = {}
         self.id2relation_sr = {}
         self.id2relation_tg = {}
+        self.triple_graph_sr = TripleGraph()
+        self.triple_graph_tg = TripleGraph()
 
     def init(self):
         directory = self.directory
@@ -230,12 +237,9 @@ class CrossGraphCompletion(object):
             self.triples_sr, self.triples_tg, self.entity_seeds, self.relation_seeds)
         self.triples_sr += list(new_triple_confs_sr.keys())
         self.triples_tg += list(new_triple_confs_tg.keys())
-        self.new_triple_confs_sr = dict(
-            self.new_triple_confs_sr, **new_triple_confs_sr)
-        self.new_triple_confs_tg = dict(
-            self.new_triple_confs_tg, **new_triple_confs_tg)
-        self._print_result_log({'sr': new_triple_confs_sr, 'tg': new_triple_confs_tg},
-                               'completion_by_aligned_entities', 'triple')
+        self.new_triple_confs_sr = dict_union(self.new_triple_confs_sr, new_triple_confs_sr)
+        self.new_triple_confs_tg = dict_union(self.new_triple_confs_tg, new_triple_confs_tg)
+        self._print_result_log({'sr': new_triple_confs_sr, 'tg': new_triple_confs_tg}, 'completion_by_aligned_entities', 'triple')
 
         # rule transfer
         new_rules_sr, new_rules_tg = rule_transfer(
@@ -244,22 +248,27 @@ class CrossGraphCompletion(object):
         self.rules_tg += new_rules_tg
         self.rules_trans2_sr += new_rules_sr
         self.rules_trans2_tg += new_rules_tg
-        self._print_result_log({'sr': new_rules_sr, 'tg': new_rules_tg},
-                               'rule_transfer', 'rule')
-        ## _print_new_rules(bi_new_rules, id2entity_sr, id2relation_tg)
+        bi_new_rules = {'sr': new_rules_sr, 'tg': new_rules_tg}
+        self._print_result_log(bi_new_rules, 'rule_transfer', 'rule')
+        _print_new_rules(bi_new_rules, self.id2entity_sr, self.id2relation_tg)
+
+        # load triple into TripleGraph
+        self.triple_graph_load(self.triples_sr, self.triples_tg)
 
         # rule_based_graph_completion
         new_triple_confs_sr, new_triple_confs_tg = rule_based_graph_completion(
-            self.triples_sr, self.triples_tg,  self.rules_sr, self.rules_tg)
+            self.triple_graph_sr, self.triple_graph_tg,  self.rules_sr, self.rules_tg)
         self.triples_sr += list(new_triple_confs_sr.keys())
         self.triples_tg += list(new_triple_confs_tg.keys())
-        self.new_triple_confs_sr = dict(
-            self.new_triple_confs_sr, **new_triple_confs_sr)
-        self.new_triple_confs_tg = dict(
-            self.new_triple_confs_tg, **new_triple_confs_tg)
-        self._print_result_log({'sr': new_triple_confs_sr, 'tg': new_triple_confs_tg},
-                               'rule_based_graph_completion', 'triple')
-        ## _print_new_triple_confs(bi_new_triple_confs, id2entity_sr, id2entity_tg, id2relation_sr, id2relation_tg)
+        self.new_triple_confs_sr = dict_union(self.new_triple_confs_sr, new_triple_confs_sr)
+        self.new_triple_confs_tg = dict_union(self.new_triple_confs_tg, new_triple_confs_tg)
+        bi_new_triple_confs = {'sr': new_triple_confs_sr, 'tg': new_triple_confs_tg}
+        self._print_result_log(bi_new_triple_confs, 'rule_based_graph_completion', 'triple')
+        _print_new_triple_confs(bi_new_triple_confs, self.id2entity_sr, self.id2entity_tg, self.id2relation_sr, self.id2relation_tg)
+
+    def triple_graph_load(self, triples_sr, triples_tg):
+        self.triple_graph_sr.load(triples_sr)
+        self.triple_graph_tg.load(triples_tg)
 
     def _print_result_log(self, bi_new_triples, method, data_name='triple'):
         print('------------------------------------------------------------')

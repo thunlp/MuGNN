@@ -7,6 +7,9 @@ def read_mapping(path):
 
 
 def read_triples(path):
+    '''
+    triple pattern: (head_id, tail_id, relation_id)
+    '''
     return read_file(path, lambda lines: [tuple(line.strip().split('\t')) for line in lines])
 
 

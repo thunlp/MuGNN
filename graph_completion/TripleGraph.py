@@ -12,6 +12,7 @@ class TripleGraph(object):
             '@base <http://www.entity.com#> .'
             '@prefix relation: <http://www.relation.org#> .'
         ])
+        self.triples = set()
 
     def load(self, triples):
         data = self.prefix_load
@@ -19,6 +20,8 @@ class TripleGraph(object):
             data += ('<' + head + '> ' + 'relation:' +
                      str(relation) + '<' + tail + '> .\n')
         self.graph.parse(data=data, format='turtle')
+        triples = set(triples)
+        self.triples.update(triples)
 
     def query(self, query):
         return list(self.graph.query(self.prefix_query + query))

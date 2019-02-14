@@ -1,4 +1,5 @@
-import itertools, rdflib
+import itertools
+from graph_completion.TripleGraph import TripleGraph
 from data.reader import read_mapping, read_triples, read_seeds, read_rules
 from tools.print_time_info import print_time_info
 
@@ -28,10 +29,10 @@ def _load_seeds(directory, train_seeds_ratio):
     return entity_seeds, relation_seeds
 
 
-def print_triple(triple, id2entity, id2relation):
+def print_triple(triple, id2entity, id2relation, end='\n'):
     head, tail, relation = triple
     print_time_info(
-        ' '.join([id2entity[head], id2relation[relation], id2entity[tail]]))
+        ' '.join([id2entity[head], id2relation[relation], id2entity[tail]]), end=end)
 
 
 def print_rule(rule, id2relation):
@@ -46,59 +47,58 @@ def print_rule(rule, id2relation):
 def _print_new_rules(bi_new_rules, id2relation_sr, id2relation_tg):
     for language, rules in bi_new_rules.items():
         print_time_info(language, print_error=True)
-        for rule in rules[:10]:
-            try:
+        for rule in rules[:5]:
+            if language == 'sr':
                 print_rule(rule, id2relation_sr)
-            except:
-                print_rule(rule, id2relation_tg)
-        for rule in rules[-10:]:
-            try:
-                print_rule(rule, id2relation_sr)
-            except:
-                print_rule(rule, id2relation_tg)
-
-
-def rule_based_graph_completion(triples, rules):
-    '''
-    return new triples
-    '''
-    def _rules_partition_by_length(rules):
-        len2rules = {}
-        for rule in rules:
-            premises = rule[0]
-            length = len(premises)
-            if length in len2rules:
-                len2rules[length].append(rule)
             else:
-                len2rules[length] = [rule]
-        return len2rules
-    
-    def _triples_combinations_by_length(triples, lengths):
-        def _filter_combination(combinations):
-            length = len(combinations[0])
-            valid_combinations = []
-            for combination in combinations:
-                variables = set()    
-                for head, tail, relation in combination:
-                    variables.add(head)
-                    variables.add(tail)
-                if len(variables) <= length + 1:
-                    valid_combinations.append(combination)
-            return valid_combinations
+                print_rule(rule, id2relation_tg)
+        for rule in rules[-5:]:
+            if language == 'sr':
+                print_rule(rule, id2relation_sr)
+            else:
+                print_rule(rule, id2relation_tg)
 
-        len2triple_combinations = {}
-        for length in lengths:
-            combinations = list(itertools.combinations(triples, length))
-            combinations = _filter_combination(combinations)
-            len2triple_combinations[length] = combinations
-        return len2triple_combinations
 
-    len2rules = _rules_partition_by_length(rules)
-    len2triple_combinations = _triples_combinations_by_length(triples, len2rules.keys())
-    for length, rules in len2rules.items():
-        combinations = len2triple_combinations[length]
-        # for rule in rules:
-            
+def _print_new_triple_confs(bi_new_triple_confs, id2entity_sr, id2entity_tg, id2relation_sr, id2relation_tg):
+    for language, triple_confs in bi_new_triple_confs.items():
+        print_time_info(language, print_error=True)
+        for triple, conf in triple_confs[:10]:
+            if language == 'sr':
+                print_triple(triple, id2entity_sr, id2relation_sr, end='')
+            else:
+                print_triple(triple, id2entity_tg, id2relation_tg, end='')
+            print(' ', conf)
+
+
+def rule_based_graph_completion(triples_sr, triples_tg, rules_sr, rules_tg):
+    '''
+    triples = [(head, tail, relation)]
+    return new [((head, tail, relation), conf)...]
+    '''
+    print_time_info('Rule based graph completion started!')
+
+    def _rule_based_graph_completion(triples, rules):
+        tg = TripleGraph()
+        tg.load(triples)
+        triples = set(triples)
+        new_triple_confs = {}
+
+        for rule in rules:
+            new_triple_conf_candidates = tg.inference_by_rule(rule)
+            for new_triple, conf in new_triple_conf_candidates:
+                if not new_triple in triples:
+                    if new_triple not in new_triple_confs:
+                        new_triple_confs[new_triple] = conf
+                    else:
+                        ori_conf = new_triple_confs[new_triple]
+                        new_triple_confs[new_triple] = max(conf, ori_conf)
+        return new_triple_confs
+    new_triple_confs_sr = _rule_based_graph_completion(triples_sr, rules_sr)
+    new_triple_confs_tg = _rule_based_graph_completion(triples_tg, rules_tg)
+    print_time_info('Rule based graph completion finished!')
+    return triples_sr + list(new_triple_confs_sr.keys()), triples_tg + list(new_triple_confs_tg.keys()), {'sr': new_triple_confs_sr, 'tg': new_triple_confs_tg}
+
+
 def rule_transfer(rules_sr, rules_tg, relation_seeds):
     '''
     目前仅能处理len(premises) <= 2的情况
@@ -179,7 +179,9 @@ def completion_by_aligned_entities(triples_sr, triples_tg, entity_seeds, relatio
     _check(relation_seeds, r2r, 4)
     new_triples_sr = _completion_by_aligned_entities(
         triples_tg, triples_sr, e2e, r2r)
-    return triples_sr + new_triples_sr, triples_tg + new_triples_tg, {'sr': new_triples_sr, 'tg': new_triples_tg}
+    new_triple_confs_sr = {triple: 1.0 for triple in new_triples_sr}
+    new_triple_confs_tg = {triple: 1.0 for triple in new_triples_tg}
+    return triples_sr + new_triples_sr, triples_tg + new_triples_tg, {'sr': new_triple_confs_sr, 'tg': new_triple_confs_tg}
 
 
 def graph_completion(directory, train_seeds_ratio):
@@ -211,19 +213,26 @@ def graph_completion(directory, train_seeds_ratio):
         directory, language_tg)
     entity_seeds, relation_seeds = _load_seeds(directory, train_seeds_ratio)
 
-    new_triples = {}
+    new_triple_confs = {}
     new_rules = {}
-    triples_sr, triples_tg, bi_new_triples = completion_by_aligned_entities(
+    triples_sr, triples_tg, bi_new_triple_confs = completion_by_aligned_entities(
         triples_sr, triples_tg, entity_seeds, relation_seeds)
-    new_triples['completion_by_aligned_entities'] = bi_new_triples
-    _print_result_log(bi_new_triples, directory.name,
-                      'completion_by_aligned_entities', 'triple')
+    new_triple_confs['completion_by_aligned_entities'] = bi_new_triple_confs
+    # _print_result_log(bi_new_triple_confs, directory.name,
+    #                   'completion_by_aligned_entities', 'triple')
 
     rules_sr, rules_tg, bi_new_rules = rule_transfer(
         rules_sr, rules_tg, relation_seeds)
     new_rules['rule_transfer'] = bi_new_rules
-    _print_result_log(bi_new_rules, directory.name, 'rule_transfer', 'rule')
+    # _print_result_log(bi_new_rules, directory.name, 'rule_transfer', 'rule')
     # _print_new_rules(bi_new_rules, id2entity_sr, id2relation_tg)
+
+    triples_sr, triples_tg, bi_new_triple_confs = rule_based_graph_completion(
+        triples_sr, triples_tg, rules_sr, rules_tg)
+    new_triple_confs['rule_based_graph_completion'] = bi_new_triple_confs
+    # _print_result_log(bi_new_triple_confs, directory.name,
+    #                   'rule_based_graph_completion', 'triple')
+    _print_new_triple_confs(bi_new_triple_confs, id2entity_sr, id2entity_tg, id2relation_sr, id2relation_tg)
 
 
 def main():

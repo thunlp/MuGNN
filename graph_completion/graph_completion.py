@@ -1,7 +1,17 @@
-import itertools
+import random
 from graph_completion.TripleGraph import TripleGraph
 from data.reader import read_mapping, read_triples, read_seeds, read_rules
 from tools.print_time_info import print_time_info
+
+
+def _print_result_log(new_triples, language_pair, method, data_name='triple'):
+    print('------------------------------------------------------------')
+    print_time_info('language_pair: ' + language_pair)
+    print_time_info('Method: ' + method)
+    for language, new_triple in new_triples.items():
+        print_time_info(
+            language + ' new %s numbers: ' % data_name + str(len(new_triple)))
+    print('------------------------------------------------------------\n')
 
 
 def _check(ori, new, num):
@@ -47,12 +57,7 @@ def print_rule(rule, id2relation):
 def _print_new_rules(bi_new_rules, id2relation_sr, id2relation_tg):
     for language, rules in bi_new_rules.items():
         print_time_info(language, print_error=True)
-        for rule in rules[:5]:
-            if language == 'sr':
-                print_rule(rule, id2relation_sr)
-            else:
-                print_rule(rule, id2relation_tg)
-        for rule in rules[-5:]:
+        for rule in random.choices(rules, k=10):
             if language == 'sr':
                 print_rule(rule, id2relation_sr)
             else:
@@ -62,7 +67,8 @@ def _print_new_rules(bi_new_rules, id2relation_sr, id2relation_tg):
 def _print_new_triple_confs(bi_new_triple_confs, id2entity_sr, id2entity_tg, id2relation_sr, id2relation_tg):
     for language, triple_confs in bi_new_triple_confs.items():
         print_time_info(language, print_error=True)
-        for triple, conf in triple_confs[:10]:
+        for triple in random.choices(list(triple_confs.keys()), k=10):
+            conf = triple_confs[triple]
             if language == 'sr':
                 print_triple(triple, id2entity_sr, id2relation_sr, end='')
             else:
@@ -184,55 +190,49 @@ def completion_by_aligned_entities(triples_sr, triples_tg, entity_seeds, relatio
     return triples_sr + new_triples_sr, triples_tg + new_triples_tg, {'sr': new_triple_confs_sr, 'tg': new_triple_confs_tg}
 
 
-def graph_completion(directory, train_seeds_ratio):
-    '''
-    we followed the experiment setting of JAPE
-    the folder under the directory JAPE/0_x contains the entity alignment dataset for train and test.
-    '''
+class CrossGraphCompletion(object):
 
-    def _print_result_log(new_triples, language_pair, method, data_name='triple'):
-        print('------------------------------------------------------------')
-        print_time_info('language_pair: ' + language_pair)
-        print_time_info('Method: ' + method)
-        for language, new_triple in new_triples.items():
-            print_time_info(
-                language + ' new %s numbers: ' % data_name + str(len(new_triple)))
-        print('------------------------------------------------------------\n')
+    def __init__(self, directory, train_seeds_ratio):
+        '''
+        we followed the experiment setting of JAPE
+        the folder under the directory JAPE/0_x contains the entity alignment dataset for train and test.
+        '''
+        if train_seeds_ratio not in {0.1, 0.2, 0.3, 0.4, 0.5}:
+            print('----------------------------')
+            print_time_info('Not a legal train seeds ratio: %f.' %
+                            train_seeds_ratio)
+            raise ValueError()
 
-    if train_seeds_ratio not in {0.1, 0.2, 0.3, 0.4, 0.5}:
-        print('----------------------------')
-        print_time_info('Not a legal train seeds ratio: %f.' %
-                        train_seeds_ratio)
-        raise ValueError()
+        language_sr, language_tg = directory.name.split('_')
 
-    language_sr, language_tg = directory.name.split('_')
+        triples_sr, id2entity_sr, id2relation_sr, rules_sr = _load_languge(
+            directory, language_sr)
+        triples_tg, id2entity_tg, id2relation_tg, rules_tg = _load_languge(
+            directory, language_tg)
+        entity_seeds, relation_seeds = _load_seeds(
+            directory, train_seeds_ratio)
 
-    triples_sr, id2entity_sr, id2relation_sr, rules_sr = _load_languge(
-        directory, language_sr)
-    triples_tg, id2entity_tg, id2relation_tg, rules_tg = _load_languge(
-        directory, language_tg)
-    entity_seeds, relation_seeds = _load_seeds(directory, train_seeds_ratio)
+        new_triple_confs = {}
+        new_rules = {}
+        triples_sr, triples_tg, bi_new_triple_confs = completion_by_aligned_entities(
+            triples_sr, triples_tg, entity_seeds, relation_seeds)
+        new_triple_confs['completion_by_aligned_entities'] = bi_new_triple_confs
+        _print_result_log(bi_new_triple_confs, directory.name,
+                          'completion_by_aligned_entities', 'triple')
 
-    new_triple_confs = {}
-    new_rules = {}
-    triples_sr, triples_tg, bi_new_triple_confs = completion_by_aligned_entities(
-        triples_sr, triples_tg, entity_seeds, relation_seeds)
-    new_triple_confs['completion_by_aligned_entities'] = bi_new_triple_confs
-    # _print_result_log(bi_new_triple_confs, directory.name,
-    #                   'completion_by_aligned_entities', 'triple')
+        rules_sr, rules_tg, bi_new_rules = rule_transfer(
+            rules_sr, rules_tg, relation_seeds)
+        new_rules['rule_transfer'] = bi_new_rules
+        _print_result_log(bi_new_rules, directory.name,
+                          'rule_transfer', 'rule')
+        # _print_new_rules(bi_new_rules, id2entity_sr, id2relation_tg)
 
-    rules_sr, rules_tg, bi_new_rules = rule_transfer(
-        rules_sr, rules_tg, relation_seeds)
-    new_rules['rule_transfer'] = bi_new_rules
-    # _print_result_log(bi_new_rules, directory.name, 'rule_transfer', 'rule')
-    # _print_new_rules(bi_new_rules, id2entity_sr, id2relation_tg)
-
-    triples_sr, triples_tg, bi_new_triple_confs = rule_based_graph_completion(
-        triples_sr, triples_tg, rules_sr, rules_tg)
-    new_triple_confs['rule_based_graph_completion'] = bi_new_triple_confs
-    # _print_result_log(bi_new_triple_confs, directory.name,
-    #                   'rule_based_graph_completion', 'triple')
-    _print_new_triple_confs(bi_new_triple_confs, id2entity_sr, id2entity_tg, id2relation_sr, id2relation_tg)
+        triples_sr, triples_tg, bi_new_triple_confs = rule_based_graph_completion(
+            triples_sr, triples_tg, rules_sr, rules_tg)
+        new_triple_confs['rule_based_graph_completion'] = bi_new_triple_confs
+        _print_result_log(bi_new_triple_confs, directory.name,
+                          'rule_based_graph_completion', 'triple')
+        # _print_new_triple_confs(bi_new_triple_confs, id2entity_sr, id2entity_tg, id2relation_sr, id2relation_tg)
 
 
 def main():
@@ -241,4 +241,4 @@ def main():
     directory = bin_dir / 'dbp15k'
     language_pair_dirs = list(directory.glob('*_en'))
     for local_directory in language_pair_dirs:
-        graph_completion(local_directory, train_seeds_ratio)
+        CrossGraphCompletion(local_directory, train_seeds_ratio)

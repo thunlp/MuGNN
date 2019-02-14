@@ -20,13 +20,13 @@ class GCN(nn.Module):
         if self.dropout_rate > 0:
             self.dropout = nn.Dropout(p=self.dropout_rate)
 
-    def forward(self, inputs, adjacent_matrix):
+    def forward(self, inputs, adjacency_matrix):
         '''
         inputs: shape = [num_entity, embedding_dim]
         '''
         if self.dropout_rate > 0:
             inputs = self.dropout(inputs)
-        outputs = torch.chain_matmul(adjacent_matrix, inputs, self.weights)
+        outputs = torch.chain_matmul(adjacency_matrix, inputs, self.weights)
         if self.bias:
             bias = self.bias_weights.expand(
                 [1, self.bias_weights.size()[0]]).repeat([inputs.size()[0], 1])

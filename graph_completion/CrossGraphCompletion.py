@@ -6,7 +6,7 @@ from tools.print_time_info import print_time_info
 
 def dict_union(dict1, dict2):
     '''
-    use is with careful
+    use it with careful
     '''
     for key, value in dict2.items():
         dict1[key] = value
@@ -250,7 +250,7 @@ class CrossGraphCompletion(object):
         self.rules_trans2_tg += new_rules_tg
         bi_new_rules = {'sr': new_rules_sr, 'tg': new_rules_tg}
         self._print_result_log(bi_new_rules, 'rule_transfer', 'rule')
-        _print_new_rules(bi_new_rules, self.id2entity_sr, self.id2relation_tg)
+        _print_new_rules(bi_new_rules, self.id2relation_sr, self.id2relation_tg)
 
         # load triple into TripleGraph
         self.triple_graph_load(self.triples_sr, self.triples_tg)

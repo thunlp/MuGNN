@@ -52,6 +52,17 @@ def get_adjacency_matrix(triple2conf, relation_idf, entity_embedding, relation_e
     # for triple in triple2conf.items():
     pass
 
+def cosine_similarity(a, b):
+    '''
+    a shape: [num_item_1, embedding_dim]
+    b shape: [num_item_2, embedding_dim]
+    return sim_matrix: [num_item_1, num_item_2]
+    '''
+    a = a / a.norm(dim=-1, keepdim=True)
+    b = b / b.norm(dim=-1, keepdim=True)
+    return  torch.mm(a, b.transpose(0, 1))
+
+
 
 def train():
     '''
@@ -62,7 +73,7 @@ def train():
     import torch.nn as nn
     import torch.nn.functional as F
     from graph_completion.GCN import GCN
-    from graph_completion.CrossAdjacencyMatrix import CrossAdjacencyMatrix
+    from graph_completion.CrossAdjacencyMatrix import builf_cross_adjacency_matrix
 
     from project_path import bin_dir
     train_seeds_ratio = 0.3
@@ -72,7 +83,13 @@ def train():
 
 
     cgc = CrossGraphCompletion(language_pair_dirs[0], train_seeds_ratio)
-    cgc.init()
+    # print(language_pair_dirs[0])
+    # cgc.init()
+    # cgc.save(language_pair_dirs[0] / 'running_temp')
+    cgc = CrossGraphCompletion.restore(language_pair_dirs[0] / 'running_temp')
+
+    builf_cross_adjacency_matrix(cgc)
+    exit()
 
     triples_sr = cgc.triples_sr
     triples_tg = cgc.triples_tg
@@ -87,7 +104,7 @@ def train():
 
     
     
-
+    # calcuate the adjacency matrix
     entity_embedding_sr = nn.Embedding(len(cgc.id2entity_sr), embedding_dim)
     relation_embedding_sr = nn.Embedding(len(cgc.id2relation_sr), embedding_dim)
     entity_embedding_tg = nn.Embedding(len(cgc.id2entity_tg), embedding_dim)
@@ -96,6 +113,8 @@ def train():
     nn.init.xavier_uniform_(relation_embedding_sr)
     nn.init.xavier_uniform_(entity_embedding_tg)
     nn.init.xavier_uniform_(relation_embedding_tg)
+
+    sim_r2r_m = cosine_similarity(relation_embedding_sr, relation_embedding_tg)
 
 
     # shape = [num_entity_seeds, max_relation_num]
@@ -150,11 +169,13 @@ def main():
     for local_directory in language_pair_dirs:
         cgc = CrossGraphCompletion(local_directory, train_seeds_ratio)
         cgc.init()
+        cgc.save(local_directory / 'running_temp')
         # train()
 
 if __name__ == '__main__':
-    main()
-    exit()    
+    # main()
+    train()
+    exit()
     
     import numpy as np
     from scipy.optimize import linear_sum_assignment

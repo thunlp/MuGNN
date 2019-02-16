@@ -1,4 +1,4 @@
-import random
+import random, pickle
 from graph_completion.TripleGraph import TripleGraph
 from data.reader import read_mapping, read_triples, read_seeds, read_rules
 from tools.print_time_info import print_time_info
@@ -92,7 +92,7 @@ def get_relation2imp(triples, relation_num):
     for head, tail, relation in triples:
         relation2imp[relation]['head'].add(head)
         relation2imp[relation]['tail'].add(tail)
-    relation2imp = {relation: 1-min(1, len(ht['tail'])/len(ht['head'])) for relation, ht in relation2imp.items()}
+    relation2imp = {relation: 1-min(1, len(ht['head'])/len(ht['tail'])) for relation, ht in relation2imp.items()}
     return relation2imp
 
 def rule_based_graph_completion(triple_graph_sr, triple_graph_tg, rules_sr, rules_tg):
@@ -114,8 +114,8 @@ def rule_based_graph_completion(triple_graph_sr, triple_graph_tg, rules_sr, rule
                     else:
                         ori_conf = new_triple_confs[new_triple]
                         new_triple_confs[new_triple] = max(conf, ori_conf)
-
         return new_triple_confs
+
     new_triple_confs_sr = _rule_based_graph_completion(
         triple_graph_sr, rules_sr)
     new_triple_confs_tg = _rule_based_graph_completion(
@@ -247,7 +247,7 @@ class CrossGraphCompletion(object):
         self.relation2conf_sr = {}
         self.relation2conf_tg = {}
 
-        # calculate imp(r) = 1- min(\frac{num(tail|(head, tail, r) \in triples)}{num(head|(head, tail, r) \in triples)}, 1)
+        # calculate imp(r) = 1- min(\frac{num(head|(head, tail, r) \in triples)}{num(tail|(head, tail, r) \in triples)}, 1)
         self.relation2imp_sr = {}
         self.relation2imp_tg = {}
 
@@ -269,17 +269,18 @@ class CrossGraphCompletion(object):
         # print_time_info(len(self.rules_sr))
         # print_time_info(len(self.rules_tg))
         # return
+        
         # completion_by_aligned_entities
-        new_triple_confs_sr, new_triple_confs_tg = completion_by_aligned_entities(
-            self.triples_sr, self.triples_tg, self.entity_seeds, self.relation_seeds)
-        self.triples_sr += list(new_triple_confs_sr.keys())
-        self.triples_tg += list(new_triple_confs_tg.keys())
-        self.new_triple_confs_sr = dict_union(
-            self.new_triple_confs_sr, new_triple_confs_sr)
-        self.new_triple_confs_tg = dict_union(
-            self.new_triple_confs_tg, new_triple_confs_tg)
-        self._print_result_log({'sr': new_triple_confs_sr, 'tg': new_triple_confs_tg},
-                               'completion_by_aligned_entities', 'triple')
+        # new_triple_confs_sr, new_triple_confs_tg = completion_by_aligned_entities(
+        #     self.triples_sr, self.triples_tg, self.entity_seeds, self.relation_seeds)
+        # self.triples_sr += list(new_triple_confs_sr.keys())
+        # self.triples_tg += list(new_triple_confs_tg.keys())
+        # self.new_triple_confs_sr = dict_union(
+        #     self.new_triple_confs_sr, new_triple_confs_sr)
+        # self.new_triple_confs_tg = dict_union(
+        #     self.new_triple_confs_tg, new_triple_confs_tg)
+        # self._print_result_log({'sr': new_triple_confs_sr, 'tg': new_triple_confs_tg},
+        #                        'completion_by_aligned_entities', 'triple')
 
         # rule transfer
         new_rules_sr, new_rules_tg = rule_transfer(
@@ -290,14 +291,14 @@ class CrossGraphCompletion(object):
         self.rules_trans2_tg += new_rules_tg
         bi_new_rules = {'sr': new_rules_sr, 'tg': new_rules_tg}
         self._print_result_log(bi_new_rules, 'rule_transfer', 'rule')
-        _print_new_rules(bi_new_rules, self.id2relation_sr,
-                         self.id2relation_tg)
+        # _print_new_rules(bi_new_rules, self.id2relation_sr,
+        #                  self.id2relation_tg)
 
         # get relation2conf
         self.relation2conf_sr = get_relation2conf(self.rules_sr)
         self.relation2conf_tg = get_relation2conf(self.rules_tg)
-        print_time_info('sr r2conf num: ' + len(self.relation2conf_sr) + ' average: ' + str(sum(self.relation2conf_sr.values())/len(self.relation2conf_sr)), print_error=True)
-        print_time_info('tg r2conf num: ' + len(self.relation2conf_tg) + ' average: ' + str(sum(self.relation2conf_tg.values())/len(self.relation2conf_tg)), print_error=True)
+        print_time_info('sr r2conf num: ' + str(len(self.relation2conf_sr)) + ' average: ' + str(sum(self.relation2conf_sr.values())/len(self.relation2conf_sr)), print_error=True)
+        print_time_info('tg r2conf num: ' + str(len(self.relation2conf_tg)) + ' average: ' + str(sum(self.relation2conf_tg.values())/len(self.relation2conf_tg)), print_error=True)
 
         # load triple into TripleGraph
         self.triple_graph_load(self.triples_sr, self.triples_tg)
@@ -315,19 +316,34 @@ class CrossGraphCompletion(object):
             'sr': new_triple_confs_sr, 'tg': new_triple_confs_tg}
         self._print_result_log(bi_new_triple_confs,
                                'rule_based_graph_completion', 'triple')
-        _print_new_triple_confs(bi_new_triple_confs, self.id2entity_sr,
-                                self.id2entity_tg, self.id2relation_sr, self.id2relation_tg)
+        # _print_new_triple_confs(bi_new_triple_confs, self.id2entity_sr,
+        #                         self.id2entity_tg, self.id2relation_sr, self.id2relation_tg)
 
         # get relation2imp
         self.relation2imp_sr = get_relation2imp(self.triples_sr, len(self.id2relation_sr))
         self.relation2imp_tg = get_relation2imp(self.triples_tg, len(self.id2relation_tg))
-        print_time_info('sr r2imp num: ' + len(self.relation2imp_sr) + ' average: ' + str(sum(self.relation2imp_sr.values())/len(self.relation2imp_sr)), print_error=True)
-        print_time_info('tg r2imp num: ' + len(self.relation2imp_tg) + ' average: ' + str(sum(self.relation2imp_tg.values())/len(self.relation2imp_tg)), print_error=True)
-
+        print_time_info('sr r2imp num: ' + str(len(self.relation2imp_sr)) + ' average: ' + str(sum(self.relation2imp_sr.values())/len(self.relation2imp_sr)), print_error=True)
+        print_time_info('tg r2imp num: ' + str(len(self.relation2imp_tg)) + ' average: ' + str(sum(self.relation2imp_tg.values())/len(self.relation2imp_tg)), print_error=True)
 
     def triple_graph_load(self, triples_sr, triples_tg):
         self.triple_graph_sr.load(triples_sr)
         self.triple_graph_tg.load(triples_tg)
+
+    def save(self, directory):
+        if not directory.exists():
+            directory.mkdir()
+        save_path = directory / 'cgc.pkl'
+        with open(save_path, 'wb') as f:
+            pickle.dump(self, f)
+        print_time_info('Successfully save cgc to %s.'%save_path)
+
+    @classmethod
+    def restore(cls, directory):
+        load_path = directory / 'cgc.pkl'
+        with open(load_path, 'rb') as f:
+            new_one = pickle.load(f)
+        print_time_info('Successfully load cgc from %s.'% load_path)
+        return new_one
 
     def _print_result_log(self, bi_new_triples, method, data_name='triple'):
         print('------------------------------------------------------------')

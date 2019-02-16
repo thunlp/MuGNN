@@ -12,6 +12,7 @@ def dict_union(dict1, dict2):
         dict1[key] = value
     return dict1
 
+
 def _check(ori, new, num):
     if len(ori) != len(new):
         print_time_info('Check failed %d.' % num, print_error=True)
@@ -74,6 +75,26 @@ def _print_new_triple_confs(bi_new_triple_confs, id2entity_sr, id2entity_tg, id2
             print(' ', conf)
 
 
+def get_relation2conf(rules):
+    relation2conf = {}
+    for premises, hypothesis, conf in rules:
+        inferred_relation = hypothesis[2]
+        if inferred_relation in relation2conf:
+            relation2conf[inferred_relation].append(float(conf))
+        else:
+            relation2conf[inferred_relation] = [float(conf)]
+    relation2conf = {relation: sum(confs)/len(confs)
+                     for relation, confs in relation2conf.items()}
+    return relation2conf
+
+def get_relation2imp(triples, relation_num):
+    relation2imp = {str(i):{'head': set(), 'tail': set()} for i in range(relation_num)}
+    for head, tail, relation in triples:
+        relation2imp[relation]['head'].add(head)
+        relation2imp[relation]['tail'].add(tail)
+    relation2imp = {relation: 1-min(1, len(ht['tail'])/len(ht['head'])) for relation, ht in relation2imp.items()}
+    return relation2imp
+
 def rule_based_graph_completion(triple_graph_sr, triple_graph_tg, rules_sr, rules_tg):
     '''
     triples = [(head, tail, relation)]
@@ -93,10 +114,12 @@ def rule_based_graph_completion(triple_graph_sr, triple_graph_tg, rules_sr, rule
                     else:
                         ori_conf = new_triple_confs[new_triple]
                         new_triple_confs[new_triple] = max(conf, ori_conf)
-        
+
         return new_triple_confs
-    new_triple_confs_sr = _rule_based_graph_completion(triple_graph_sr, rules_sr)
-    new_triple_confs_tg = _rule_based_graph_completion(triple_graph_tg, rules_tg)
+    new_triple_confs_sr = _rule_based_graph_completion(
+        triple_graph_sr, rules_sr)
+    new_triple_confs_tg = _rule_based_graph_completion(
+        triple_graph_tg, rules_tg)
     print_time_info('Rule based graph completion finished!')
     return new_triple_confs_sr, new_triple_confs_tg
 
@@ -218,6 +241,16 @@ class CrossGraphCompletion(object):
         self.id2entity_tg = {}
         self.id2relation_sr = {}
         self.id2relation_tg = {}
+
+        # calculate the average PCA confidence of rules of which relation x is the tail
+        # conf(r) = \frac{sum([pca\_conf | (premises, r, pca\_conf)\in rules])}{num((premises, r, pca\_conf)\in rules)}
+        self.relation2conf_sr = {}
+        self.relation2conf_tg = {}
+
+        # calculate imp(r) = 1- min(\frac{num(tail|(head, tail, r) \in triples)}{num(head|(head, tail, r) \in triples)}, 1)
+        self.relation2imp_sr = {}
+        self.relation2imp_tg = {}
+
         self.triple_graph_sr = TripleGraph()
         self.triple_graph_tg = TripleGraph()
 
@@ -232,14 +265,21 @@ class CrossGraphCompletion(object):
         self.triples_tg, self.id2entity_tg, self.id2relation_tg, self.rules_tg = _load_languge(
             directory, self.language_pair['tg'])
 
+        # print_time_info(self.language_pair)
+        # print_time_info(len(self.rules_sr))
+        # print_time_info(len(self.rules_tg))
+        # return
         # completion_by_aligned_entities
         new_triple_confs_sr, new_triple_confs_tg = completion_by_aligned_entities(
             self.triples_sr, self.triples_tg, self.entity_seeds, self.relation_seeds)
         self.triples_sr += list(new_triple_confs_sr.keys())
         self.triples_tg += list(new_triple_confs_tg.keys())
-        self.new_triple_confs_sr = dict_union(self.new_triple_confs_sr, new_triple_confs_sr)
-        self.new_triple_confs_tg = dict_union(self.new_triple_confs_tg, new_triple_confs_tg)
-        self._print_result_log({'sr': new_triple_confs_sr, 'tg': new_triple_confs_tg}, 'completion_by_aligned_entities', 'triple')
+        self.new_triple_confs_sr = dict_union(
+            self.new_triple_confs_sr, new_triple_confs_sr)
+        self.new_triple_confs_tg = dict_union(
+            self.new_triple_confs_tg, new_triple_confs_tg)
+        self._print_result_log({'sr': new_triple_confs_sr, 'tg': new_triple_confs_tg},
+                               'completion_by_aligned_entities', 'triple')
 
         # rule transfer
         new_rules_sr, new_rules_tg = rule_transfer(
@@ -250,7 +290,14 @@ class CrossGraphCompletion(object):
         self.rules_trans2_tg += new_rules_tg
         bi_new_rules = {'sr': new_rules_sr, 'tg': new_rules_tg}
         self._print_result_log(bi_new_rules, 'rule_transfer', 'rule')
-        _print_new_rules(bi_new_rules, self.id2relation_sr, self.id2relation_tg)
+        _print_new_rules(bi_new_rules, self.id2relation_sr,
+                         self.id2relation_tg)
+
+        # get relation2conf
+        self.relation2conf_sr = get_relation2conf(self.rules_sr)
+        self.relation2conf_tg = get_relation2conf(self.rules_tg)
+        print_time_info('sr r2conf num: ' + len(self.relation2conf_sr) + ' average: ' + str(sum(self.relation2conf_sr.values())/len(self.relation2conf_sr)), print_error=True)
+        print_time_info('tg r2conf num: ' + len(self.relation2conf_tg) + ' average: ' + str(sum(self.relation2conf_tg.values())/len(self.relation2conf_tg)), print_error=True)
 
         # load triple into TripleGraph
         self.triple_graph_load(self.triples_sr, self.triples_tg)
@@ -260,11 +307,23 @@ class CrossGraphCompletion(object):
             self.triple_graph_sr, self.triple_graph_tg,  self.rules_sr, self.rules_tg)
         self.triples_sr += list(new_triple_confs_sr.keys())
         self.triples_tg += list(new_triple_confs_tg.keys())
-        self.new_triple_confs_sr = dict_union(self.new_triple_confs_sr, new_triple_confs_sr)
-        self.new_triple_confs_tg = dict_union(self.new_triple_confs_tg, new_triple_confs_tg)
-        bi_new_triple_confs = {'sr': new_triple_confs_sr, 'tg': new_triple_confs_tg}
-        self._print_result_log(bi_new_triple_confs, 'rule_based_graph_completion', 'triple')
-        _print_new_triple_confs(bi_new_triple_confs, self.id2entity_sr, self.id2entity_tg, self.id2relation_sr, self.id2relation_tg)
+        self.new_triple_confs_sr = dict_union(
+            self.new_triple_confs_sr, new_triple_confs_sr)
+        self.new_triple_confs_tg = dict_union(
+            self.new_triple_confs_tg, new_triple_confs_tg)
+        bi_new_triple_confs = {
+            'sr': new_triple_confs_sr, 'tg': new_triple_confs_tg}
+        self._print_result_log(bi_new_triple_confs,
+                               'rule_based_graph_completion', 'triple')
+        _print_new_triple_confs(bi_new_triple_confs, self.id2entity_sr,
+                                self.id2entity_tg, self.id2relation_sr, self.id2relation_tg)
+
+        # get relation2imp
+        self.relation2imp_sr = get_relation2imp(self.triples_sr, len(self.id2relation_sr))
+        self.relation2imp_tg = get_relation2imp(self.triples_tg, len(self.id2relation_tg))
+        print_time_info('sr r2imp num: ' + len(self.relation2imp_sr) + ' average: ' + str(sum(self.relation2imp_sr.values())/len(self.relation2imp_sr)), print_error=True)
+        print_time_info('tg r2imp num: ' + len(self.relation2imp_tg) + ' average: ' + str(sum(self.relation2imp_tg.values())/len(self.relation2imp_tg)), print_error=True)
+
 
     def triple_graph_load(self, triples_sr, triples_tg):
         self.triple_graph_sr.load(triples_sr)

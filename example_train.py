@@ -153,20 +153,9 @@ def main():
         # train()
 
 if __name__ == '__main__':
-    import torch.nn as nn
-    import torch
-    a = [[True, False], [False, True], [False, True]]
-    a = torch.tensor(a)
-    # b shape = [3, 2, 3]
-    b = torch.ones([3,2,3])
-    b[a] = 0
-    print(b)
-    exit()
     main()
+    exit()    
     
-    a = [(i,i+1) for i in range(10)]
-    print(list(zip(*a)))
-    exit()
     import numpy as np
     from scipy.optimize import linear_sum_assignment
     cost = np.array([[3, 2, 1, 0], [1, 3, 2, 0], [2, 1, 3, 0]])

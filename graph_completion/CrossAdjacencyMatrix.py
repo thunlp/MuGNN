@@ -12,7 +12,7 @@ from pprint import pprint
 def str2int4triples(triples):
     return [(int(head), int(tail), int(relation)) for head, tail, relation in triples]
 
-def np2torch_sp(indices, values, size):
+def torch_trans2sp(indices, values, size):
     '''
     size: in tuple
     '''
@@ -21,22 +21,28 @@ def np2torch_sp(indices, values, size):
 def build_adms_rconf_imp_pca(triples, new_triple_confs, num_entity, relation2conf, relation2imp):
     # the last dimension: (rel_conf, rel_imp, triple_pca)
     # print(num_entity)
-    sp_matrix = {1: {}, 2:{}, 3:{}}
+    sp_matrix = {0: {}, 1:{}, 2:{}}
     for triple in triples:
         head, tail, relation = triple
-        head, tail = int(head), int(tail)
-        sp_matrix[1][(head, tail)] = relation2imp[relation]
+        pos = (int(head), int(tail))
+        sp_matrix[1][pos] = relation2imp[relation]
         if triple in new_triple_confs:
-            sp_matrix[0][(head, tail)] = max(relation2conf[relation], sp_matrix[0][(head, tail)])
-            sp_matrix[2][(head, tail)] = max(new_triple_confs[triple], sp_matrix[2][(head, tail)])
+            if pos in sp_matrix[0]:
+                sp_matrix[0][pos] = max(relation2conf[relation], sp_matrix[0][pos])
+            else:
+                sp_matrix[0][pos] = relation2conf[relation]
+            if pos in sp_matrix[2]:
+                sp_matrix[2][pos] = max(new_triple_confs[triple], sp_matrix[2][pos])
+            else:
+                sp_matrix[2][pos] = new_triple_confs[triple]
         else:
-            sp_matrix[0][(head, tail)] = 1
-            sp_matrix[2][(head, tail)] = 1
+            sp_matrix[0][pos] = 1
+            sp_matrix[2][pos] = 1
     for key, sp_m in sp_matrix.items():
-        poses = np.asarray(list(zip(*sp_m.keys())), dtype=np.int64)
-        values = np.asarray(list(sp_m.values()), dtype=np.float)
+        poses = torch.from_numpy(np.asarray(list(zip(*sp_m.keys())), dtype=np.int64))
+        values = torch.from_numpy(np.asarray(list(sp_m.values()), dtype=np.float))
         assert len(values) == len(poses[0]) == len(poses[-1])
-        sp_matrix[key] = np2torch_sp(poses, values, [num_entity, num_entity])
+        sp_matrix[key] = torch_trans2sp(poses, values, [num_entity, num_entity])
     # print_time_info('The duplicate triple num: %d/%d.'%(i, len(triples)))
     return sp_matrix[0], sp_matrix[1], sp_matrix[2]
 
@@ -87,10 +93,6 @@ def relation_weighting(a, b):
     return r_sim_sr, r_sim_tg
 
 
-def build_transe_tv_matrix(triples, num_entity):
-    pass
-
-
 class CrossAdjacencyMatrix(nn.Module):
     def __init__(self, embedding_dim, cgc):
         '''
@@ -138,8 +140,8 @@ class CrossAdjacencyMatrix(nn.Module):
 
 
     def forward(self):
-        # relation_w_sr, relation_w_tg = relation_weighting(
-        #     self.relation_embedding_sr.weight, self.relation_embedding_tg.weight)
+        relation_w_sr, relation_w_tg = relation_weighting(
+            self.relation_embedding_sr.weight, self.relation_embedding_tg.weight)
         tv_sr, tv_tg = self._forward_transe_tv()
         print_time_info('finish')
 
@@ -151,6 +153,7 @@ class CrossAdjacencyMatrix(nn.Module):
             coordinates = torch.cat([pos_h.view(1, -1), pos_t.view(1, -1)], dim=0)
             print(coordinates.size())
             return score, coordinates
+
         h_sr = self.entity_embedding_sr(self.head_sr)
         h_tg = self.entity_embedding_tg(self.head_tg)
         t_sr = self.entity_embedding_sr(self.tail_sr)
@@ -159,8 +162,8 @@ class CrossAdjacencyMatrix(nn.Module):
         r_tg = self.relation_embedding_tg(self.relation_tg)
         score_sr, coordinates_sr = score_func(h_sr, t_sr, r_sr, self.head_sr, self.tail_sr)
         score_tg, coordinates_tg = score_func(h_tg, t_tg, r_tg, self.head_tg, self.tail_tg)
-        score_m_sr = torch.sparse.FloatTensor(coordinates_sr, score_sr, torch.Size([len(cgc.id2entity_sr), len(cgc.id2entity_sr)])).todense()
-        score_m_tg = torch.sparse.FloatTensor(coordinates_tg, score_tg, torch.Size([len(cgc.id2entity_tg), len(cgc.id2entity_tg)])).todense()
+        score_m_sr = torch_trans2sp(coordinates_sr, score_sr, [len(cgc.id2entity_sr)] * 2) # .todense()
+        score_m_tg = torch_trans2sp(coordinates_tg, score_tg, [len(cgc.id2entity_tg)] * 2) # .todense()
         return score_m_sr, score_m_tg
 
 

@@ -1,6 +1,6 @@
 import math
 from graph_completion.CrossGraphCompletion import CrossGraphCompletion
-
+from tools.print_time_info import print_time_info
 
 def get_relation2idf(triples, relations):
     triples_num = len(triples)
@@ -81,15 +81,15 @@ def train():
     language_pair_dirs = list(directory.glob('*_en'))
     embedding_dim = 100
 
-    cgc = CrossGraphCompletion(language_pair_dirs[0], train_seeds_ratio)
     # print(language_pair_dirs[0])
+    # cgc = CrossGraphCompletion(language_pair_dirs[0], train_seeds_ratio)
     # cgc.init()
     # cgc.save(language_pair_dirs[0] / 'running_temp')
     cgc = CrossGraphCompletion.restore(language_pair_dirs[0] / 'running_temp')
-
     cam = CrossAdjacencyMatrix(embedding_dim, cgc)
     cam = cam.to('cuda:1')
-    cam()
+    adjacency_matrix_sr, adjacency_matrix_tg = cam()
+
     exit()
 
     triples_sr = cgc.triples_sr

@@ -342,7 +342,7 @@ class CrossGraphCompletion(object):
         load_path = directory / 'cgc.pkl'
         with open(load_path, 'rb') as f:
             new_one = pickle.load(f)
-        print_time_info('Successfully load cgc from %s.'% load_path)
+        print_time_info('Successfully loaded cgc from %s.'% load_path)
         return new_one
 
     def _print_result_log(self, bi_new_triples, method, data_name='triple'):

@@ -4,31 +4,36 @@ import torch.nn.functional as F
 
 
 class GCN(nn.Module):
-    def __init__(self, input_dim, output_dim, dropout_rate=0.5, act_func=F.relu, bias=False,):
+    def __init__(self, input_dim, output_dim, dropout_rate=0.5, act_func=F.relu, bias=False):
         super(GCN, self).__init__()
         '''
         暂时忽略sparse情况
         todo: sparse input support to save memory
         '''
-        self.bias = bias
         self.act_func = act_func
-        self.dropout_rate = dropout_rate
-        self.weights = torch.zeros([input_dim, output_dim], requires_grad=True)
-        # nn.init.xavier_uniform_(self.weights.data)
-        if self.bias:
-            self.bias_weights = torch.zeros([output_dim], requires_grad=True)
-        if self.dropout_rate > 0:
+        self.weights = nn.Parameter(torch.FloatTensor([input_dim, output_dim]), requires_grad=True)
+        if bias:
+            self.bias = nn.Parameter(torch.FloatTensor([output_dim]), requires_grad=True)
+        else:
+            self.register_parameter('bias', None)
+
+        self.dropout = None
+        if dropout_rate > 0:
             self.dropout = nn.Dropout(p=self.dropout_rate)
+        self.init()
+
+    def init(self):
+        nn.init.xavier_uniform_(self.weights.data)
+        nn.init.xavier_uniform_(self.bias.data)
 
     def forward(self, inputs, adjacency_matrix):
         '''
         inputs: shape = [num_entity, embedding_dim]
         '''
-        if self.dropout_rate > 0:
+        if self.dropout:
             inputs = self.dropout(inputs)
-        outputs = torch.chain_matmul(adjacency_matrix, inputs, self.weights)
+        support = torch.mm(inputs, self.weights)
+        outputs = torch.spmm(adjacency_matrix, support)
         if self.bias:
-            bias = self.bias_weights.expand(
-                [1, self.bias_weights.size()[0]]).repeat([inputs.size()[0], 1])
-            outputs += bias
+            outputs += self.bias
         return outputs

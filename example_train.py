@@ -81,7 +81,6 @@ def train():
     language_pair_dirs = list(directory.glob('*_en'))
     embedding_dim = 100
 
-
     cgc = CrossGraphCompletion(language_pair_dirs[0], train_seeds_ratio)
     # print(language_pair_dirs[0])
     # cgc.init()

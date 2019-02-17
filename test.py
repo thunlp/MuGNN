@@ -34,7 +34,7 @@ def relaton_weighting(a, b):
     r_sim_sr = torch.gather(sim, -1, cols.view(-1, 1)).squeeze(1)
     cols, cols_index = cols.sort()
     rows = rows[cols_index]
-    r_sim_tg = torch.gather(sim.transpose(0, 1), -1, rows.view(-1, 1)).squeeze(1)
+    r_sim_tg = torch.gather(sim.t, -1, rows.view(-1, 1)).squeeze(1)
     
     if pad_len > 0:
         r_sim_sr = r_sim_sr[:-pad_len]
@@ -42,11 +42,10 @@ def relaton_weighting(a, b):
         r_sim_sr, r_sim_tg = r_sim_tg, r_sim_sr
     return r_sim_sr, r_sim_tg
 
-
 a = torch.tensor([[1.0, 2.0], [10, 1]])
 b = torch.tensor([[3.0, 4.0], [2.0, 3.0], [1.0, 2.0]])
 
-r_sim_sr, r_sim_tg = cal(a, b)
+r_sim_sr, r_sim_tg = relaton_weighting(a, b)
 
 print(r_sim_sr)
 print(r_sim_tg)

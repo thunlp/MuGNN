@@ -142,6 +142,7 @@ class CrossAdjacencyMatrix(nn.Module):
         def score_func(h, t, r, pos_h, pos_t):
             score = 1 - torch.norm(h + r - t, dim=1) / 3 / math.sqrt(self.embedding_dim)
             coordinates = torch.cat([pos_h.view(1, -1), pos_t.view(1, -1)], dim=0)
+            print(coordinates.size())
             return score, coordinates
         h_sr = self.entity_embedding_sr(self.head_sr)
         h_tg = self.entity_embedding_tg(self.head_tg)
@@ -151,8 +152,8 @@ class CrossAdjacencyMatrix(nn.Module):
         r_tg = self.relation_embedding_tg(self.relation_tg)
         score_sr, coordinates_sr = score_func(h_sr, t_sr, r_sr, self.head_sr, self.tail_sr)
         score_tg, coordinates_tg = score_func(h_tg, t_tg, r_tg, self.head_tg, self.tail_tg)
-        score_m_sr = torch.sparse.FloatTensor(coordinates_sr, score_sr, torch.Size([len(cgc.id2entity_sr), len(cgc.id2entity_sr)])) #.todense()
-        score_m_tg = torch.sparse.FloatTensor(coordinates_tg, score_tg, torch.Size([len(cgc.id2entity_tg), len(cgc.id2entity_tg)])) #.todense()
+        score_m_sr = torch.sparse.FloatTensor(coordinates_sr, score_sr, torch.Size([len(cgc.id2entity_sr), len(cgc.id2entity_sr)])).todense()
+        score_m_tg = torch.sparse.FloatTensor(coordinates_tg, score_tg, torch.Size([len(cgc.id2entity_tg), len(cgc.id2entity_tg)])).todense()
         return score_m_sr, score_m_tg
 
 

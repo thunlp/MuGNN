@@ -15,7 +15,11 @@ def g_func_template(a, b, c, d, e):
     all input: sparse tensor shape = [num_entity, num_entity]
     :return: sparse tensor shape = [num_entity, num_entity]
     '''
-    return a * b * (0.3*c + 0.3*d + 0.4*e)
+    result = a * b
+    result2 = 0.3 * c + 0.3 * d + 0.4 * e
+    return result * result2
+    # return a * b * (0.3*c + 0.3*d + 0.4*e)
+
 
 class CrossAdjacencyMatrix(nn.Module):
     def __init__(self, embedding_dim, cgc):
@@ -112,12 +116,13 @@ class CrossAdjacencyMatrix(nn.Module):
         return sp_score_sr, sp_score_tg
 
 
-
 def str2int4triples(triples):
     return [(int(head), int(tail), int(relation)) for head, tail, relation in triples]
 
+
 def torch_trans2sp(indices, values, size):
     return torch.sparse.FloatTensor(indices, values, size=torch.Size(size))
+
 
 def build_adms_rconf_imp_pca(triples, new_triple_confs, num_entity, relation2conf, relation2imp):
     # the last dimension: (rel_conf, rel_imp, triple_pca)

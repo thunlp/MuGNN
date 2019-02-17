@@ -11,29 +11,28 @@ class GCN(nn.Module):
         todo: sparse input support to save memory
         '''
         self.act_func = act_func
-        self.weights = nn.Parameter(torch.FloatTensor([input_dim, output_dim]), requires_grad=True)
+        self.weights = nn.Parameter(torch.zeros([input_dim, output_dim], dtype=torch.float), requires_grad=True)
         if bias:
-            self.bias = nn.Parameter(torch.FloatTensor([output_dim]), requires_grad=True)
+            self.bias = nn.Parameter(torch.zeros([output_dim], dtype=torch.float), requires_grad=True)
         else:
             self.register_parameter('bias', None)
 
         self.dropout = None
         if dropout_rate > 0:
-            self.dropout = nn.Dropout(p=self.dropout_rate)
+            self.dropout = nn.Dropout(p=dropout_rate)
         self.init()
 
     def init(self):
         nn.init.xavier_uniform_(self.weights.data)
-        nn.init.xavier_uniform_(self.bias.data)
 
     def forward(self, inputs, adjacency_matrix):
         '''
         inputs: shape = [num_entity, embedding_dim]
         '''
-        if self.dropout:
+        if self.dropout is not None:
             inputs = self.dropout(inputs)
         support = torch.mm(inputs, self.weights)
         outputs = torch.spmm(adjacency_matrix, support)
-        if self.bias:
+        if self.bias is not None:
             outputs += self.bias
         return outputs

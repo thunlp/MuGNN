@@ -10,15 +10,28 @@ from tools.timeit import timeit
 from pprint import pprint
 
 
+def normalize_adj(adj):
+    """Symmetrically normalize adjacency matrix."""
+    # format transform
+    adj = sp.coo_matrix(adj)
+
+    # norm
+    rowsum = torch.sum(adj, 1)
+    rowsum = torch.pow()
+
+    rowsum = np.array(adj.sum(1))
+    d_inv_sqrt = np.power(rowsum, -0.5).flatten()
+    d_inv_sqrt[np.isinf(d_inv_sqrt)] = 0.
+    d_mat_inv_sqrt = sp.diags(d_inv_sqrt)
+    return adj.dot(d_mat_inv_sqrt).transpose().dot(d_mat_inv_sqrt).tocoo()
+
+
 def g_func_template(a, b, c, d, e):
     '''
     all input: sparse tensor shape = [num_entity, num_entity]
     :return: sparse tensor shape = [num_entity, num_entity]
     '''
-    result = a * b
-    result2 = 0.3 * c + 0.3 * d + 0.4 * e
-    return result * result2
-    # return a * b * (0.3*c + 0.3*d + 0.4*e)
+    return a * b * (0.3*c + 0.3*d + 0.4*e)
 
 
 class CrossAdjacencyMatrix(nn.Module):
@@ -145,8 +158,8 @@ def build_adms_rconf_imp_pca(triples, new_triple_confs, num_entity, relation2con
             sp_matrix[0][pos] = 1
             sp_matrix[2][pos] = 1
     for key, sp_m in sp_matrix.items():
-        poses = torch.from_numpy(np.asarray(list(zip(*sp_m.keys())), dtype=np.int64))
-        values = torch.from_numpy(np.asarray(list(sp_m.values()), dtype=np.float))
+        poses = torch.from_numpy(np.asarray(list(zip(*sp_m.keys())), dtype=np.int))
+        values = torch.from_numpy(np.asarray(list(sp_m.values()), dtype=np.float32))
         assert len(values) == len(poses[0]) == len(poses[-1])
         sp_matrix[key] = torch_trans2sp(poses, values, [num_entity, num_entity])
     # print_time_info('The duplicate triple num: %d/%d.'%(i, len(triples)))

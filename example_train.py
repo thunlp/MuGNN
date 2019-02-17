@@ -73,7 +73,7 @@ def train():
     import torch.nn as nn
     import torch.nn.functional as F
     from graph_completion.GCN import GCN
-    from graph_completion.CrossAdjacencyMatrix import builf_cross_adjacency_matrix
+    from graph_completion.CrossAdjacencyMatrix import CrossAdjacencyMatrix
 
     from project_path import bin_dir
     train_seeds_ratio = 0.3
@@ -88,7 +88,8 @@ def train():
     # cgc.save(language_pair_dirs[0] / 'running_temp')
     cgc = CrossGraphCompletion.restore(language_pair_dirs[0] / 'running_temp')
 
-    builf_cross_adjacency_matrix(cgc)
+    cam = CrossAdjacencyMatrix(embedding_dim, cgc)
+    cam.builf_cross_adjacency_matrix()
     exit()
 
     triples_sr = cgc.triples_sr
@@ -106,9 +107,9 @@ def train():
     
     # calcuate the adjacency matrix
     entity_embedding_sr = nn.Embedding(len(cgc.id2entity_sr), embedding_dim)
-    relation_embedding_sr = nn.Embedding(len(cgc.id2relation_sr), embedding_dim)
+    relation_embedding_sr = nn.Embedding(len(cgc.id2relation_sr) + 1, embedding_dim, padding_idx=-1) # + 1 relation for padding
     entity_embedding_tg = nn.Embedding(len(cgc.id2entity_tg), embedding_dim)
-    relation_embedding_tg = nn.Embedding(len(cgc.id2relation_tg), embedding_dim)
+    relation_embedding_tg = nn.Embedding(len(cgc.id2relation_tg) + 1, embedding_dim, padding_idx=-1) # + 1 relation for padding
     nn.init.xavier_uniform_(entity_embedding_sr)
     nn.init.xavier_uniform_(relation_embedding_sr)
     nn.init.xavier_uniform_(entity_embedding_tg)

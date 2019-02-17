@@ -42,10 +42,22 @@ def relaton_weighting(a, b):
         r_sim_sr, r_sim_tg = r_sim_tg, r_sim_sr
     return r_sim_sr, r_sim_tg
 
-a = torch.tensor([[1.0, 2.0], [10, 1]])
-b = torch.tensor([[3.0, 4.0], [2.0, 3.0], [1.0, 2.0]])
 
-r_sim_sr, r_sim_tg = relaton_weighting(a, b)
+a = [[1, 2], [3, 4], [5, 6]]
+a, b = torch.from_numpy(np.asarray(list(zip(*a))))
+print(a)
+print(b)
 
-print(r_sim_sr)
-print(r_sim_tg)
+exit()
+a = torch.tensor([[1.0, 2.0], [10, 1]], requires_grad=True)
+
+print(a.t())
+exit()
+a = a.detach()
+print(a.requires_grad)
+# b = torch.tensor([[3.0, 4.0], [2.0, 3.0], [1.0, 2.0]])
+
+# r_sim_sr, r_sim_tg = relaton_weighting(a, b)
+
+# print(r_sim_sr)
+# print(r_sim_tg)

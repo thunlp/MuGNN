@@ -88,7 +88,8 @@ def train():
     cgc = CrossGraphCompletion.restore(language_pair_dirs[0] / 'running_temp')
 
     cam = CrossAdjacencyMatrix(embedding_dim, cgc)
-    cam.builf_cross_adjacency_matrix()
+    cam = cam.to('cuda:1')
+    cam()
     exit()
 
     triples_sr = cgc.triples_sr

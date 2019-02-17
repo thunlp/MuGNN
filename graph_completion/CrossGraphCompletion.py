@@ -15,7 +15,7 @@ def dict_union(dict1, dict2):
 
 def _check(ori, new, num):
     if len(ori) != len(new):
-        print_time_info('Check failed %d.' % num, print_error=True)
+        print_time_info('Check failed %d.' % num, dash_top=True)
         raise ValueError()
 
 
@@ -55,7 +55,7 @@ def print_rule(rule, id2relation):
 
 def _print_new_rules(bi_new_rules, id2relation_sr, id2relation_tg):
     for language, rules in bi_new_rules.items():
-        print_time_info(language, print_error=True)
+        print_time_info(language, dash_top=True)
         for rule in random.choices(rules, k=10):
             if language == 'sr':
                 print_rule(rule, id2relation_sr)
@@ -65,7 +65,7 @@ def _print_new_rules(bi_new_rules, id2relation_sr, id2relation_tg):
 
 def _print_new_triple_confs(bi_new_triple_confs, id2entity_sr, id2entity_tg, id2relation_sr, id2relation_tg):
     for language, triple_confs in bi_new_triple_confs.items():
-        print_time_info(language, print_error=True)
+        print_time_info(language, dash_top=True)
         for triple in random.choices(list(triple_confs.keys()), k=10):
             conf = triple_confs[triple]
             if language == 'sr':
@@ -172,10 +172,10 @@ def completion_by_aligned_entities(triples_sr, triples_tg, entity_seeds, relatio
     *_seeds: [(sr_id, tg_id)...]
     '''
     if not isinstance(triples_sr, list):
-        print_time_info('sssssssssssss', print_error=True)
+        print_time_info('sssssssssssss', dash_top=True)
         raise ValueError()
     if not isinstance(triples_tg, list):
-        print_time_info('sssssssssssss', print_error=True)
+        print_time_info('sssssssssssss', dash_top=True)
         raise ValueError()
 
     def _completion_by_aligned_entities(from_triples, to_triples, e2e, r2r):
@@ -297,8 +297,8 @@ class CrossGraphCompletion(object):
         # get relation2conf
         self.relation2conf_sr = get_relation2conf(self.rules_sr)
         self.relation2conf_tg = get_relation2conf(self.rules_tg)
-        print_time_info('sr r2conf num: ' + str(len(self.relation2conf_sr)) + ' average: ' + str(sum(self.relation2conf_sr.values())/len(self.relation2conf_sr)), print_error=True)
-        print_time_info('tg r2conf num: ' + str(len(self.relation2conf_tg)) + ' average: ' + str(sum(self.relation2conf_tg.values())/len(self.relation2conf_tg)), print_error=True)
+        print_time_info('sr r2conf num: ' + str(len(self.relation2conf_sr)) + ' average: ' + str(sum(self.relation2conf_sr.values())/len(self.relation2conf_sr)), dash_top=True)
+        print_time_info('tg r2conf num: ' + str(len(self.relation2conf_tg)) + ' average: ' + str(sum(self.relation2conf_tg.values())/len(self.relation2conf_tg)), dash_top=True)
 
         # load triple into TripleGraph
         self.triple_graph_load(self.triples_sr, self.triples_tg)
@@ -322,8 +322,8 @@ class CrossGraphCompletion(object):
         # get relation2imp
         self.relation2imp_sr = get_relation2imp(self.triples_sr, len(self.id2relation_sr))
         self.relation2imp_tg = get_relation2imp(self.triples_tg, len(self.id2relation_tg))
-        print_time_info('sr r2imp num: ' + str(len(self.relation2imp_sr)) + ' average: ' + str(sum(self.relation2imp_sr.values())/len(self.relation2imp_sr)), print_error=True)
-        print_time_info('tg r2imp num: ' + str(len(self.relation2imp_tg)) + ' average: ' + str(sum(self.relation2imp_tg.values())/len(self.relation2imp_tg)), print_error=True)
+        print_time_info('sr r2imp num: ' + str(len(self.relation2imp_sr)) + ' average: ' + str(sum(self.relation2imp_sr.values())/len(self.relation2imp_sr)), dash_top=True)
+        print_time_info('tg r2imp num: ' + str(len(self.relation2imp_tg)) + ' average: ' + str(sum(self.relation2imp_tg.values())/len(self.relation2imp_tg)), dash_top=True)
 
     def triple_graph_load(self, triples_sr, triples_tg):
         self.triple_graph_sr.load(triples_sr)

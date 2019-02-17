@@ -43,7 +43,11 @@ def relaton_weighting(a, b):
     return r_sim_sr, r_sim_tg
 
 
-a = [[1, 2], [3, 4], [5, 6]]
+a = torch.from_numpy(np.asarray([[1, 2, 3], [0, 1, 2]], dtype=np.int64))
+b = torch.from_numpy(np.asarray([2, 3, 4]))
+c = torch.sparse.FloatTensor(a, b)
+print(c)
+exit()
 a, b = torch.from_numpy(np.asarray(list(zip(*a))))
 print(a)
 print(b)

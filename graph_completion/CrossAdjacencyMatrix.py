@@ -12,24 +12,33 @@ from pprint import pprint
 def str2int4triples(triples):
     return [(int(head), int(tail), int(relation)) for head, tail, relation in triples]
 
+def np2torch_sp(indices, values, size):
+    '''
+    size: in tuple
+    '''
+    return torch.sparse.FloatTensor(indices, values, size=torch.Size(size))
+
 def build_adms_rconf_imp_pca(triples, new_triple_confs, num_entity, relation2conf, relation2imp):
-    # the last dimension: (relation_conf, rel_imp, pca_conf)
+    # the last dimension: (rel_conf, rel_imp, triple_pca)
     # print(num_entity)
-    matrix = np.zeros([num_entity, num_entity, 3], dtype=np.float)
+    sp_matrix = {1: {}, 2:{}, 3:{}}
     for triple in triples:
         head, tail, relation = triple
         head, tail = int(head), int(tail)
-        matrix[head, tail][1] = relation2imp[relation]
+        sp_matrix[1][(head, tail)] = relation2imp[relation]
         if triple in new_triple_confs:
-            matrix[head, tail][0] = max(
-                relation2conf[relation], matrix[head, tail][0])
-            matrix[head, tail][2] = max(
-                new_triple_confs[triple], matrix[head, tail][2])
+            sp_matrix[0][(head, tail)] = max(relation2conf[relation], sp_matrix[0][(head, tail)])
+            sp_matrix[2][(head, tail)] = max(new_triple_confs[triple], sp_matrix[2][(head, tail)])
         else:
-            matrix[head, tail][0] = 1
-            matrix[head, tail][2] = 1
+            sp_matrix[0][(head, tail)] = 1
+            sp_matrix[2][(head, tail)] = 1
+    for key, sp_m in sp_matrix.items():
+        poses = np.asarray(list(zip(*sp_m.keys())), dtype=np.int64)
+        values = np.asarray(list(sp_m.values()), dtype=np.float)
+        assert len(values) == len(poses[0]) == len(poses[-1])
+        sp_matrix[key] = np2torch_sp(poses, values, [num_entity, num_entity])
     # print_time_info('The duplicate triple num: %d/%d.'%(i, len(triples)))
-    return matrix
+    return sp_matrix[0], sp_matrix[1], sp_matrix[2]
 
 
 # att(r, r'): relation, shape = [num_relation,]
@@ -98,36 +107,34 @@ class CrossAdjacencyMatrix(nn.Module):
         nn.init.xavier_uniform_(self.entity_embedding_tg.weight.data)
         nn.init.xavier_uniform_(self.relation_embedding_sr.weight.data)
         nn.init.xavier_uniform_(self.relation_embedding_tg.weight.data)
+        
+        self.init_constant_part()
+        
 
+    def init_constant_part(self):
+        cgc = self.cgc
         # for the transe
-        self.head_sr, self.tail_sr, self.relation_sr = torch.from_numpy(np.asarray(
+        head_sr, tail_sr, relation_sr = torch.from_numpy(np.asarray(
             list(zip(*str2int4triples(cgc.triples_sr)))))
-        self.head_tg, self.tail_tg, self.relation_tg = torch.from_numpy(np.asarray(
+        head_tg, tail_tg, relation_tg = torch.from_numpy(np.asarray(
             list(zip(*str2int4triples(cgc.triples_tg)))))
-        self.head_sr = nn.Parameter(self.head_sr, requires_grad=False)
-        self.head_tg = nn.Parameter(self.head_tg, requires_grad=False)
-        self.tail_sr = nn.Parameter(self.tail_sr, requires_grad=False)
-        self.tail_tg = nn.Parameter(self.tail_tg, requires_grad=False)
-        self.relation_sr = nn.Parameter(self.relation_sr, requires_grad=False)
-        self.relation_tg = nn.Parameter(self.relation_tg, requires_grad=False)
+        self.head_sr = nn.Parameter(head_sr, requires_grad=False)
+        self.head_tg = nn.Parameter(head_tg, requires_grad=False)
+        self.tail_sr = nn.Parameter(tail_sr, requires_grad=False)
+        self.tail_tg = nn.Parameter(tail_tg, requires_grad=False)
+        self.relation_sr = nn.Parameter(relation_sr, requires_grad=False)
+        self.relation_tg = nn.Parameter(relation_tg, requires_grad=False)
 
         # part of the matrix
-        # self.ad_constant_matrix_sr = nn.Parameter(torch.from_numpy(build_adms_rconf_imp_pca(cgc.triples_sr, cgc.new_triple_confs_sr, len(
-        #     cgc.id2entity_sr), cgc.relation2conf_sr, cgc.relation2imp_sr)), requires_grad=False)
-        # self.ad_constant_matrix_tg = nn.Parameter(torch.from_numpy(build_adms_rconf_imp_pca(cgc.triples_tg, cgc.new_triple_confs_tg, len(
-        #     cgc.id2entity_tg), cgc.relation2conf_tg, cgc.relation2imp_tg)), requires_grad=False)
-
-        # torch
-        # self.head_sr = torch.from_numpy(self.head_sr)
-        # self.head_tg = torch.from_numpy(self.head_tg)
-        # self.tail_sr = torch.from_numpy(self.tail_sr)
-        # self.tail_tg = torch.from_numpy(self.tail_tg)
-        # self.relation_sr = torch.from_numpy(self.relation_sr)
-        # self.relation_tg = torch.from_numpy(self.relation_tg)
-        # self.ad_constant_matrix_sr = torch.from_numpy(
-        #     self.ad_constant_matrix_sr)
-        # self.ad_constant_matrix_tg = torch.from_numpy(
-        #     self.ad_constant_matrix_tg)
+        sp_rel_conf_sr, sp_rel_imp_sr, sp_triple_pca_sr = build_adms_rconf_imp_pca(cgc.triples_sr, cgc.new_triple_confs_sr, len(cgc.id2entity_sr), cgc.relation2conf_sr, cgc.relation2imp_sr)
+        # self.ad_constant_matrix_sr = nn.Parameter(torch.from_numpy(
+        sp_rel_conf_tg, sp_rel_imp_tg, sp_triple_pca_tg = build_adms_rconf_imp_pca(cgc.triples_tg, cgc.new_triple_confs_tg, len(cgc.id2entity_tg), cgc.relation2conf_tg, cgc.relation2imp_tg)
+        self.sp_rel_conf_sr = nn.Parameter(sp_rel_conf_sr, requires_grad=False)
+        self.sp_rel_conf_tg = nn.Parameter(sp_rel_conf_tg, requires_grad=False)
+        self.sp_rel_imp_sr = nn.Parameter(sp_rel_imp_sr, requires_grad=False)
+        self.sp_rel_imp_tg = nn.Parameter(sp_rel_imp_tg, requires_grad=False)
+        self.sp_triple_pca_sr = nn.Parameter(sp_triple_pca_sr, requires_grad=False)
+        self.sp_triple_pca_tg = nn.Parameter(sp_triple_pca_tg, requires_grad=False)
 
 
     def forward(self):

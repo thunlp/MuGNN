@@ -3,6 +3,7 @@ import math
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
+import scipy.sparse as sp
 from scipy.optimize import linear_sum_assignment
 from graph_completion.CrossGraphCompletion import CrossGraphCompletion
 from tools.print_time_info import print_time_info
@@ -33,6 +34,10 @@ def g_func_template(a, b, c, d, e):
     '''
     return a * b * (0.3*c + 0.3*d + 0.4*e)
 
+def get_sparse_unit_matrix(size):
+    values = torch.from_numpy(np.ones([size], dtype=np.float32))
+    poses = torch.from_numpy(np.asarray([[i for i in range(size)] for _ in range(2)]))
+    return torch_trans2sp(poses, values, (size, size))
 
 class CrossAdjacencyMatrix(nn.Module):
     def __init__(self, embedding_dim, cgc):
@@ -92,6 +97,11 @@ class CrossAdjacencyMatrix(nn.Module):
         self.sp_triple_pca_sr = nn.Parameter(sp_triple_pca_sr, requires_grad=False)
         self.sp_triple_pca_tg = nn.Parameter(sp_triple_pca_tg, requires_grad=False)
 
+        unit_matrix_sr = get_sparse_unit_matrix(self.entity_num_sr)
+        unit_matrix_tg = get_sparse_unit_matrix(self.entity_num_tg)
+        self.unit_matrix_sr = nn.Parameter(unit_matrix_sr, requires_grad=False)
+        self.unit_matrix_tg = nn.Parameter(unit_matrix_tg, requires_grad=False)
+
     def forward(self, g_func=g_func_template):
         relation_w_sr, relation_w_tg = relation_weighting(
             self.relation_embedding_sr.weight, self.relation_embedding_tg.weight)
@@ -101,9 +111,8 @@ class CrossAdjacencyMatrix(nn.Module):
                                      sp_rel_att_sr)
         adjacency_matrix_tg = g_func(self.sp_rel_conf_tg, self.sp_rel_imp_tg, self.sp_triple_pca_tg, sp_tv_tg,
                                      sp_rel_att_tg)
-        print_time_info(adjacency_matrix_sr.size())
-        print_time_info(adjacency_matrix_tg.size())
-        return adjacency_matrix_sr, adjacency_matrix_tg
+
+        return adjacency_matrix_sr + self.unit_matrix_sr, adjacency_matrix_tg + self.unit_matrix_tg
 
     def _forward_relation(self, relation_w_sr, relation_w_tg):
         rel_att_sr = F.embedding(self.relation_sr, relation_w_sr)  # sparse support

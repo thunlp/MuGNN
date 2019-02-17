@@ -39,8 +39,8 @@ def train():
         for i in range(num_layer):
             graph_embedding_sr = id2gcn[i](graph_embedding_sr, adjacency_matrix_sr)
             graph_embedding_tg = id2gcn[i](graph_embedding_tg, adjacency_matrix_tg)
-            print_time_info('graph_embedding_sr size:', graph_embeding_sr.size())
-            print_time_info('graph_embedding_tg size:', graph_embeding_tg.size())
+            print_time_info('graph_embedding_sr size:' + str(graph_embedding_sr.size()))
+            print_time_info('graph_embedding_tg size:' + str(graph_embedding_tg.size()))
 
 
 def main():

@@ -107,6 +107,9 @@ def cosine_similarity_nbyn(a, b):
     b = b / (b.norm(dim=-1, keepdim=True) + 1e-8)
     return torch.mm(a, b.transpose(0, 1))
 
+def l1_norm(a,b):
+    return torch.mean(torch.abs(a - b), dim=-1)
+
 def get_hits(sr_embedding, tg_embedding, top_k=(1, 10, 50, 100)):
     test_num = len(sr_embedding)
     Lvec = sr_embedding

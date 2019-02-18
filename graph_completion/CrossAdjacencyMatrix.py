@@ -71,10 +71,8 @@ class CrossAdjacencyMatrix(nn.Module):
         self.tail_tg = nn.Parameter(tail_tg, requires_grad=False)
         self.relation_sr = nn.Parameter(relation_sr, requires_grad=False)
         self.relation_tg = nn.Parameter(relation_tg, requires_grad=False)
-        self.pos_sr = nn.Parameter(torch.cat([self.head_sr.view(1, -1), self.tail_sr.view(1, -1)], dim=0),
-                                   requires_grad=False)
-        self.pos_tg = nn.Parameter(torch.cat([self.head_tg.view(1, -1), self.tail_tg.view(1, -1)], dim=0),
-                                   requires_grad=False)
+        self.pos_sr = nn.Parameter(torch.cat([self.head_sr.view(1, -1), self.tail_sr.view(1, -1)], dim=0))
+        self.pos_tg = nn.Parameter(torch.cat([self.head_tg.view(1, -1), self.tail_tg.view(1, -1)], dim=0))
 
         # part of the matrix
         sp_rel_conf_sr, sp_rel_imp_sr, sp_triple_pca_sr = build_adms_rconf_imp_pca(cgc.triples_sr,
@@ -109,7 +107,6 @@ class CrossAdjacencyMatrix(nn.Module):
                                      sp_rel_att_sr)
         adjacency_matrix_tg = g_func(self.sp_rel_conf_tg, self.sp_rel_imp_tg, self.sp_triple_pca_tg, sp_tv_tg,
                                      sp_rel_att_tg)
-
         return adjacency_matrix_sr + self.unit_matrix_sr, adjacency_matrix_tg + self.unit_matrix_tg
 
     def _forward_relation(self, relation_w_sr, relation_w_tg):
@@ -120,8 +117,9 @@ class CrossAdjacencyMatrix(nn.Module):
         return sp_rel_att_sr, sp_rel_att_tg
 
     def _forward_transe_tv(self):
+        # 这里是optimize到不了的
         def _score_func(h, t, r):
-            return 1 - torch.norm(h + r - t, dim=1) / 3 / math.sqrt(self.embedding_dim)
+            return 1 - torch.norm(h + r - t, p=1, dim=-1) / 3 / math.sqrt(self.embedding_dim)
 
         h_sr = self.entity_embedding_sr(self.head_sr)
         h_tg = self.entity_embedding_tg(self.head_tg)
@@ -133,6 +131,8 @@ class CrossAdjacencyMatrix(nn.Module):
         score_tg = _score_func(h_tg, t_tg, r_tg)
         sp_score_sr = torch_trans2sp(self.pos_sr, score_sr, [self.entity_num_sr] * 2)  # .todense()
         sp_score_tg = torch_trans2sp(self.pos_tg, score_tg, [self.entity_num_tg] * 2)  # .todense()
+        print('--------', sp_score_sr.requires_grad)
+        sp_score_sr.register_hook(lambda x: print('---------' + str(torch.isnan(x).sum())))
         return sp_score_sr, sp_score_tg
 
 

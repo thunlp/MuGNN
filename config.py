@@ -29,7 +29,7 @@ class Config(object):
         self.nega_sample_num = 24  # number of negative samples for each positive one
 
         # hyper parameter
-        self.beta = 0.3  # ratio of relation loss
+        self.beta = 0.01  # ratio of relation loss
         self.dropout_rate = 0.5
         self.entity_gamma = 3.0  # margin for entity loss
         self.relation_gamma = 3.0  # margin for relation loss
@@ -62,7 +62,7 @@ class Config(object):
             self.gcn.cuda()
         # for name, param in gcn.named_parameters():
         #     print(name, param.requires_grad)
-        optimizer = optim.Adam(self.gcn.parameters(), lr=0.01)
+        optimizer = optim.SGD(self.gcn.parameters(), lr=25.0)
         criterion_entity = GCNAlignLoss(self.entity_gamma, cuda=self.is_cuda)
         criterion_relation = GCNAlignLoss(self.relation_gamma, re_scale=self.beta, cuda=self.is_cuda)
         if self.is_cuda:
@@ -75,7 +75,7 @@ class Config(object):
             print_time_info('Epoch: %d started!' % (epoch))
             self.gcn.train()
             for i_batch, batch in enumerate(entity_seeds):
-                optimizer.zero_grad()
+                # optimizer.zero_grad()
                 sr_data, tg_data = batch
                 if self.is_cuda:
                     sr_data, tg_data = sr_data.cuda(), tg_data.cuda()
@@ -87,8 +87,12 @@ class Config(object):
                 if self.is_cuda:
                     sr_rel_data, tg_rel_data = sr_rel_data.cuda(), tg_rel_data.cuda()
                 repre_e_sr, repre_e_tg, repre_r_sr, repre_r_tg = self.gcn(sr_data, tg_data, sr_rel_data, tg_rel_data)
+                print('repre_e_sr:', torch.isnan(repre_e_sr).sum())
+                print('repre_e_tg:', torch.isnan(repre_e_tg).sum())
                 entity_loss = criterion_entity(repre_e_sr, repre_e_tg)
                 relation_loss = criterion_relation(repre_r_sr, repre_r_tg)
+                print('entity',torch.isnan(entity_loss).sum())
+                # print('relation',torch.isnan(relation_loss).sum())
                 loss = sum([entity_loss, relation_loss])
                 loss.backward()
                 optimizer.step()
@@ -100,6 +104,7 @@ class Config(object):
     @timeit
     def evaluate(self):
         self.gcn.eval()
+        print('Training: ' + str(self.gcn.training))
         sr_data, tg_data = list(zip(*self.cgc.test_entity_seeds))
         sr_data = [int(ele) for ele in sr_data]
         tg_data = [int(ele) for ele in tg_data]

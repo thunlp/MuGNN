@@ -17,13 +17,12 @@ class GCN(nn.Module):
 
     def forward(self, sr_data, tg_data, sr_rel_data, tg_rel_data):
         adjacency_matrix_sr, adjacency_matrix_tg = self.cam()
+
         rel_embedding_sr, rel_embedding_tg = self.cam.relation_embedding_sr, self.cam.relation_embedding_tg
         graph_embedding_sr, graph_embedding_tg = self.cam.entity_embedding_sr.weight, self.cam.entity_embedding_tg.weight
-
         for gcn in self.gcn_list:
             graph_embedding_sr = gcn(graph_embedding_sr, adjacency_matrix_sr)
             graph_embedding_tg = gcn(graph_embedding_tg, adjacency_matrix_tg)
-
         repre_e_sr = F.embedding(sr_data, graph_embedding_sr)
         repre_e_tg = F.embedding(tg_data, graph_embedding_tg)
         repre_r_sr = rel_embedding_sr(sr_rel_data)

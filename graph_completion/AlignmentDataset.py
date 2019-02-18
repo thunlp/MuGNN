@@ -11,6 +11,7 @@ class AliagnmentDataset(Dataset):
         assert nega_sample_num % 2 == 0
         seeds = np.asarray([[int(sr), int(tg)] for sr, tg in seeds])
         self.positive_num = len(seeds)
+        self.nega_sample_num = nega_sample_num
         self.seeds = np.tile(seeds, (nega_sample_num + 1, 1))
         self.num_sr = num_sr
         self.num_tg = num_tg
@@ -23,12 +24,18 @@ class AliagnmentDataset(Dataset):
     def __getitem__(self, idx):
         sr, tg = self.seeds[idx]
         if idx < self.positive_num:
-            return torch.tensor(sr, dtype=torch.int), torch.tensor(tg, dtype=torch.int), torch.tensor(1, dtype=torch.int)
+            return torch.tensor(sr, dtype=torch.int), torch.tensor(tg, dtype=torch.int), torch.tensor(self.nega_sample_num, dtype=torch.int)
         if idx < self.s_index:
-            sr = random.randint(0, self.num_sr)
+            nega_sr = random.randint(0, self.num_sr)
+            while nega_sr == sr:
+                nega_sr = random.randint(0, self.num_sr)
+            sr = nega_sr
         else:
-            tg = random.randint(0, self.num_tg)
-        return torch.tensor(sr, dtype=torch.int), torch.tensor(tg, dtype=torch.int), torch.tensor(0, dtype=torch.int)
+            nega_tg = random.randint(0, self.num_tg)
+            while nega_tg == tg:
+                nega_tg = random.randint(0, self.num_tg)
+            tg = nega_tg
+        return torch.tensor(sr, dtype=torch.int), torch.tensor(tg, dtype=torch.int), torch.tensor(-1, dtype=torch.int)
 
 
 if __name__ == '__main__':
@@ -40,7 +47,15 @@ if __name__ == '__main__':
     entity_tg = read_mapping(directory / 'entity2id_en.txt')
     ad = AliagnmentDataset(seeds, 24,
                            len(entity_sr), len(entity_tg))
-    ad_loader = DataLoader(ad, batch_size=4, shuffle=True, num_workers=4)
-    for i, bach in enumerate(ad_loader):
-        print(i)
-        print(bach)
+    ad_loader = DataLoader(ad, batch_size=640, shuffle=True, num_workers=4)
+    iteriter = iter(ad_loader)
+    i = 0
+    while True:
+        try:
+            a = next(iteriter)
+            print('1')
+        except StopIteration:
+            iteriter = iter(ad_loader)
+            a = next(iteriter)
+            print('2')
+            input('')

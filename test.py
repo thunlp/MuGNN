@@ -1,16 +1,41 @@
 import torch
+import torch.nn.functional as F
+from torch.nn.functional import hinge_embedding_loss
 import scipy.sparse as sp
+from torch.nn.modules.loss import HingeEmbeddingLoss
 
 
-a = torch.tensor([[1, 2, 3], [2, 3, 4], [3, 4, 5]], dtype=torch.float)
-b = torch.tensor([[2, 2, 0], [3, 1, 2], [12, 7, 8]], dtype=torch.float)
-c = torch.tensor([2, -1, -1], dtype=torch.float)
 
-def cal_loss(repre_sr, repre_tg, labels):
-    print(torch.abs(repre_sr - repre_tg))
-    print(torch.sum(torch.abs(repre_sr - repre_tg), dim=1))
-    loss = torch.sum(torch.abs(repre_sr - repre_tg), dim=1) * labels
-    print(loss)
-    return loss
+a = torch.tensor([[[1, 2, 3], [2, 3, 4], [3, 4, 5]], ], dtype=torch.float)
+b = torch.tensor([[[2, 2, 0], [3, 1, 2], [10, 2, 12]], ], dtype=torch.float)
 
-loss = cal_loss(a, b, c)
+
+def cal_loss(repre_sr, repre_tg, gamma):
+    '''
+    repre shape: [batch_size, 1+nega_sample_num, embedding_dim]
+    '''
+    score = torch.sum(torch.abs(repre_sr - repre_tg), dim=-1)
+    pos_score = score[:, :1]
+    nega_score = score[:, 1:]
+    losses = F.relu(pos_score - nega_score + gamma)
+    return torch.mean(losses, dim=1)
+    # print(pos_score)
+    # print(nega_score)
+    # print(score)
+    # print(loss)
+    # return loss
+
+loss = cal_loss(a, b, 3)
+
+
+def cal_loss(repre_sr, repre_tg, gamma):
+    '''
+    repre shape: [batch_size, 1+nega_sample_num, embedding_dim]
+    '''
+    score = torch.sum(torch.abs(repre_sr - repre_tg), dim=-1)
+    pos_score = score[:, :1]
+    nega_score = score[:, 1:]
+    loss = pos_score - nega_score + gamma
+    loss = F.relu(loss)
+    # print(loss)
+    return torch.mean(loss, dim=1)

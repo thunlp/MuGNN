@@ -1,38 +1,27 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from graph_completion.GraphConvolution import GraphConvolution
+from graph_completion.CrossAdjacencyMatrix import CrossAdjacencyMatrix
+from graph_completion.CrossGraphCompletion import CrossGraphCompletion
 
 
 class GCN(nn.Module):
-    def __init__(self, input_dim, output_dim, dropout_rate=0.5, act_func=F.relu, bias=False):
+    def __init__(self, cgc, num_layer, embedding_dim, dropout_rate=0.5, act_func=F.relu, bias=False):
         super(GCN, self).__init__()
-        '''
-        暂时忽略sparse情况
-        todo: sparse input support to save memory
-        '''
-        self.act_func = act_func
-        self.weights = nn.Parameter(torch.zeros([input_dim, output_dim], dtype=torch.float), requires_grad=True)
-        if bias:
-            self.bias = nn.Parameter(torch.zeros([output_dim], dtype=torch.float), requires_grad=True)
-        else:
-            self.register_parameter('bias', None)
+        assert isinstance(cgc, CrossGraphCompletion)
+        self.cam = CrossAdjacencyMatrix(embedding_dim, cgc)
+        self.gcn_seq = nn.Sequential(
+            *[GraphConvolution(embedding_dim, embedding_dim, dropout_rate, act_func, bias) for _ in range(num_layer)])
 
-        self.dropout = None
-        if dropout_rate > 0:
-            self.dropout = nn.Dropout(p=dropout_rate)
-        self.init()
-
-    def init(self):
-        nn.init.xavier_uniform_(self.weights.data)
-
-    def forward(self, inputs, adjacency_matrix):
-        '''
-        inputs: shape = [num_entity, embedding_dim]
-        '''
-        if self.dropout is not None:
-            inputs = self.dropout(inputs)
-        support = torch.mm(inputs, self.weights)
-        outputs = torch.spmm(adjacency_matrix, support)
-        if self.bias is not None:
-            outputs += self.bias
-        return outputs
+    def forward(self, sr_data, tg_data, sr_rel_data, tg_rel_data):
+        adjacency_matrix_sr, adjacency_matrix_tg = self.cam()
+        rel_embedding_sr, rel_embedding_tg = self.cam.relation_embedding_sr, self.cam.relation_embedding_tg
+        graph_embedding_sr, graph_embedding_tg = self.cam.entity_embedding_sr.weight, self.cam.entity_embedding_tg.weight
+        graph_embedding_sr, graph_embedding_tg = self.gcn_seq(graph_embedding_sr, adjacency_matrix_sr), self.gcn_seq(
+            graph_embedding_tg, adjacency_matrix_tg)
+        repre_e_sr = F.embedding(sr_data, graph_embedding_sr)
+        repre_e_tg = F.embedding(tg_data, graph_embedding_tg)
+        repre_r_sr = rel_embedding_sr(sr_rel_data)
+        repre_r_tg = rel_embedding_tg(tg_rel_data)
+        return repre_e_sr, repre_e_tg, repre_r_sr, repre_r_tg

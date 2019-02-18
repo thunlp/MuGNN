@@ -6,7 +6,7 @@ import torch.nn.functional as F
 import scipy.sparse as sp
 from scipy.optimize import linear_sum_assignment
 from graph_completion.CrossGraphCompletion import CrossGraphCompletion
-from graph_completion.functions import RelationWeighting
+from graph_completion.functions import RelationWeighting, cosine_similarity_nbyn
 
 def normalize_adj(adj):
     """Symmetrically normalize adjacency matrix."""
@@ -173,16 +173,6 @@ def build_adms_rconf_imp_pca(triples, new_triple_confs, num_entity, relation2con
     return sp_matrix[0], sp_matrix[1], sp_matrix[2]
 
 
-# att(r, r'): relation, shape = [num_relation,]
-def cosine_similarity_nbyn(a, b):
-    '''
-    a shape: [num_item_1, embedding_dim]
-    b shape: [num_item_2, embedding_dim]
-    return sim_matrix: [num_item_1, num_item_2]
-    '''
-    a = a / (a.norm(dim=-1, keepdim=True) + 1e-8)
-    b = b / (b.norm(dim=-1, keepdim=True) + 1e-8)
-    return torch.mm(a, b.transpose(0, 1))
 
 
 # @timeit

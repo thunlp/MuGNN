@@ -5,7 +5,7 @@ from graph_completion.auction_lap import auction_lap
 from scipy.optimize import linear_sum_assignment
 from tools.timeit import timeit
 from tools.print_time_info import print_time_info
-import scipy
+import scipy.spatial as spatial
 import numpy as np
 
 class GCNAlignLoss(nn.Module):
@@ -34,13 +34,14 @@ class GCNAlignLoss(nn.Module):
 
 
 class RelationWeighting(nn.Module):
-    def __init__(self, shape, cuda):
+    def __init__(self, shape, cuda, solution='max_pooling'):
         super(RelationWeighting, self).__init__()
         assert isinstance(shape, tuple)
         assert len(shape) == 2
         self.is_cuda = cuda
         self.shape = shape
         self.reverse = False
+        self.solution = solution
         if shape[0] > shape[1]:
             self.reverse = True
             self.shape = (shape[1], shape[0])
@@ -86,14 +87,15 @@ class RelationWeighting(nn.Module):
         if pad_len > 0:
             a = F.pad(a, (0, 0, 0, pad_len))
         sim = cosine_similarity_nbyn(a, b)
-        r_sim_sr, r_sim_tg = self.max_pool_solution(sim)
-
+        if self.solution == 'max_pooling':
+            r_sim_sr, r_sim_tg = self.max_pool_solution(sim)
+        else:
+            r_sim_sr, r_sim_tg = self.lap_solultion(sim)
         if pad_len > 0:
             r_sim_sr = r_sim_sr[:-pad_len]
         if reverse:
             r_sim_sr, r_sim_tg = r_sim_tg, r_sim_sr
         return r_sim_sr, r_sim_tg
-
 
 def cosine_similarity_nbyn(a, b):
     '''
@@ -109,7 +111,7 @@ def get_hits(sr_embedding, tg_embedding, top_k=(1, 10, 50, 100)):
     test_num = len(sr_embedding)
     Lvec = sr_embedding
     Rvec = tg_embedding
-    sim = scipy.spatial.distance.cdist(Lvec, Rvec, metric='cityblock')
+    sim = spatial.distance.cdist(Lvec, Rvec, metric='cityblock')
     top_lr = [0] * len(top_k)
     for i in range(Lvec.shape[0]):
         rank = sim[i, :].argsort()
@@ -131,4 +133,3 @@ def get_hits(sr_embedding, tg_embedding, top_k=(1, 10, 50, 100)):
     print_time_info('For each target:')
     for i in range(len(top_rl)):
         print_time_info('Hits@%d: %.2f%%' % (top_k[i], top_rl[i] / test_num * 100))
-    print('')

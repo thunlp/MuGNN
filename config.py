@@ -1,4 +1,5 @@
 import torch, os
+from torch import optim
 from project_path import bin_dir
 from graph_completion.GCN import GCN
 from graph_completion.CrossGraphCompletion import CrossGraphCompletion
@@ -7,6 +8,7 @@ from torch.utils.data import DataLoader
 from graph_completion.functions import GCNAlignLoss
 from tools.print_time_info import print_time_info
 from graph_completion.functions import get_hits
+from tools.timeit import timeit
 
 class Config(object):
 
@@ -60,7 +62,7 @@ class Config(object):
             self.gcn.cuda()
         # for name, param in gcn.named_parameters():
         #     print(name, param.requires_grad)
-        optimizer = torch.optim.SGD(self.gcn.parameters(), lr=0.01)
+        optimizer = optim.Adam(self.gcn.parameters(), lr=0.01)
         criterion_entity = GCNAlignLoss(self.entity_gamma, cuda=self.is_cuda)
         criterion_relation = GCNAlignLoss(self.relation_gamma, re_scale=self.beta, cuda=self.is_cuda)
         if self.is_cuda:
@@ -92,14 +94,20 @@ class Config(object):
                 optimizer.step()
                 if i_batch % 10 == 0:
                     print('\rBatch: %d/%d; loss = %.2f' % (i_batch, batch_num, float(loss)), end='')
-            self.evaluate()
             print('')
+            self.evaluate()
 
+    @timeit
     def evaluate(self):
         self.gcn.eval()
         sr_data, tg_data = list(zip(*self.cgc.test_entity_seeds))
+        sr_data = [int(ele) for ele in sr_data]
+        tg_data = [int(ele) for ele in tg_data]
         sr_data = torch.tensor(sr_data, dtype=torch.int64)
         tg_data = torch.tensor(tg_data, dtype=torch.int64)
+        if self.is_cuda:
+            sr_data = sr_data.cuda()
+            tg_data = tg_data.cuda()
         repre_sr, repre_tg = self.gcn.predict(sr_data, tg_data)
         get_hits(repre_sr, repre_tg)
 
@@ -125,5 +133,6 @@ if __name__ == '__main__':
         os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]
     except IndexError:
         config.set_cuda(False)
-    config.loop()
+    config.init(True)
+    config.train()
     # config.init(True)

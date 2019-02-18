@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+# from tools.print_time_info import print_time_info
 
 class GraphConvolution(nn.Module):
     def __init__(self, input_dim, output_dim, dropout_rate=0.5, act_func=F.relu, bias=False):
@@ -35,4 +35,4 @@ class GraphConvolution(nn.Module):
         outputs = torch.spmm(adjacency_matrix, support)
         if self.bias is not None:
             outputs += self.bias
-        return outputs, adjacency_matrix
+        return outputs

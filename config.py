@@ -10,20 +10,26 @@ from tools.print_time_info import print_time_info
 class Config(object):
 
     def __init__(self, directory):
-        self.train_seeds_ratio = 0.3
+        # training
+        self.num_epoch = 1000
         self.directory = directory
+        self.train_seeds_ratio = 0.3
 
+        # model
+        self.num_layer = 3
+        self.embedding_dim = 100
+
+        # dataset
+        self.shuffle = True
+        self.batch_size = 64
+        self.num_workers = 2  # for the data_loader
+        self.nega_sample_num = 24  # number of negative samples for each positive one
+
+        # hyper parameter
+        self.beta = 0.3  # ratio of relation loss
+        self.dropout_rate = 0.5
         self.entity_gamma = 3.0  # margin for entity loss
         self.relation_gamma = 3.0  # margin for relation loss
-        self.beta = 0.3  # ratio of relation loss
-        self.num_layer = 3
-        self.num_epoch = 1000
-        self.embedding_dim = 100
-        self.dropout_rate = 0.5
-        self.nega_sample_num = 24  # number of negative samples for each positive one
-        self.batch_size = 64
-        self.shuffle = True
-        self.num_workers = 2  # for the data_loader
 
     def init(self):
         language_pair_dirs = list(directory.glob('*_en'))
@@ -52,29 +58,32 @@ class Config(object):
             for i_batch, batch in enumerate(entity_seeds):
                 optimizer.zero_grad()
                 sr_data, tg_data = batch
+                sr_data, tg_data = sr_data.cuda(), tg_data.cuda()
                 try:
                     sr_rel_data, tg_rel_data = next(relation_seeds_iter)
                 except StopIteration:
                     relation_seeds_iter = iter(relation_seeds)
                     sr_rel_data, tg_rel_data = next(relation_seeds_iter)
+                sr_rel_data, tg_rel_data = sr_rel_data.cuda(), tg_rel_data.cuda()
                 repre_e_sr, repre_e_tg, repre_r_sr, repre_r_tg = gcn(sr_data, tg_data, sr_rel_data, tg_rel_data)
                 entity_loss = gcn_align_loss(repre_e_sr, repre_e_tg, self.entity_gamma)
                 relation_loss = gcn_align_loss(repre_r_sr, repre_r_tg, self.relation_gamma)
+                print(entity_loss.size())
+                print(relation_loss.size())
                 loss = entity_loss + self.beta * relation_loss
                 loss.backward()
                 optimizer.step()
                 print_time_info('Epoch: %d; Batch: %d; loss = %.2f'%(epoch, i_batch, float(loss)))
 
-def main():
-    from project_path import bin_dir
-    train_seeds_ratio = 0.3
-    directory = bin_dir / 'dbp15k'
-    language_pair_dirs = list(directory.glob('*_en'))
-    for local_directory in language_pair_dirs:
-        cgc = CrossGraphCompletion(local_directory, train_seeds_ratio)
-        cgc.init()
-        cgc.save(local_directory / 'running_temp')
-        # train()
+        def loop():
+            # todo: finish it
+            train_seeds_ratio = 0.3
+            directory = bin_dir / 'dbp15k'
+            language_pair_dirs = list(directory.glob('*_en'))
+            for local_directory in language_pair_dirs:
+                cgc = CrossGraphCompletion(local_directory, train_seeds_ratio)
+                cgc.init()
+                cgc.save(local_directory / 'running_temp')
 
 
 if __name__ == '__main__':

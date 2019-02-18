@@ -1,4 +1,3 @@
-import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from graph_completion.GraphConvolution import GraphConvolution
@@ -11,15 +10,18 @@ class GCN(nn.Module):
         super(GCN, self).__init__()
         assert isinstance(cgc, CrossGraphCompletion)
         self.cam = CrossAdjacencyMatrix(embedding_dim, cgc)
-        self.gcn_seq = nn.Sequential(
-            *[GraphConvolution(embedding_dim, embedding_dim, dropout_rate, act_func, bias) for _ in range(num_layer)])
+        self.gcn_list = nn.ModuleList(
+            [GraphConvolution(embedding_dim, embedding_dim, dropout_rate, act_func, bias) for _ in range(num_layer)])
 
     def forward(self, sr_data, tg_data, sr_rel_data, tg_rel_data):
         adjacency_matrix_sr, adjacency_matrix_tg = self.cam()
         rel_embedding_sr, rel_embedding_tg = self.cam.relation_embedding_sr, self.cam.relation_embedding_tg
         graph_embedding_sr, graph_embedding_tg = self.cam.entity_embedding_sr.weight, self.cam.entity_embedding_tg.weight
-        graph_embedding_sr, graph_embedding_tg = self.gcn_seq(graph_embedding_sr, adjacency_matrix_sr), self.gcn_seq(
-            graph_embedding_tg, adjacency_matrix_tg)
+
+        for gcn in self.gcn_list:
+            graph_embedding_sr = gcn(graph_embedding_sr, adjacency_matrix_sr)
+            graph_embedding_tg = gcn(graph_embedding_tg, adjacency_matrix_tg)
+
         repre_e_sr = F.embedding(sr_data, graph_embedding_sr)
         repre_e_tg = F.embedding(tg_data, graph_embedding_tg)
         repre_r_sr = rel_embedding_sr(sr_rel_data)

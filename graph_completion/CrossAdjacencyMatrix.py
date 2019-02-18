@@ -206,15 +206,24 @@ def relation_weighting(a, b):
     rows = torch.from_numpy(rows)
     cols = torch.from_numpy(cols)
     if sim.is_cuda:
-        rows = rows.cuda(sim.get_device())
-        cols = cols.cuda(sim.get_device())
+        rows = rows.cuda()
+        cols = cols.cuda()
+    print('rows1: ', rows.is_cuda)
+    print('cols: ', cols.is_cuda)
     r_sim_sr = torch.gather(sim, -1, cols.view(-1, 1)).squeeze(1)
+    print('r_sim_sr', r_sim_sr.is_cuda)
     cols, cols_index = cols.sort()
+    print('cols2:', cols.is_cuda)
+    print('cols_index:', cols_index.is_cuda)
     rows = rows[cols_index]
+    print('rows2', rows.is_cuda)
     r_sim_tg = torch.gather(sim.t(), -1, rows.view(-1, 1)).squeeze(1)
-
+    print('r_sim_tg', r_sim_tg.is_cuda)
     if pad_len > 0:
         r_sim_sr = r_sim_sr[:-pad_len]
+        print('r_sim_sr2', r_sim_sr.is_cuda)
     if reverse:
         r_sim_sr, r_sim_tg = r_sim_tg, r_sim_sr
+        print('r_sim_sr3', r_sim_sr.is_cuda)
+        print('r_sim_tg2', r_sim_tg.is_cuda)
     return r_sim_sr, r_sim_tg

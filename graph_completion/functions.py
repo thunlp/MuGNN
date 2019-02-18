@@ -9,4 +9,4 @@ def gcn_align_loss(repre_sr, repre_tg, gamma):
     pos_score = score[:, :1]
     nega_score = score[:, 1:]
     losses = F.relu(pos_score - nega_score + gamma)
-    return torch.mean(losses, dim=1)
+    return torch.mean(losses)

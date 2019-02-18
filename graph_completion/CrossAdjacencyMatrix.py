@@ -6,6 +6,7 @@ import torch.nn.functional as F
 import scipy.sparse as sp
 from scipy.optimize import linear_sum_assignment
 from graph_completion.CrossGraphCompletion import CrossGraphCompletion
+from graph_completion.functions import RelationWeighting
 from tools.print_time_info import print_time_info
 from tools.timeit import timeit
 from pprint import pprint
@@ -40,7 +41,7 @@ def get_sparse_unit_matrix(size):
     return torch_trans2sp(poses, values, (size, size))
 
 class CrossAdjacencyMatrix(nn.Module):
-    def __init__(self, embedding_dim, cgc):
+    def __init__(self, embedding_dim, cgc, cuda):
         '''
         '''
         super(CrossAdjacencyMatrix, self).__init__()
@@ -58,6 +59,7 @@ class CrossAdjacencyMatrix(nn.Module):
         nn.init.xavier_uniform_(self.relation_embedding_sr.weight.data)
         nn.init.xavier_uniform_(self.relation_embedding_tg.weight.data)
 
+        self.relation_weighting = RelationWeighting((len(cgc.id2relation_sr), len(cgc.id2relation_tg)), cuda)
         self.init_constant_part()
 
     def init_constant_part(self):
@@ -103,7 +105,7 @@ class CrossAdjacencyMatrix(nn.Module):
         self.unit_matrix_tg = nn.Parameter(unit_matrix_tg, requires_grad=False)
 
     def forward(self, g_func=g_func_template):
-        relation_w_sr, relation_w_tg = relation_weighting(
+        relation_w_sr, relation_w_tg = self.relation_weighting(
             self.relation_embedding_sr.weight, self.relation_embedding_tg.weight)
         sp_rel_att_sr, sp_rel_att_tg = self._forward_relation(relation_w_sr, relation_w_tg)
         sp_tv_sr, sp_tv_tg = self._forward_transe_tv()
@@ -187,7 +189,7 @@ def cosine_similarity_nbyn(a, b):
     return torch.mm(a, b.transpose(0, 1))
 
 
-@timeit
+# @timeit
 def relation_weighting(a, b):
     '''
     a shape: [num_relation_a, embed_dim]

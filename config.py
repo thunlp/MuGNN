@@ -4,7 +4,7 @@ from graph_completion.GCN import GCN
 from graph_completion.CrossGraphCompletion import CrossGraphCompletion
 from graph_completion.AlignmentDataset import AliagnmentDataset
 from torch.utils.data import DataLoader
-from graph_completion.functions import gcn_align_loss
+from graph_completion.functions import GCNAlignLoss
 from tools.print_time_info import print_time_info
 
 class Config(object):
@@ -31,6 +31,9 @@ class Config(object):
         self.entity_gamma = 3.0  # margin for entity loss
         self.relation_gamma = 3.0  # margin for relation loss
 
+        # cuda
+        self.cuda = False
+
     def init(self):
         language_pair_dirs = list(directory.glob('*_en'))
         if False:
@@ -47,30 +50,45 @@ class Config(object):
         relation_seeds = AliagnmentDataset(cgc.relation_seeds, self.nega_sample_num, len(cgc.id2relation_sr),
                                            len(cgc.id2relation_tg))
         relation_seeds = DataLoader(relation_seeds, batch_size=self.batch_size, shuffle=self.shuffle, num_workers=self.num_workers)
+        # relation_seeds_iter = iter(relation_seeds)
+        # for sr_rel_data, tg_rel_data in relation_seeds_iter:
+        #     print(sr_rel_data)
+        #     print(tg_rel_data)
+        #     exit()
 
-        gcn = GCN(cgc, self.num_layer, self.embedding_dim, self.dropout_rate)
-        gcn.cuda()
+        gcn = GCN(self.cuda, cgc, self.num_layer, self.embedding_dim, self.dropout_rate)
+        if self.cuda:
+            gcn.cuda()
         # for name, param in gcn.named_parameters():
         #     print(name, param.requires_grad)
         optimizer = torch.optim.SGD(gcn.parameters(), lr=0.01)
+        criterion_entity = GCNAlignLoss(self.entity_gamma)
+        criterion_relation = GCNAlignLoss(self.relation_gamma, re_scale=self.beta)
+        if self.cuda:
+            criterion_entity.cuda()
+            criterion_relation.cuda()
         for epoch in range(self.num_epoch):
             relation_seeds_iter = iter(relation_seeds)
             for i_batch, batch in enumerate(entity_seeds):
                 optimizer.zero_grad()
                 sr_data, tg_data = batch
-                sr_data, tg_data = sr_data.cuda(), tg_data.cuda()
+                if self.cuda:
+                    sr_data, tg_data = sr_data.cuda(), tg_data.cuda()
                 try:
                     sr_rel_data, tg_rel_data = next(relation_seeds_iter)
                 except StopIteration:
                     relation_seeds_iter = iter(relation_seeds)
                     sr_rel_data, tg_rel_data = next(relation_seeds_iter)
-                sr_rel_data, tg_rel_data = sr_rel_data.cuda(), tg_rel_data.cuda()
+                if self.cuda:
+                    sr_rel_data, tg_rel_data = sr_rel_data.cuda(), tg_rel_data.cuda()
                 repre_e_sr, repre_e_tg, repre_r_sr, repre_r_tg = gcn(sr_data, tg_data, sr_rel_data, tg_rel_data)
-                entity_loss = gcn_align_loss(repre_e_sr, repre_e_tg, self.entity_gamma)
-                relation_loss = gcn_align_loss(repre_r_sr, repre_r_tg, self.relation_gamma)
-                print(entity_loss.size())
-                print(relation_loss.size())
-                loss = entity_loss + self.beta * relation_loss
+
+                entity_loss = criterion_entity(repre_e_sr, repre_e_tg)
+                relation_loss = criterion_relation(repre_r_sr, repre_r_tg)
+
+                loss = sum([entity_loss, relation_loss])
+
+                print('loss: ', loss)
                 loss.backward()
                 optimizer.step()
                 print_time_info('Epoch: %d; Batch: %d; loss = %.2f'%(epoch, i_batch, float(loss)))
@@ -87,8 +105,10 @@ class Config(object):
 
 
 if __name__ == '__main__':
+    # CUDA_LAUNCH_BLOCKING=1
+    import sys
     directory = bin_dir / 'dbp15k'
-    os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+    os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]
     config = Config(directory)
     config.init()
     config.train()

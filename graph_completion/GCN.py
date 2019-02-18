@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from graph_completion.GraphConvolution import GraphConvolution
@@ -6,10 +7,10 @@ from graph_completion.CrossGraphCompletion import CrossGraphCompletion
 
 
 class GCN(nn.Module):
-    def __init__(self, cgc, num_layer, embedding_dim, dropout_rate=0.5, act_func=F.relu, bias=False):
+    def __init__(self, cuda, cgc, num_layer, embedding_dim, dropout_rate=0.5, act_func=F.relu, bias=False):
         super(GCN, self).__init__()
         assert isinstance(cgc, CrossGraphCompletion)
-        self.cam = CrossAdjacencyMatrix(embedding_dim, cgc)
+        self.cam = CrossAdjacencyMatrix(embedding_dim, cgc, cuda)
         self.gcn_list = nn.ModuleList(
             [GraphConvolution(embedding_dim, embedding_dim, dropout_rate, act_func, bias) for _ in range(num_layer)])
 
@@ -27,3 +28,16 @@ class GCN(nn.Module):
         repre_r_sr = rel_embedding_sr(sr_rel_data)
         repre_r_tg = rel_embedding_tg(tg_rel_data)
         return repre_e_sr, repre_e_tg, repre_r_sr, repre_r_tg
+
+    def loss(self, pos_score, nega_score):
+        y = torch.cuda.tensor([-1])
+        return self.criterion(pos_score, nega_score, y)
+
+    def _calc(self, repre_sr, repre_tg):
+        '''
+        repre shape: [batch_size, 1+nega_sample_num, embedding_dim]
+        '''
+        score = torch.sum(torch.abs(repre_sr - repre_tg), dim=-1)
+        pos_score = score[:, :1]
+        nega_score = score[:, 1:]
+        return pos_score, nega_score

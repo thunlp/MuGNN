@@ -12,7 +12,7 @@ class AliagnmentDataset(Dataset):
         self.num_sr = num_sr
         self.num_tg = num_tg
         self.nega_sample_num = nega_sample_num
-        self.seeds = np.asarray([[int(sr), int(tg)] for sr, tg in seeds])
+        self.seeds = [[int(sr), int(tg)] for sr, tg in seeds]
 
     def __len__(self):
         return len(self.seeds)
@@ -34,7 +34,7 @@ class AliagnmentDataset(Dataset):
         sr_data = [sr] + nega_sr + [sr] * nega_sample_num
         tg_data = [tg] + [tg] * nega_sample_num + nega_tg
         # the first data is the positive one
-        return torch.tensor(sr_data), torch.tensor(tg_data)
+        return torch.tensor(sr_data, dtype=torch.int32), torch.tensor(tg_data, dtype=torch.int32)
 
 
 if __name__ == '__main__':

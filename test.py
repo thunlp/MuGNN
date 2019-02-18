@@ -1,5 +1,17 @@
 import torch
 import torch.nn.functional as F
+
+a = torch.tensor([[1, 2, 3], [2, 10, 17], [100, 100000, -1]], dtype=torch.float)
+a = a.expand(1, 1, 3, 3)
+print(a.size())
+
+print(col_pool)
+print(row_pool)
+exit()
+
+import torch
+import torch.nn.functional as F
+
 from graph_completion.functions import GCNAlignLoss
 
 gal = GCNAlignLoss(2)

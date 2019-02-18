@@ -23,8 +23,8 @@ class AliagnmentDataset(Dataset):
         nega_sr = []
         nega_tg = []
         for _ in range(nega_sample_num):
-            can_sr = random.randint(0, self.num_sr-1)
-            can_tg = random.randint(0, self.num_tg-1)
+            can_sr = random.randint(0, self.num_sr-2)
+            can_tg = random.randint(0, self.num_tg-2)
             if can_sr >= sr:
                 can_sr += 1
             if can_tg >= tg:
@@ -34,7 +34,7 @@ class AliagnmentDataset(Dataset):
         sr_data = [sr] + nega_sr + [sr] * nega_sample_num
         tg_data = [tg] + [tg] * nega_sample_num + nega_tg
         # the first data is the positive one
-        return torch.tensor(sr_data, dtype=torch.int32), torch.tensor(tg_data, dtype=torch.int32)
+        return torch.tensor(sr_data, dtype=torch.int64), torch.tensor(tg_data, dtype=torch.int64)
 
 
 if __name__ == '__main__':

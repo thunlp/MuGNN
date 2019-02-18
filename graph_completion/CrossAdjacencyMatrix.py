@@ -198,11 +198,9 @@ def relation_weighting(a, b):
     if a.size()[0] > b.size()[0]:
         a, b = b, a
         reverse = True
-
     pad_len = b.size()[0] - a.size()[0]
     if pad_len > 0:
         a = F.pad(a, (0, 0, 0, pad_len))
-
     sim = cosine_similarity_nbyn(a, b)
     rows, cols = linear_sum_assignment(-sim.detach().cpu().numpy())
     rows = torch.from_numpy(rows)

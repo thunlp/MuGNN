@@ -5,6 +5,8 @@ from graph_completion.auction_lap import auction_lap
 from scipy.optimize import linear_sum_assignment
 from tools.timeit import timeit
 from tools.print_time_info import print_time_info
+import scipy
+import numpy as np
 
 class GCNAlignLoss(nn.Module):
     def __init__(self, margin, re_scale=1.0, cuda=True):
@@ -102,3 +104,31 @@ def cosine_similarity_nbyn(a, b):
     a = a / (a.norm(dim=-1, keepdim=True) + 1e-8)
     b = b / (b.norm(dim=-1, keepdim=True) + 1e-8)
     return torch.mm(a, b.transpose(0, 1))
+
+def get_hits(sr_embedding, tg_embedding, top_k=(1, 10, 50, 100)):
+    test_num = len(sr_embedding)
+    Lvec = sr_embedding
+    Rvec = tg_embedding
+    sim = scipy.spatial.distance.cdist(Lvec, Rvec, metric='cityblock')
+    top_lr = [0] * len(top_k)
+    for i in range(Lvec.shape[0]):
+        rank = sim[i, :].argsort()
+        rank_index = np.where(rank == i)[0][0]
+        for j in range(len(top_k)):
+            if rank_index < top_k[j]:
+                top_lr[j] += 1
+    top_rl = [0] * len(top_k)
+    for i in range(Rvec.shape[0]):
+        rank = sim[:, i].argsort()
+        rank_index = np.where(rank == i)[0][0]
+        for j in range(len(top_k)):
+            if rank_index < top_k[j]:
+                top_rl[j] += 1
+    print_time_info('For each source:', dash_top=True)
+    for i in range(len(top_lr)):
+        print_time_info('Hits@%d: %.2f%%' % (top_k[i], top_lr[i] / test_num * 100))
+    print('')
+    print_time_info('For each target:')
+    for i in range(len(top_rl)):
+        print_time_info('Hits@%d: %.2f%%' % (top_k[i], top_rl[i] / test_num * 100))
+    print('')

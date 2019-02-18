@@ -6,6 +6,7 @@ from graph_completion.AlignmentDataset import AliagnmentDataset
 from torch.utils.data import DataLoader
 from graph_completion.functions import GCNAlignLoss
 from tools.print_time_info import print_time_info
+from graph_completion.functions import get_hits
 
 class Config(object):
 
@@ -34,29 +35,32 @@ class Config(object):
         # cuda
         self.is_cuda = True
 
-    def init(self):
+    def init(self, load=True):
         language_pair_dirs = list(directory.glob('*_en'))
-        if False:
-            self.cgc = CrossGraphCompletion(language_pair_dirs[0], train_seeds_ratio)
-            self.cgc.init()
-            # cgc.save(language_pair_dirs[0] / 'running_temp')
-        else:
+        if load:
             self.cgc = CrossGraphCompletion.restore(language_pair_dirs[0] / 'running_temp')
+        else:
+            self.cgc = CrossGraphCompletion(language_pair_dirs[0], self.train_seeds_ratio)
+            self.cgc.init()
+            self.cgc.save(language_pair_dirs[0] / 'running_temp')
 
     def train(self):
         cgc = self.cgc
-        entity_seeds = AliagnmentDataset(cgc.entity_seeds, self.nega_sample_num, len(cgc.id2entity_sr), len(cgc.id2entity_tg))
-        entity_seeds = DataLoader(entity_seeds, batch_size=self.batch_size, shuffle=self.shuffle, num_workers=self.num_workers)
+        entity_seeds = AliagnmentDataset(cgc.train_entity_seeds, self.nega_sample_num, len(cgc.id2entity_sr),
+                                         len(cgc.id2entity_tg))
+        entity_seeds = DataLoader(entity_seeds, batch_size=self.batch_size, shuffle=self.shuffle,
+                                  num_workers=self.num_workers)
         relation_seeds = AliagnmentDataset(cgc.relation_seeds, self.nega_sample_num, len(cgc.id2relation_sr),
                                            len(cgc.id2relation_tg))
-        relation_seeds = DataLoader(relation_seeds, batch_size=self.batch_size, shuffle=self.shuffle, num_workers=self.num_workers)
+        relation_seeds = DataLoader(relation_seeds, batch_size=self.batch_size, shuffle=self.shuffle,
+                                    num_workers=self.num_workers)
 
-        gcn = GCN(self.is_cuda, cgc, self.num_layer, self.embedding_dim, self.dropout_rate)
+        self.gcn = GCN(self.is_cuda, cgc, self.num_layer, self.embedding_dim, self.dropout_rate)
         if self.is_cuda:
-            gcn.cuda()
+            self.gcn.cuda()
         # for name, param in gcn.named_parameters():
         #     print(name, param.requires_grad)
-        optimizer = torch.optim.SGD(gcn.parameters(), lr=0.01)
+        optimizer = torch.optim.SGD(self.gcn.parameters(), lr=0.01)
         criterion_entity = GCNAlignLoss(self.entity_gamma, cuda=self.is_cuda)
         criterion_relation = GCNAlignLoss(self.relation_gamma, re_scale=self.beta, cuda=self.is_cuda)
         if self.is_cuda:
@@ -67,6 +71,7 @@ class Config(object):
         for epoch in range(self.num_epoch):
             relation_seeds_iter = iter(relation_seeds)
             print_time_info('Epoch: %d started!' % (epoch))
+            self.gcn.train()
             for i_batch, batch in enumerate(entity_seeds):
                 optimizer.zero_grad()
                 sr_data, tg_data = batch
@@ -79,32 +84,46 @@ class Config(object):
                     sr_rel_data, tg_rel_data = next(relation_seeds_iter)
                 if self.is_cuda:
                     sr_rel_data, tg_rel_data = sr_rel_data.cuda(), tg_rel_data.cuda()
-                repre_e_sr, repre_e_tg, repre_r_sr, repre_r_tg = gcn(sr_data, tg_data, sr_rel_data, tg_rel_data)
+                repre_e_sr, repre_e_tg, repre_r_sr, repre_r_tg = self.gcn(sr_data, tg_data, sr_rel_data, tg_rel_data)
                 entity_loss = criterion_entity(repre_e_sr, repre_e_tg)
                 relation_loss = criterion_relation(repre_r_sr, repre_r_tg)
                 loss = sum([entity_loss, relation_loss])
                 loss.backward()
                 optimizer.step()
                 if i_batch % 10 == 0:
-                    print('\rBatch: %d/%d; loss = %.2f'%(i_batch, batch_num, float(loss)), end='')
+                    print('\rBatch: %d/%d; loss = %.2f' % (i_batch, batch_num, float(loss)), end='')
+            self.evaluate()
             print('')
 
-        def loop():
-            # todo: finish it
-            train_seeds_ratio = 0.3
-            directory = bin_dir / 'dbp15k'
-            language_pair_dirs = list(directory.glob('*_en'))
-            for local_directory in language_pair_dirs:
-                cgc = CrossGraphCompletion(local_directory, train_seeds_ratio)
-                cgc.init()
-                cgc.save(local_directory / 'running_temp')
+    def evaluate(self):
+        self.gcn.eval()
+        sr_data, tg_data = list(zip(*self.cgc.test_entity_seeds))
+        sr_data = torch.tensor(sr_data, dtype=torch.int64)
+        tg_data = torch.tensor(tg_data, dtype=torch.int64)
+        repre_sr, repre_tg = self.gcn.predict(sr_data, tg_data)
+        get_hits(repre_sr, repre_tg)
 
+    def loop(self):
+        # todo: finish it
+        train_seeds_ratio = 0.3
+        directory = bin_dir / 'dbp15k'
+        language_pair_dirs = list(directory.glob('*_en'))
+        for local_directory in language_pair_dirs:
+            cgc = CrossGraphCompletion(local_directory, train_seeds_ratio)
+            cgc.init()
+            cgc.save(local_directory / 'running_temp')
+
+    def set_cuda(self, is_cuda):
+        self.is_cuda = is_cuda
 
 if __name__ == '__main__':
     # CUDA_LAUNCH_BLOCKING=1
     import sys
     directory = bin_dir / 'dbp15k'
-    os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]
     config = Config(directory)
-    config.init()
-    config.train()
+    try:
+        os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]
+    except IndexError:
+        config.set_cuda(False)
+    config.loop()
+    # config.init(True)

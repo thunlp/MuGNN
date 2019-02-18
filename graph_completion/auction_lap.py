@@ -1,5 +1,5 @@
 import torch
-
+import torch.nn as nn
 
 def auction_lap(X, eps=None, compute_score=False):
     """
@@ -60,6 +60,6 @@ def auction_lap(X, eps=None, compute_score=False):
 
 
 if __name__ == '__main__':
-    a = torch.tensor([[1, 2, 3], [3, 1, 2], [2, 3, 1]], dtype=torch.float)
-    print(a.gather(dim=1, index=torch.tensor([1, 1, 1]).view(-1, 1)))
-    print(auction_lap(a))
+    sim_matrix = torch.zeros([100, 100], dtype=torch.float)
+    nn.init.uniform_(sim_matrix)
+    auction_lap(sim_matrix)

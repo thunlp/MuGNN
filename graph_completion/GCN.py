@@ -29,15 +29,12 @@ class GCN(nn.Module):
         repre_r_tg = rel_embedding_tg(tg_rel_data)
         return repre_e_sr, repre_e_tg, repre_r_sr, repre_r_tg
 
-    def loss(self, pos_score, nega_score):
-        y = torch.cuda.tensor([-1])
-        return self.criterion(pos_score, nega_score, y)
-
-    def _calc(self, repre_sr, repre_tg):
-        '''
-        repre shape: [batch_size, 1+nega_sample_num, embedding_dim]
-        '''
-        score = torch.sum(torch.abs(repre_sr - repre_tg), dim=-1)
-        pos_score = score[:, :1]
-        nega_score = score[:, 1:]
-        return pos_score, nega_score
+    def predict(self, sr_data, tg_data):
+        adjacency_matrix_sr, adjacency_matrix_tg = self.cam()
+        graph_embedding_sr, graph_embedding_tg = self.cam.entity_embedding_sr.weight, self.cam.entity_embedding_tg.weight
+        for gcn in self.gcn_list:
+            graph_embedding_sr = gcn(graph_embedding_sr, adjacency_matrix_sr)
+            graph_embedding_tg = gcn(graph_embedding_tg, adjacency_matrix_tg)
+        repre_e_sr = F.embedding(sr_data, graph_embedding_sr)
+        repre_e_tg = F.embedding(tg_data, graph_embedding_tg)
+        return repre_e_sr.cpu().numpy(), repre_e_tg.cpu.numpy()

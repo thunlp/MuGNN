@@ -1,7 +1,7 @@
 import torch, os
 from torch import optim
 from project_path import bin_dir
-from graph_completion.GCN import GCN
+from graph_completion.nets import TrainNet
 from graph_completion.CrossGraphCompletion import CrossGraphCompletion
 from graph_completion.AlignmentDataset import AliagnmentDataset
 from torch.utils.data import DataLoader
@@ -24,13 +24,13 @@ class Config(object):
         self.train_seeds_ratio = 0.3
 
         # model
-        self.num_layer = 2
+        self.num_layer = 3
         self.non_acylic = True
         self.embedding_dim = 300
 
         # dataset
         self.shuffle = True
-        self.batch_size = 64
+        self.batch_size = 16
         self.num_workers = 4  # for the data_loader
         self.nega_sample_num = 24  # number of negative samples for each positive one
 
@@ -64,13 +64,13 @@ class Config(object):
         relation_seeds = DataLoader(relation_seeds, batch_size=self.batch_size, shuffle=self.shuffle,
                                     num_workers=self.num_workers)
 
-        self.gcn = GCN(self.is_cuda, cgc, self.num_layer, self.embedding_dim, self.dropout_rate,
-                       non_acylic=self.non_acylic)
+        self.net = TrainNet(self.is_cuda, cgc, self.num_layer, self.embedding_dim, self.dropout_rate,
+                            non_acylic=self.non_acylic)
         if self.is_cuda:
-            self.gcn.cuda()
+            self.net.cuda()
         # for name, param in gcn.named_parameters():
         #     print(name, param.requires_grad)
-        optimizer = optim.Adam(self.gcn.parameters(), lr=0.01)
+        optimizer = optim.Adam(self.net.parameters(), lr=0.01)
         criterion_entity = GCNAlignLoss(self.entity_gamma, cuda=self.is_cuda)
         criterion_relation = GCNAlignLoss(self.relation_gamma, re_scale=self.beta, cuda=self.is_cuda)
 
@@ -82,7 +82,7 @@ class Config(object):
         for epoch in range(self.num_epoch):
             relation_seeds_iter = iter(relation_seeds)
             print_time_info('Epoch: %d started!' % (epoch + 1))
-            self.gcn.train()
+            self.net.train()
             loss_acc = 0
             for i_batch, batch in enumerate(entity_seeds):
                 optimizer.zero_grad()
@@ -96,7 +96,7 @@ class Config(object):
                     sr_rel_data, tg_rel_data = next(relation_seeds_iter)
                 if self.is_cuda:
                     sr_rel_data, tg_rel_data = sr_rel_data.cuda(), tg_rel_data.cuda()
-                repre_e_sr, repre_e_tg, repre_r_sr, repre_r_tg = self.gcn(sr_data, tg_data, sr_rel_data, tg_rel_data)
+                repre_e_sr, repre_e_tg, repre_r_sr, repre_r_tg = self.net(sr_data, tg_data, sr_rel_data, tg_rel_data)
                 entity_loss = criterion_entity(repre_e_sr, repre_e_tg)
                 # relation_loss = criterion_relation(repre_r_sr, repre_r_tg)
                 # loss = sum([entity_loss, relation_loss])
@@ -112,8 +112,8 @@ class Config(object):
 
     @timeit
     def evaluate(self):
-        self.gcn.eval()
-        print('Training: ' + str(self.gcn.gcn_list[0].dropout.training))
+        self.net.eval()
+        print('Training: ' + str(self.net.gcn_list[0].dropout.training))
         sr_data, tg_data = list(zip(*self.cgc.test_entity_seeds))
         sr_data = [int(ele) for ele in sr_data]
         tg_data = [int(ele) for ele in tg_data]
@@ -122,7 +122,7 @@ class Config(object):
         if self.is_cuda:
             sr_data = sr_data.cuda()
             tg_data = tg_data.cuda()
-        repre_sr, repre_tg = self.gcn.predict(sr_data, tg_data)
+        repre_sr, repre_tg = self.net.predict(sr_data, tg_data)
         hits_10 = get_hits(repre_sr, repre_tg)
         if sum(hits_10) > self.best_hits_10[1] + self.best_hits_10[2]:
             self.best_hits_10 = (self.now_epoch, hits_10[0], hits_10[1])

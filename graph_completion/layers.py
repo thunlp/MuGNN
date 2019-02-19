@@ -33,8 +33,8 @@ class DoubleEmbedding(nn.Module):
         super(DoubleEmbedding, self).__init__()
         self.embedding_sr = nn.Embedding(num_sr, embedding_dim)
         self.embedding_tg = nn.Embedding(num_tg, embedding_dim)
-        nn.init.xavier_normal_(self.embedding_sr.weight.data)
-        nn.init.xavier_normal_(self.embedding_tg.weight.data)
+        nn.init.xavier_uniform_(self.embedding_sr.weight.data)
+        nn.init.xavier_uniform_(self.embedding_tg.weight.data)
 
     def forward(self, sr_data, tg_data):
         return self.embedding_sr(sr_data), self.embedding_tg(tg_data)

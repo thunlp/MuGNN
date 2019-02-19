@@ -154,4 +154,4 @@ def get_hits(sr_embedding, tg_embedding, top_k=(1, 10, 50, 100)):
     for i in range(len(top_rl)):
         print_time_info('Hits@%d: %.2f%%' % (top_k[i], top_rl[i] / test_num * 100))
     # return Hits@10
-    return (top_lr[1], top_rl[1])
+    return (top_lr[1]/test_num*100, top_rl[1]/test_num*100)

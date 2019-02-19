@@ -126,6 +126,7 @@ class Config(object):
         hits_10 = get_hits(repre_sr, repre_tg)
         if sum(hits_10) > self.best_hits_10[1] + self.best_hits_10[2]:
             self.best_hits_10 = (self.now_epoch, hits_10[0], hits_10[1])
+            self.bad_result = 0
         else:
             self.bad_result += 1
         print_time_info('Current best Hits@10 at the %dth epoch: (%.2f, %.2f)' % (self.best_hits_10))

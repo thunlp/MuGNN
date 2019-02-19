@@ -4,6 +4,11 @@ import numpy as np
 import scipy.sparse as sp
 from torch import sparse
 
+a = torch.FloatTensor(2,2)
+print(a)
+
+
+exit()
 best_hits_10 = (1.0, 2.0, 3)
 print('Current best Hits@10: (%.2f, %.2f) at the %dth epoch'%(best_hits_10))
 

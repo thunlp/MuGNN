@@ -95,7 +95,7 @@ def get_relation2imp(triples, relation_num):
     for head, tail, relation in triples:
         relation2imp[relation]['head'].add(head)
         relation2imp[relation]['tail'].add(tail)
-    relation2imp = {relation: 1 - min(1, len(ht['head']) / len(ht['tail'])) for relation, ht in relation2imp.items()}
+    relation2imp = {relation: min(1, len(ht['tail']) / len(ht['head'])) for relation, ht in relation2imp.items()}
     return relation2imp
 
 

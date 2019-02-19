@@ -97,6 +97,15 @@ class RelationWeighting(nn.Module):
             r_sim_sr, r_sim_tg = r_sim_tg, r_sim_sr
         return r_sim_sr, r_sim_tg
 
+def normalize_adj_torch(adj):
+    row_sum = torch.sparse.sum(adj, 1)
+    d_inv_sqrt = torch.pow(row_sum, -0.5)
+    adj = adj.to_dense()
+    d_inv_sqrt = d_inv_sqrt.to_dense()
+    # result =  # the result of gcn code
+    return ((adj * d_inv_sqrt).t() * d_inv_sqrt).t() #.to_sparse()
+
+
 def cosine_similarity_nbyn(a, b):
     '''
     a shape: [num_item_1, embedding_dim]
@@ -136,3 +145,4 @@ def get_hits(sr_embedding, tg_embedding, top_k=(1, 10, 50, 100)):
     print_time_info('For each target:')
     for i in range(len(top_rl)):
         print_time_info('Hits@%d: %.2f%%' % (top_k[i], top_rl[i] / test_num * 100))
+

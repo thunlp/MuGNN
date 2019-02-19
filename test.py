@@ -1,55 +1,59 @@
 import torch
 import torch.nn.functional as F
+import numpy as np
+import scipy.sparse as sp
+from torch import sparse
 
-a = torch.tensor([[1, 2, 3], [2, 10, 17], [100, 100000, -1]], dtype=torch.float)
-a = a.expand(1, 1, 3, 3)
-print(a.size())
-
-print(col_pool)
-print(row_pool)
-exit()
-
-import torch
-import torch.nn.functional as F
-
-from graph_completion.functions import GCNAlignLoss
-
-gal = GCNAlignLoss(2)
-# repre_sr shape: [batch_size, 1 + nega_sample_num, embedding_dim]
-
-a = torch.tensor([[[1, 2, 3], [2, 3, 4], [3, 4, 5]], ], dtype=torch.float)
-b = torch.tensor([[[2, 2, 0], [3, 1, 2], [10, 2, 12]], ], dtype=torch.float)
-
-loss = gal(a, b)
-
-print(loss)
-exit()
-def cal_loss(repre_sr, repre_tg, gamma):
-    '''
-    repre shape: [batch_size, 1+nega_sample_num, embedding_dim]
-    '''
-    score = torch.sum(torch.abs(repre_sr - repre_tg), dim=-1)
-    pos_score = score[:, :1]
-    nega_score = score[:, 1:]
-    losses = F.relu(pos_score - nega_score + gamma)
-    return torch.mean(losses, dim=1)
-    # print(pos_score)
-    # print(nega_score)
-    # print(score)
-    # print(loss)
-    # return loss
-
-loss = cal_loss(a, b, 3)
+# a = torch.tensor([[1,2,3], [2, 3, 4], [3, 4, 5]])
+# b = torch.tensor([1, 2, 3])
+# print(a*b)
+# exit()
 
 
-def cal_loss(repre_sr, repre_tg, gamma):
-    '''
-    repre shape: [batch_size, 1+nega_sample_num, embedding_dim]
-    '''
-    score = torch.sum(torch.abs(repre_sr - repre_tg), dim=-1)
-    pos_score = score[:, :1]
-    nega_score = score[:, 1:]
-    loss = pos_score - nega_score + gamma
-    loss = F.relu(loss)
-    # print(loss)
-    return torch.mean(loss, dim=1)
+# def normalize_adj(adj):
+#     """Symmetrically normalize adjacency matrix."""
+#     # format transform
+#     # adj = sp.coo_matrix(adj)
+#
+#     # norm
+#     rowsum = np.array(adj.sum(1))
+#     d_inv_sqrt = np.power(rowsum, -0.5).flatten()
+#     d_inv_sqrt[np.isinf(d_inv_sqrt)] = 0.
+#     d_mat_inv_sqrt = sp.diags(d_inv_sqrt).todense()
+#     return adj.dot(d_mat_inv_sqrt).transpose().dot(d_mat_inv_sqrt).transpose()
+
+def normalize_adj(adj):
+    """Symmetrically normalize adjacency matrix."""
+    # format transform
+    adj = sp.coo_matrix(adj)
+
+    # norm
+    rowsum = np.array(adj.sum(1))
+    d_inv_sqrt = np.power(rowsum, -0.5).flatten()
+    d_inv_sqrt[np.isinf(d_inv_sqrt)] = 0.
+    d_mat_inv_sqrt = sp.diags(d_inv_sqrt)
+    return adj.dot(d_mat_inv_sqrt).transpose().dot(d_mat_inv_sqrt).tocoo()
+
+
+    # return (rel.t() * d_mat_inv_sqrt).t()
+    # print(d_inv_sqrt)
+
+a = np.asarray([[1, 2 ,3], [0, 2, 0], [3, 2, 1]], dtype=np.float)
+aa = sp.coo_matrix(a)
+row = np.asarray(aa.row, dtype=np.float)
+col = np.asarray(aa.col, dtype=np.float)
+row = torch.from_numpy(row).view(1, -1)
+col = torch.from_numpy(col).view(1, -1)
+pos = torch.cat((row, col), dim=0)
+value = aa.data
+value = torch.from_numpy(value)
+sparse_a = torch.sparse_coo_tensor(pos, value)
+# print(sparse_a)
+aa = normalize_adj_torch(sparse_a)
+print(aa.to_dense())
+# print(aa)
+a = normalize_adj(a)
+print(a.todense())
+print(type(a))
+# print(a)
+# print(a)

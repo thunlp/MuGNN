@@ -65,6 +65,7 @@ class Config(object):
         optimizer = optim.Adam(self.gcn.parameters(), lr=0.01)
         criterion_entity = GCNAlignLoss(self.entity_gamma, cuda=self.is_cuda)
         criterion_relation = GCNAlignLoss(self.relation_gamma, re_scale=self.beta, cuda=self.is_cuda)
+
         if self.is_cuda:
             criterion_entity.cuda()
             criterion_relation.cuda()
@@ -72,8 +73,9 @@ class Config(object):
         batch_num = len(entity_seeds)
         for epoch in range(self.num_epoch):
             relation_seeds_iter = iter(relation_seeds)
-            print_time_info('Epoch: %d started!' % (epoch))
+            print_time_info('Epoch: %d started!' % (epoch + 1))
             self.gcn.train()
+            loss_acc = 0
             for i_batch, batch in enumerate(entity_seeds):
                 optimizer.zero_grad()
                 sr_data, tg_data = batch
@@ -88,12 +90,14 @@ class Config(object):
                     sr_rel_data, tg_rel_data = sr_rel_data.cuda(), tg_rel_data.cuda()
                 repre_e_sr, repre_e_tg, repre_r_sr, repre_r_tg = self.gcn(sr_data, tg_data, sr_rel_data, tg_rel_data)
                 entity_loss = criterion_entity(repre_e_sr, repre_e_tg)
-                relation_loss = criterion_relation(repre_r_sr, repre_r_tg)
-                loss = sum([entity_loss, relation_loss])
+                # relation_loss = criterion_relation(repre_r_sr, repre_r_tg)
+                # loss = sum([entity_loss, relation_loss])
+                loss = entity_loss
                 loss.backward()
+                loss_acc += float(loss)
                 optimizer.step()
-                if i_batch % 10 == 0:
-                    print('\rBatch: %d/%d; loss = %.2f' % (i_batch, batch_num, float(loss)), end='')
+                if (i_batch) % 10 == 0:
+                    print('\rBatch: %d/%d; loss = %.2f' % (i_batch + 1, batch_num, loss_acc/ (i_batch + 1)), end='')
             print('')
             self.evaluate()
 

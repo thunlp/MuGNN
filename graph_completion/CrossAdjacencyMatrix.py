@@ -6,30 +6,25 @@ import torch.nn.functional as F
 import scipy.sparse as sp
 from scipy.optimize import linear_sum_assignment
 from graph_completion.CrossGraphCompletion import CrossGraphCompletion
-from graph_completion.functions import RelationWeighting, cosine_similarity_nbyn
-
-def normalize_adj(adj):
-    """Symmetrically normalize adjacency matrix."""
-    # format transform
-    adj = sp.coo_matrix(adj)
-
-    # norm
-    rowsum = torch.sum(adj, 1)
-    rowsum = torch.pow()
-
-    rowsum = np.array(adj.sum(1))
-    d_inv_sqrt = np.power(rowsum, -0.5).flatten()
-    d_inv_sqrt[np.isinf(d_inv_sqrt)] = 0.
-    d_mat_inv_sqrt = sp.diags(d_inv_sqrt)
-    return adj.dot(d_mat_inv_sqrt).transpose().dot(d_mat_inv_sqrt).tocoo()
+from graph_completion.functions import RelationWeighting, cosine_similarity_nbyn, normalize_adj_torch
 
 
-def g_func_template(a, b, c, d, e):
+def watch_sp(sp, row_num):
+    sp = sp.coalesce()
+    row = sp.indices()[0]
+    col = sp.indices()[1]
+    values = sp.values()
+    for i, ele in enumerate(row):
+        if ele == row_num:
+            print('(', row_num, int(col[i]), ')', float(values[i]))
+
+def g_func_template(a, b, c, e):
     '''
     all input: sparse tensor shape = [num_entity, num_entity]
     :return: sparse tensor shape = [num_entity, num_entity]
     '''
-    return a * b * (0.3*c + 0.3*d + 0.4*e)
+    # return a * b * (1.0*c + 0.0*e)
+    return a * b * c
 
 def get_sparse_unit_matrix(size):
     values = torch.from_numpy(np.ones([size], dtype=np.float32))
@@ -62,9 +57,9 @@ class CrossAdjacencyMatrix(nn.Module):
         cgc = self.cgc
         # for the transe
         head_sr, tail_sr, relation_sr = torch.from_numpy(np.asarray(
-            list(zip(*str2int4triples(cgc.triples_sr)))))
+            list(zip(*str2int4triples(cgc.triples_sr))), dtype=np.int64))
         head_tg, tail_tg, relation_tg = torch.from_numpy(np.asarray(
-            list(zip(*str2int4triples(cgc.triples_tg)))))
+            list(zip(*str2int4triples(cgc.triples_tg))), dtype=np.int64))
         self.head_sr = nn.Parameter(head_sr, requires_grad=False)
         self.head_tg = nn.Parameter(head_tg, requires_grad=False)
         self.tail_sr = nn.Parameter(tail_sr, requires_grad=False)
@@ -101,13 +96,15 @@ class CrossAdjacencyMatrix(nn.Module):
     def forward(self, g_func=g_func_template):
         relation_w_sr, relation_w_tg = self.relation_weighting(
             self.relation_embedding_sr.weight, self.relation_embedding_tg.weight)
+        # print(relation_w_sr)
+        # return
         sp_rel_att_sr, sp_rel_att_tg = self._forward_relation(relation_w_sr, relation_w_tg)
-        sp_tv_sr, sp_tv_tg = self._forward_transe_tv()
-        adjacency_matrix_sr = g_func(self.sp_rel_conf_sr, self.sp_rel_imp_sr, self.sp_triple_pca_sr, sp_tv_sr,
-                                     sp_rel_att_sr)
-        adjacency_matrix_tg = g_func(self.sp_rel_conf_tg, self.sp_rel_imp_tg, self.sp_triple_pca_tg, sp_tv_tg,
-                                     sp_rel_att_tg)
-        return adjacency_matrix_sr + self.unit_matrix_sr, adjacency_matrix_tg + self.unit_matrix_tg
+        # sp_tv_sr, sp_tv_tg = self._forward_transe_tv()
+        adjacency_matrix_sr = g_func(self.sp_rel_conf_sr, self.sp_rel_imp_sr, self.sp_triple_pca_sr, sp_rel_att_sr)
+        adjacency_matrix_tg = g_func(self.sp_rel_conf_tg, self.sp_rel_imp_tg, self.sp_triple_pca_tg, sp_rel_att_tg)
+        adjacency_matrix_sr = normalize_adj_torch(adjacency_matrix_sr + self.unit_matrix_sr)
+        adjacency_matrix_tg = normalize_adj_torch(adjacency_matrix_tg + self.unit_matrix_tg)
+        return adjacency_matrix_sr, adjacency_matrix_tg
 
     def _forward_relation(self, relation_w_sr, relation_w_tg):
         rel_att_sr = F.embedding(self.relation_sr, relation_w_sr)  # sparse support
@@ -148,10 +145,12 @@ def build_adms_rconf_imp_pca(triples, new_triple_confs, num_entity, relation2con
     # the last dimension: (rel_conf, rel_imp, triple_pca)
     # print(num_entity)
     sp_matrix = {0: {}, 1: {}, 2: {}}
+
     for triple in triples:
         head, tail, relation = triple
         pos = (int(head), int(tail))
         sp_matrix[1][pos] = relation2imp[relation]
+
         if triple in new_triple_confs:
             if pos in sp_matrix[0]:
                 sp_matrix[0][pos] = max(relation2conf[relation], sp_matrix[0][pos])

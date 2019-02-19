@@ -4,12 +4,13 @@ import torch.nn.functional as F
 # from tools.print_time_info import print_time_info
 
 class GraphConvolution(nn.Module):
-    def __init__(self, input_dim, output_dim, dropout_rate=0.5, act_func=F.relu, bias=False):
+    def __init__(self, input_dim, output_dim, dropout_rate=0.5, act_func=F.relu, bias=False, sparse=True):
         super(GraphConvolution, self).__init__()
         '''
         暂时忽略sparse情况
         todo: sparse input support to save memory
         '''
+        self.sparse = sparse
         self.act_func = act_func
         self.weights = nn.Parameter(torch.zeros([input_dim, output_dim], dtype=torch.float), requires_grad=True)
         if bias:

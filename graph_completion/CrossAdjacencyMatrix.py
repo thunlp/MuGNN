@@ -71,8 +71,8 @@ class CrossAdjacencyMatrix(nn.Module):
         self.tail_tg = nn.Parameter(tail_tg, requires_grad=False)
         self.relation_sr = nn.Parameter(relation_sr, requires_grad=False)
         self.relation_tg = nn.Parameter(relation_tg, requires_grad=False)
-        self.pos_sr = nn.Parameter(torch.cat([self.head_sr.view(1, -1), self.tail_sr.view(1, -1)], dim=0))
-        self.pos_tg = nn.Parameter(torch.cat([self.head_tg.view(1, -1), self.tail_tg.view(1, -1)], dim=0))
+        self.pos_sr = nn.Parameter(torch.cat([self.head_sr.view(1, -1), self.tail_sr.view(1, -1)], dim=0), requires_grad=False)
+        self.pos_tg = nn.Parameter(torch.cat([self.head_tg.view(1, -1), self.tail_tg.view(1, -1)], dim=0), requires_grad=False)
 
         # part of the matrix
         sp_rel_conf_sr, sp_rel_imp_sr, sp_triple_pca_sr = build_adms_rconf_imp_pca(cgc.triples_sr,
@@ -131,8 +131,8 @@ class CrossAdjacencyMatrix(nn.Module):
         score_tg = _score_func(h_tg, t_tg, r_tg)
         sp_score_sr = torch_trans2sp(self.pos_sr, score_sr, [self.entity_num_sr] * 2)  # .todense()
         sp_score_tg = torch_trans2sp(self.pos_tg, score_tg, [self.entity_num_tg] * 2)  # .todense()
-        print('--------', sp_score_sr.requires_grad)
-        sp_score_sr.register_hook(lambda x: print('---------' + str(torch.isnan(x).sum())))
+        # print('--------', sp_score_sr.requires_grad)
+        # sp_score_sr.register_hook(lambda x: print('---------' + str(torch.isnan(x).sum())))
         return sp_score_sr, sp_score_tg
 
 

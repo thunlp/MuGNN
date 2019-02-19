@@ -4,6 +4,21 @@ import numpy as np
 import scipy.sparse as sp
 from torch import sparse
 
+best_hits_10 = (1.0, 2.0, 3)
+print('Current best Hits@10: (%.2f, %.2f) at the %dth epoch'%(best_hits_10))
+
+exit()
+class New2(object):
+    def __init__(self):
+        self.bui = 1
+        self.fd = 2
+        self.csd = []
+
+
+a = New2()
+a.print_parameter()
+exit()
+
 
 pos = torch.tensor([[0, 1, 0], [1, 0, 1]])
 value  = torch.tensor([3, 1, 2])

@@ -146,10 +146,12 @@ def get_hits(sr_embedding, tg_embedding, top_k=(1, 10, 50, 100)):
         for j in range(len(top_k)):
             if rank_index < top_k[j]:
                 top_rl[j] += 1
-    print_time_info('For each source:', dash_top=True)
+    print_time_info('For each source:')
     for i in range(len(top_lr)):
         print_time_info('Hits@%d: %.2f%%' % (top_k[i], top_lr[i] / test_num * 100))
     print('')
     print_time_info('For each target:')
     for i in range(len(top_rl)):
         print_time_info('Hits@%d: %.2f%%' % (top_k[i], top_rl[i] / test_num * 100))
+    # return Hits@10
+    return (top_lr[1], top_rl[1])

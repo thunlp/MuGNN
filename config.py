@@ -10,10 +10,15 @@ from tools.print_time_info import print_time_info
 from graph_completion.functions import get_hits, set_random_seed
 from tools.timeit import timeit
 
+
 class Config(object):
 
     def __init__(self, directory):
         # training
+        self.patience = 10
+        self.bad_result = 0
+        self.now_epoch = 0
+        self.best_hits_10 = (0, 0, 0)  # (epoch, sr, tg)
         self.num_epoch = 1000
         self.directory = directory
         self.train_seeds_ratio = 0.3
@@ -31,7 +36,7 @@ class Config(object):
 
         # hyper parameter
         self.beta = 0.01  # ratio of relation loss
-        self.dropout_rate = 0.1
+        self.dropout_rate = 0.5
         self.entity_gamma = 3.0  # margin for entity loss
         self.relation_gamma = 3.0  # margin for relation loss
 
@@ -59,7 +64,8 @@ class Config(object):
         relation_seeds = DataLoader(relation_seeds, batch_size=self.batch_size, shuffle=self.shuffle,
                                     num_workers=self.num_workers)
 
-        self.gcn = GCN(self.is_cuda, cgc, self.num_layer, self.embedding_dim, self.dropout_rate, non_acylic=self.non_acylic)
+        self.gcn = GCN(self.is_cuda, cgc, self.num_layer, self.embedding_dim, self.dropout_rate,
+                       non_acylic=self.non_acylic)
         if self.is_cuda:
             self.gcn.cuda()
         # for name, param in gcn.named_parameters():
@@ -99,8 +105,9 @@ class Config(object):
                 loss_acc += float(loss)
                 optimizer.step()
                 if (i_batch) % 10 == 0:
-                    print('\rBatch: %d/%d; loss = %f' % (i_batch + 1, batch_num, loss_acc/ (i_batch + 1)), end='')
+                    print('\rBatch: %d/%d; loss = %f' % (i_batch + 1, batch_num, loss_acc / (i_batch + 1)), end='')
             print('')
+            self.now_epoch += 1
             self.evaluate()
 
     @timeit
@@ -116,7 +123,16 @@ class Config(object):
             sr_data = sr_data.cuda()
             tg_data = tg_data.cuda()
         repre_sr, repre_tg = self.gcn.predict(sr_data, tg_data)
-        get_hits(repre_sr, repre_tg)
+        hits_10 = get_hits(repre_sr, repre_tg)
+        if sum(hits_10) > self.best_hits_10[1] + self.best_hits_10[2]:
+            self.best_hits_10 = (self.now_epoch, hits_10[0], hits_10[1])
+        else:
+            self.bad_result += 1
+        print_time_info('Current best Hits@10 at the %dth epoch: (%.2f, %.2f)' % (self.best_hits_10))
+
+        if self.bad_result >= self.patience:
+            print_time_info('My patience is limited. It is time to stop!', dash_bot=True)
+            exit()
 
     def loop(self):
         # todo: finish it
@@ -128,12 +144,22 @@ class Config(object):
             cgc.init()
             cgc.save(local_directory / 'running_temp')
 
+    def print_parameter(self):
+        parameters = self.__dict__
+        print_time_info('Parameter setttings:', dash_top=True)
+        for key, value in parameters.items():
+            if type(value) in {int, float, str, bool}:
+                print('\t%s:' % key, value)
+        print('---------------------------------------')
+
     def set_cuda(self, is_cuda):
         self.is_cuda = is_cuda
+
 
 if __name__ == '__main__':
     # CUDA_LAUNCH_BLOCKING=1
     import sys
+
     directory = bin_dir / 'dbp15k'
     config = Config(directory)
     try:
@@ -141,5 +167,6 @@ if __name__ == '__main__':
     except IndexError:
         config.set_cuda(False)
     config.init(True)
+    config.print_parameter()
     config.train()
     # config.init(True)

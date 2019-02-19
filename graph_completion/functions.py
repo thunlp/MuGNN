@@ -1,19 +1,20 @@
 import torch
+import random
+import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
-from graph_completion.auction_lap import auction_lap
+import scipy.spatial as spatial
 from scipy.optimize import linear_sum_assignment
 from tools.timeit import timeit
 from tools.print_time_info import print_time_info
-import scipy.spatial as spatial
-import numpy as np
-import random
+
 
 def set_random_seed(seed_value=999):
     torch.manual_seed(seed_value)  # cpu  vars
     np.random.seed(seed_value)  # cpu vars
     if torch.cuda.is_available(): torch.cuda.manual_seed_all(seed_value)
     random.seed(seed_value)
+
 
 class GCNAlignLoss(nn.Module):
     def __init__(self, margin, re_scale=1.0, cuda=True):
@@ -54,33 +55,6 @@ class RelationWeighting(nn.Module):
             self.shape = (shape[1], shape[0])
         self.pad_len = self.shape[1] - self.shape[0]
 
-    def lap_solultion(self, sim):
-        def scipy_solution(sim):
-            rows, cols = linear_sum_assignment(-sim.detach().cpu().numpy())
-            rows = torch.from_numpy(rows)
-            cols = torch.from_numpy(cols)
-            if self.is_cuda:
-                rows = rows.cuda()
-                cols = cols.cuda()
-            return rows, cols
-        rows, cols = scipy_solution(sim)
-        r_sim_sr = torch.gather(sim, -1, cols.view(-1, 1)).squeeze(1)
-        cols, cols_index = cols.sort()
-        rows = rows[cols_index]
-        r_sim_tg = torch.gather(sim.t(), -1, rows.view(-1, 1)).squeeze(1)
-        return r_sim_sr, r_sim_tg
-
-    def max_pool_solution(self, sim):
-        '''
-        sim: shape = [num_relation_sr, num_relation_sr]
-        '''
-        dim = self.shape[1]
-        sim = sim.expand(1, 1, dim, dim)
-        sr_score = F.max_pool2d(sim, (1, dim)).view(-1)
-        tg_score = F.max_pool2d(sim, (dim, 1)).view(-1)
-        return sr_score, tg_score
-
-    # @timeit
     def forward(self, a, b):
         '''
         a shape: [num_relation_a, embed_dim]
@@ -95,23 +69,50 @@ class RelationWeighting(nn.Module):
             a = F.pad(a, (0, 0, 0, pad_len))
         sim = cosine_similarity_nbyn(a, b)
         if self.solution == 'max_pooling':
-            r_sim_sr, r_sim_tg = self.max_pool_solution(sim)
+            r_sim_sr, r_sim_tg = self._max_pool_solution(sim)
         else:
-            r_sim_sr, r_sim_tg = self.lap_solultion(sim)
+            r_sim_sr, r_sim_tg = self._lap_solultion(sim)
         if pad_len > 0:
             r_sim_sr = r_sim_sr[:-pad_len]
         if reverse:
             r_sim_sr, r_sim_tg = r_sim_tg, r_sim_sr
         return r_sim_sr, r_sim_tg
 
+    def _lap_solultion(self, sim):
+        def scipy_solution(sim):
+            rows, cols = linear_sum_assignment(-sim.detach().cpu().numpy())
+            rows = torch.from_numpy(rows)
+            cols = torch.from_numpy(cols)
+            if self.is_cuda:
+                rows = rows.cuda()
+                cols = cols.cuda()
+            return rows, cols
+
+        rows, cols = scipy_solution(sim)
+        r_sim_sr = torch.gather(sim, -1, cols.view(-1, 1)).squeeze(1)
+        cols, cols_index = cols.sort()
+        rows = rows[cols_index]
+        r_sim_tg = torch.gather(sim.t(), -1, rows.view(-1, 1)).squeeze(1)
+        return r_sim_sr, r_sim_tg
+
+    def _max_pool_solution(self, sim):
+        '''
+        sim: shape = [num_relation_sr, num_relation_sr]
+        '''
+        dim = self.shape[1]
+        sim = sim.expand(1, 1, dim, dim)
+        sr_score = F.max_pool2d(sim, (1, dim)).view(-1)
+        tg_score = F.max_pool2d(sim, (dim, 1)).view(-1)
+        return sr_score, tg_score
+
+
 def normalize_adj_torch(adj):
     adj = adj.to_dense()
     adj = torch.clamp(adj, max=1.0)
     row_sum = torch.sum(adj, 1)
     d_inv_sqrt = torch.pow(row_sum, -0.5)
-    result = ((adj * d_inv_sqrt).t() * d_inv_sqrt) # the result of gcn code
-    # del d_inv_sqrt, adj
-    return result.t() #.to_sparse()
+    result = ((adj * d_inv_sqrt).t() * d_inv_sqrt)  # the result of gcn code
+    return result.t()  # .to_sparse()
 
 
 def cosine_similarity_nbyn(a, b):
@@ -124,8 +125,6 @@ def cosine_similarity_nbyn(a, b):
     b = b / (b.norm(dim=-1, keepdim=True) + 1e-8)
     return torch.mm(a, b.transpose(0, 1))
 
-def l1_norm(a,b):
-    return torch.mean(torch.abs(a - b), dim=-1)
 
 def get_hits(sr_embedding, tg_embedding, top_k=(1, 10, 50, 100)):
     test_num = len(sr_embedding)
@@ -154,4 +153,4 @@ def get_hits(sr_embedding, tg_embedding, top_k=(1, 10, 50, 100)):
     for i in range(len(top_rl)):
         print_time_info('Hits@%d: %.2f%%' % (top_k[i], top_rl[i] / test_num * 100))
     # return Hits@10
-    return (top_lr[1]/test_num*100, top_rl[1]/test_num*100)
+    return (top_lr[1] / test_num * 100, top_rl[1] / test_num * 100)

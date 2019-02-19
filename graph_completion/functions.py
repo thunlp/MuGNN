@@ -7,6 +7,13 @@ from tools.timeit import timeit
 from tools.print_time_info import print_time_info
 import scipy.spatial as spatial
 import numpy as np
+import random
+
+def set_random_seed(seed_value=999):
+    torch.manual_seed(seed_value)  # cpu  vars
+    np.random.seed(seed_value)  # cpu vars
+    if torch.cuda.is_available(): torch.cuda.manual_seed_all(seed_value)
+    random.seed(seed_value)
 
 class GCNAlignLoss(nn.Module):
     def __init__(self, margin, re_scale=1.0, cuda=True):
@@ -146,4 +153,3 @@ def get_hits(sr_embedding, tg_embedding, top_k=(1, 10, 50, 100)):
     print_time_info('For each target:')
     for i in range(len(top_rl)):
         print_time_info('Hits@%d: %.2f%%' % (top_k[i], top_rl[i] / test_num * 100))
-

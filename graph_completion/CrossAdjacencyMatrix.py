@@ -39,12 +39,13 @@ def get_sparse_unit_matrix(size):
     return torch_trans2sp(poses, values, (size, size))
 
 class CrossAdjacencyMatrix(nn.Module):
-    def __init__(self, embedding_dim, cgc, cuda):
+    def __init__(self, embedding_dim, cgc, cuda, non_acylic=False):
         '''
         '''
         super(CrossAdjacencyMatrix, self).__init__()
         assert isinstance(cgc, CrossGraphCompletion)
         self.cgc = cgc
+        self.non_acylic = non_acylic
         self.embedding_dim = embedding_dim
         self.entity_num_sr = len(cgc.id2entity_sr)
         self.entity_num_tg = len(cgc.id2entity_tg)
@@ -81,13 +82,15 @@ class CrossAdjacencyMatrix(nn.Module):
                                                                                    cgc.new_triple_confs_sr,
                                                                                    self.entity_num_sr,
                                                                                    cgc.relation2conf_sr,
-                                                                                   cgc.relation2imp_sr)
+                                                                                   cgc.relation2imp_sr,
+                                                                                   self.non_acylic)
         # self.ad_constant_matrix_sr = nn.Parameter(torch.from_numpy(
         sp_rel_conf_tg, sp_rel_imp_tg, sp_triple_pca_tg = build_adms_rconf_imp_pca(cgc.triples_tg,
                                                                                    cgc.new_triple_confs_tg,
                                                                                    self.entity_num_tg,
                                                                                    cgc.relation2conf_tg,
-                                                                                   cgc.relation2imp_tg)
+                                                                                   cgc.relation2imp_tg,
+                                                                                   self.non_acylic)
         self.sp_rel_conf_sr = nn.Parameter(sp_rel_conf_sr, requires_grad=False)
         self.sp_rel_conf_tg = nn.Parameter(sp_rel_conf_tg, requires_grad=False)
         self.sp_rel_imp_sr = nn.Parameter(sp_rel_imp_sr, requires_grad=False)
@@ -150,28 +153,41 @@ def torch_trans2sp(indices, values, size):
     return torch.sparse.FloatTensor(indices, values, size=torch.Size(size))
 
 
-def build_adms_rconf_imp_pca(triples, new_triple_confs, num_entity, relation2conf, relation2imp):
+def build_adms_rconf_imp_pca(triples, new_triple_confs, num_entity, relation2conf, relation2imp, non_acylic=False):
     # the last dimension: (rel_conf, rel_imp, triple_pca)
     # print(num_entity)
     sp_matrix = {0: {}, 1: {}, 2: {}}
-
     for triple in triples:
         head, tail, relation = triple
         pos = (int(head), int(tail))
+        reverse_pos = (int(tail), int(head))
         sp_matrix[1][pos] = relation2imp[relation]
-
+        if non_acylic:
+            sp_matrix[1][reverse_pos] = relation2imp[relation]
         if triple in new_triple_confs:
             if pos in sp_matrix[0]:
                 sp_matrix[0][pos] = max(relation2conf[relation], sp_matrix[0][pos])
+                if non_acylic:
+                    sp_matrix[0][reverse_pos] = max(relation2conf[relation], sp_matrix[0][reverse_pos])
             else:
                 sp_matrix[0][pos] = relation2conf[relation]
+                if non_acylic:
+                    sp_matrix[0][reverse_pos] = relation2conf[relation]
             if pos in sp_matrix[2]:
                 sp_matrix[2][pos] = max(new_triple_confs[triple], sp_matrix[2][pos])
+                if non_acylic:
+                    sp_matrix[2][reverse_pos] = max(new_triple_confs[triple], sp_matrix[2][reverse_pos])
             else:
                 sp_matrix[2][pos] = new_triple_confs[triple]
+                if non_acylic:
+                    sp_matrix[2][reverse_pos] = new_triple_confs[triple]
         else:
             sp_matrix[0][pos] = 1
             sp_matrix[2][pos] = 1
+            if non_acylic:
+                sp_matrix[0][reverse_pos] = 1
+                sp_matrix[2][reverse_pos] = 1
+
     for key, sp_m in sp_matrix.items():
         poses = torch.from_numpy(np.asarray(list(zip(*sp_m.keys())), dtype=np.int64))
         values = torch.from_numpy(np.asarray(list(sp_m.values()), dtype=np.float32))

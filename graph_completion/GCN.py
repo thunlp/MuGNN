@@ -8,10 +8,10 @@ from graph_completion.functions import cosine_similarity_nbyn
 from scipy.optimize import linear_sum_assignment
 
 class GCN(nn.Module):
-    def __init__(self, cuda, cgc, num_layer, embedding_dim, dropout_rate=0.5, act_func=F.relu, bias=False):
+    def __init__(self, cuda, cgc, num_layer, embedding_dim, dropout_rate=0.5, act_func=F.relu, bias=False, non_acylic=False):
         super(GCN, self).__init__()
         assert isinstance(cgc, CrossGraphCompletion)
-        self.cam = CrossAdjacencyMatrix(embedding_dim, cgc, cuda)
+        self.cam = CrossAdjacencyMatrix(embedding_dim, cgc, cuda, non_acylic=non_acylic)
         self.gcn_list = nn.ModuleList(
             [GraphConvolution(embedding_dim, embedding_dim, dropout_rate, act_func, bias) for _ in range(num_layer)])
 

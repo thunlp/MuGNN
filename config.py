@@ -7,7 +7,7 @@ from graph_completion.AlignmentDataset import AliagnmentDataset
 from torch.utils.data import DataLoader
 from graph_completion.functions import GCNAlignLoss
 from tools.print_time_info import print_time_info
-from graph_completion.functions import get_hits
+from graph_completion.functions import get_hits, set_random_seed
 from tools.timeit import timeit
 
 class Config(object):
@@ -20,6 +20,7 @@ class Config(object):
 
         # model
         self.num_layer = 2
+        self.non_acylic = True
         self.embedding_dim = 300
 
         # dataset
@@ -30,7 +31,7 @@ class Config(object):
 
         # hyper parameter
         self.beta = 0.01  # ratio of relation loss
-        self.dropout_rate = 0.0
+        self.dropout_rate = 0.1
         self.entity_gamma = 3.0  # margin for entity loss
         self.relation_gamma = 3.0  # margin for relation loss
 
@@ -38,6 +39,7 @@ class Config(object):
         self.is_cuda = True
 
     def init(self, load=True):
+        set_random_seed()
         language_pair_dirs = list(directory.glob('*_en'))
         if load:
             self.cgc = CrossGraphCompletion.restore(language_pair_dirs[0] / 'running_temp')
@@ -57,7 +59,7 @@ class Config(object):
         relation_seeds = DataLoader(relation_seeds, batch_size=self.batch_size, shuffle=self.shuffle,
                                     num_workers=self.num_workers)
 
-        self.gcn = GCN(self.is_cuda, cgc, self.num_layer, self.embedding_dim, self.dropout_rate)
+        self.gcn = GCN(self.is_cuda, cgc, self.num_layer, self.embedding_dim, self.dropout_rate, non_acylic=self.non_acylic)
         if self.is_cuda:
             self.gcn.cuda()
         # for name, param in gcn.named_parameters():
@@ -104,7 +106,7 @@ class Config(object):
     @timeit
     def evaluate(self):
         self.gcn.eval()
-        print('Training: ' + str(self.gcn.training))
+        print('Training: ' + str(self.gcn.gcn_list[0].dropout.training))
         sr_data, tg_data = list(zip(*self.cgc.test_entity_seeds))
         sr_data = [int(ele) for ele in sr_data]
         tg_data = [int(ele) for ele in tg_data]

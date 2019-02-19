@@ -35,6 +35,7 @@ class Config(object):
         self.nega_sample_num = 24  # number of negative samples for each positive one
 
         # hyper parameter
+        self.lr = 1e-3
         self.beta = 0.01  # ratio of relation loss
         self.dropout_rate = 0.5
         self.entity_gamma = 3.0  # margin for entity loss
@@ -70,7 +71,7 @@ class Config(object):
             self.net.cuda()
         # for name, param in gcn.named_parameters():
         #     print(name, param.requires_grad)
-        optimizer = optim.Adam(self.net.parameters(), lr=0.01)
+        optimizer = optim.Adam(self.net.parameters(), lr=self.lr)
         criterion_entity = GCNAlignLoss(self.entity_gamma, cuda=self.is_cuda)
         criterion_relation = GCNAlignLoss(self.relation_gamma, re_scale=self.beta, cuda=self.is_cuda)
 
@@ -113,7 +114,7 @@ class Config(object):
     @timeit
     def evaluate(self):
         self.net.eval()
-        print('Training: ' + str(self.net.gcn_list[0].dropout.training))
+        print('Training: ' + str(self.net.gcn.dropout.training))
         sr_data, tg_data = list(zip(*self.cgc.test_entity_seeds))
         sr_data = [int(ele) for ele in sr_data]
         tg_data = [int(ele) for ele in tg_data]

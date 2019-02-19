@@ -19,8 +19,8 @@ class Config(object):
         self.train_seeds_ratio = 0.3
 
         # model
-        self.num_layer = 3
-        self.embedding_dim = 100
+        self.num_layer = 2
+        self.embedding_dim = 300
 
         # dataset
         self.shuffle = True
@@ -97,7 +97,7 @@ class Config(object):
                 loss_acc += float(loss)
                 optimizer.step()
                 if (i_batch) % 10 == 0:
-                    print('\rBatch: %d/%d; loss = %.2f' % (i_batch + 1, batch_num, loss_acc/ (i_batch + 1)), end='')
+                    print('\rBatch: %d/%d; loss = %f' % (i_batch + 1, batch_num, loss_acc/ (i_batch + 1)), end='')
             print('')
             self.evaluate()
 

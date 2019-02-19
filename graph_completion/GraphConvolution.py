@@ -32,8 +32,9 @@ class GraphConvolution(nn.Module):
         '''
         if self.dropout is not None:
             inputs = self.dropout(inputs)
-        support = torch.mm(inputs, self.weights)
-        outputs = torch.spmm(adjacency_matrix, support)
+        outputs = torch.chain_matmul(adjacency_matrix, inputs, self.weights)
+        # support = torch.mm(inputs, self.weights)
+        # outputs = torch.spmm(inputs, support)
         if self.bias is not None:
             outputs += self.bias
         return outputs

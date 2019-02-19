@@ -98,12 +98,13 @@ class RelationWeighting(nn.Module):
         return r_sim_sr, r_sim_tg
 
 def normalize_adj_torch(adj):
-    row_sum = torch.sparse.sum(adj, 1)
-    d_inv_sqrt = torch.pow(row_sum, -0.5)
     adj = adj.to_dense()
-    d_inv_sqrt = d_inv_sqrt.to_dense()
-    # result =  # the result of gcn code
-    return ((adj * d_inv_sqrt).t() * d_inv_sqrt).t() #.to_sparse()
+    adj = torch.clamp(adj, max=1.0)
+    row_sum = torch.sum(adj, 1)
+    d_inv_sqrt = torch.pow(row_sum, -0.5)
+    result = ((adj * d_inv_sqrt).t() * d_inv_sqrt) # the result of gcn code
+    # del d_inv_sqrt, adj
+    return result.t() #.to_sparse()
 
 
 def cosine_similarity_nbyn(a, b):

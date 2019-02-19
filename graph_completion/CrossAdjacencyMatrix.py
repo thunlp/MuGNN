@@ -10,13 +10,20 @@ from graph_completion.functions import RelationWeighting, cosine_similarity_nbyn
 
 
 def watch_sp(sp, row_num):
-    sp = sp.coalesce()
-    row = sp.indices()[0]
-    col = sp.indices()[1]
-    values = sp.values()
-    for i, ele in enumerate(row):
-        if ele == row_num:
-            print('(', row_num, int(col[i]), ')', float(values[i]))
+    try:
+        sp = sp.coo_matrix(sp)
+        sp = sp.coalesce()
+        row = sp.indices()[0]
+        col = sp.indices()[1]
+        values = sp.values()
+        for i, ele in enumerate(row):
+            if ele == row_num:
+                print('(', row_num, int(col[i]), ')', float(values[i]))
+    except:
+        row = sp[row_num]
+        for i, ele in enumerate(row):
+            if ele != 0:
+                print('(', row_num, i, ')', float(ele))
 
 def g_func_template(a, b, c, e):
     '''
@@ -102,7 +109,9 @@ class CrossAdjacencyMatrix(nn.Module):
         # sp_tv_sr, sp_tv_tg = self._forward_transe_tv()
         adjacency_matrix_sr = g_func(self.sp_rel_conf_sr, self.sp_rel_imp_sr, self.sp_triple_pca_sr, sp_rel_att_sr)
         adjacency_matrix_tg = g_func(self.sp_rel_conf_tg, self.sp_rel_imp_tg, self.sp_triple_pca_tg, sp_rel_att_tg)
+        # watch_sp((adjacency_matrix_sr + self.unit_matrix_sr).cpu().detach().to_dense().numpy(), 0)
         adjacency_matrix_sr = normalize_adj_torch(adjacency_matrix_sr + self.unit_matrix_sr)
+        # watch_sp(adjacency_matrix_sr.cpu().detach().numpy(), 0)
         adjacency_matrix_tg = normalize_adj_torch(adjacency_matrix_tg + self.unit_matrix_tg)
         return adjacency_matrix_sr, adjacency_matrix_tg
 
@@ -170,47 +179,3 @@ def build_adms_rconf_imp_pca(triples, new_triple_confs, num_entity, relation2con
         sp_matrix[key] = torch_trans2sp(poses, values, [num_entity, num_entity])
     # print_time_info('The duplicate triple num: %d/%d.'%(i, len(triples)))
     return sp_matrix[0], sp_matrix[1], sp_matrix[2]
-
-
-
-
-# @timeit
-def relation_weighting(a, b):
-    '''
-    a shape: [num_relation_a, embed_dim]
-    b shape: [num_relation_b, embed_dim]
-    return shape: [num_relation_a], [num_relation_b]
-    '''
-    reverse = False
-    if a.size()[0] > b.size()[0]:
-        a, b = b, a
-        reverse = True
-    pad_len = b.size()[0] - a.size()[0]
-    if pad_len > 0:
-        a = F.pad(a, (0, 0, 0, pad_len))
-    sim = cosine_similarity_nbyn(a, b)
-    rows, cols = linear_sum_assignment(-sim.detach().cpu().numpy())
-    rows = torch.from_numpy(rows)
-    cols = torch.from_numpy(cols)
-    if sim.is_cuda:
-        rows = rows.cuda()
-        cols = cols.cuda()
-    print('rows1: ', rows.is_cuda)
-    print('cols: ', cols.is_cuda)
-    r_sim_sr = torch.gather(sim, -1, cols.view(-1, 1)).squeeze(1)
-    print('r_sim_sr', r_sim_sr.is_cuda)
-    cols, cols_index = cols.sort()
-    print('cols2:', cols.is_cuda)
-    print('cols_index:', cols_index.is_cuda)
-    rows = rows[cols_index]
-    print('rows2', rows.is_cuda)
-    r_sim_tg = torch.gather(sim.t(), -1, rows.view(-1, 1)).squeeze(1)
-    print('r_sim_tg', r_sim_tg.is_cuda)
-    if pad_len > 0:
-        r_sim_sr = r_sim_sr[:-pad_len]
-        print('r_sim_sr2', r_sim_sr.is_cuda)
-    if reverse:
-        r_sim_sr, r_sim_tg = r_sim_tg, r_sim_sr
-        print('r_sim_sr3', r_sim_sr.is_cuda)
-        print('r_sim_tg2', r_sim_tg.is_cuda)
-    return r_sim_sr, r_sim_tg

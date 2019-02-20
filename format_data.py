@@ -1,8 +1,8 @@
 import time
-from graph_completion.rule_mining import mine_rule_with_amie, parse_and_dump_rules
-from data import reader
 from project_path import bin_dir
+from graph_completion import reader
 from data.format_dbp15k import format_dbp15k
+from graph_completion.rule_mining import mine_rule_with_amie, parse_and_dump_rules
 
 def mine_rule_for_dbp15k():
     from project_path import bin_dir

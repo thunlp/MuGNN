@@ -12,7 +12,7 @@ def set_random_seed(seed_value=999):
     if torch.cuda.is_available(): torch.cuda.manual_seed_all(seed_value)
     random.seed(seed_value)
 
-
+batch = 0
 class GCNAlignLoss(nn.Module):
     def __init__(self, margin, re_scale=1.0, cuda=True):
         super(GCNAlignLoss, self).__init__()
@@ -34,6 +34,13 @@ class GCNAlignLoss(nn.Module):
         # if next(self.parameters()).is_cuda:
         if self.is_cuda:
             y = y.cuda()
+        # global batch
+        # batch += 1
+        # if batch % 10 == 0:
+        #     print('')
+        #     print(pos_score.mean())
+        #     print(nega_score.mean())
+        #     print('')
         loss = self.criterion(pos_score, nega_score, y)
         return loss
 

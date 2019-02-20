@@ -40,7 +40,7 @@ class Config(object):
         self.lr = 1e-3
         self.beta = 0.01  # ratio of relation loss
         self.alpha = 0.2  # alpha for the leaky relu
-        self.dropout_rate = 0.6
+        self.dropout_rate = 0.5
         self.entity_gamma = 3.0  # margin for entity loss
         self.relation_gamma = 3.0  # margin for relation loss
 
@@ -153,6 +153,9 @@ class Config(object):
 
     def set_graph_completion(self, graph_completion):
         self.graph_completion = graph_completion
+
+    def set_learning_rate(self, learning_rate):
+        self.lr = learning_rate
 
     def loop(self, bin_dir):
         # todo: finish it

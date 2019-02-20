@@ -5,7 +5,7 @@ from project_path import bin_dir
 
 # CUDA_LAUNCH_BLOCKING=1
 
-directory = bin_dir / 'full_dbp15k'
+directory = bin_dir / 'dbp15k'
 config = Config(directory)
 try:
     os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]
@@ -14,5 +14,6 @@ except IndexError:
 config.set_graph_completion(False)
 config.init(load=False)
 config.set_net(SpGATNet)
+config.set_learning_rate(0.01)
 config.print_parameter()
 config.train()

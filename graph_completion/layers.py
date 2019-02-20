@@ -33,7 +33,7 @@ class SpGraphAttentionLayer(nn.Module):
         self.leakyrelu = nn.LeakyReLU(alpha)
         self.special_spmm = SpecialSpmm()
 
-    def forward(self, inputs, adj):
+    def forward123(self, inputs, adj):
         # input shape shape [num_entity, embedding_dim]
         N = inputs.size()[0]
 
@@ -77,7 +77,7 @@ class SpGraphAttentionLayer(nn.Module):
             # if this layer is last layer,
             return h_prime
 
-    def forward2(self, inputs, adj):
+    def forward(self, inputs, adj):
         # input shape shape [num_entity, embedding_dim]
         N = inputs.size()[0]
 

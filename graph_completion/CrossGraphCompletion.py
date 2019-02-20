@@ -136,7 +136,6 @@ def rule_transfer(rules_sr, rules_tg, relation_seeds):
                                                      hypothesis, conf in rules_sr}
     rule2conf_tg = {(premises, hypothesis): conf for premises,
                                                      hypothesis, conf in rules_tg}
-    from pprint import pprint
 
     def _rule_transfer(rule2conf_sr, rule2conf_tg, r2r):
         new_rules = []
@@ -215,19 +214,17 @@ def completion_by_aligned_entities(triples_sr, triples_tg, entity_seeds, relatio
 
 class CrossGraphCompletion(object):
 
-    def __init__(self, directory, train_seeds_ratio):
+    def __init__(self, directory, train_seeds_ratio, graph_completion=True):
         '''
         we followed the experiment setting of JAPE
         the folder under the directory JAPE/0_x contains the entity alignment dataset for train and test.
         '''
-        if train_seeds_ratio not in {0.1, 0.2, 0.3, 0.4, 0.5}:
-            print('----------------------------')
-            print_time_info('Not a legal train seeds ratio: %f.' %
-                            train_seeds_ratio)
-            raise ValueError()
+        assert train_seeds_ratio in {0.1, 0.2, 0.3, 0.4, 0.5}, print_time_info(
+            'Not a legal train seeds ratio: %f.' % train_seeds_ratio, dash_bot=True)
 
         self.directory = directory
         self.train_seeds_ratio = train_seeds_ratio
+        self.graph_completion = graph_completion
         language_sr, language_tg = directory.name.split('_')
         self.language_pair = {'sr': language_sr, 'tg': language_tg}
 
@@ -260,7 +257,6 @@ class CrossGraphCompletion(object):
 
     def init(self):
         directory = self.directory
-
         # load from directory
         self.train_entity_seeds, self.test_entity_seeds, self.relation_seeds = _load_seeds(
             directory, self.train_seeds_ratio)
@@ -268,24 +264,11 @@ class CrossGraphCompletion(object):
             directory, self.language_pair['sr'])
         self.triples_tg, self.id2entity_tg, self.id2relation_tg, self.rules_tg = _load_languge(
             directory, self.language_pair['tg'])
+        if self.graph_completion:
+            self.rule_based_graph_completion()
+        self.init_triple_coefficient()
 
-        # print_time_info(self.language_pair)
-        # print_time_info(len(self.rules_sr))
-        # print_time_info(len(self.rules_tg))
-        # return
-
-        # completion_by_aligned_entities
-        # new_triple_confs_sr, new_triple_confs_tg = completion_by_aligned_entities(
-        #     self.triples_sr, self.triples_tg, self.entity_seeds, self.relation_seeds)
-        # self.triples_sr += list(new_triple_confs_sr.keys())
-        # self.triples_tg += list(new_triple_confs_tg.keys())
-        # self.new_triple_confs_sr = dict_union(
-        #     self.new_triple_confs_sr, new_triple_confs_sr)
-        # self.new_triple_confs_tg = dict_union(
-        #     self.new_triple_confs_tg, new_triple_confs_tg)
-        # self._print_result_log({'sr': new_triple_confs_sr, 'tg': new_triple_confs_tg},
-        #                        'completion_by_aligned_entities', 'triple')
-
+    def rule_based_graph_completion(self):
         # rule transfer
         new_rules_sr, new_rules_tg = rule_transfer(
             self.rules_sr, self.rules_tg, self.relation_seeds)
@@ -297,14 +280,6 @@ class CrossGraphCompletion(object):
         self._print_result_log(bi_new_rules, 'rule_transfer', 'rule')
         # _print_new_rules(bi_new_rules, self.id2relation_sr,
         #                  self.id2relation_tg)
-
-        # get relation2conf
-        self.relation2conf_sr = get_relation2conf(self.rules_sr)
-        self.relation2conf_tg = get_relation2conf(self.rules_tg)
-        print_time_info('sr r2conf num: ' + str(len(self.relation2conf_sr)) + ' average: ' + str(
-            sum(self.relation2conf_sr.values()) / len(self.relation2conf_sr)), dash_top=True)
-        print_time_info('tg r2conf num: ' + str(len(self.relation2conf_tg)) + ' average: ' + str(
-            sum(self.relation2conf_tg.values()) / len(self.relation2conf_tg)), dash_top=True)
 
         # load triple into TripleGraph
         self.triple_graph_load(self.triples_sr, self.triples_tg)
@@ -324,6 +299,15 @@ class CrossGraphCompletion(object):
                                'rule_based_graph_completion', 'triple')
         # _print_new_triple_confs(bi_new_triple_confs, self.id2entity_sr,
         #                         self.id2entity_tg, self.id2relation_sr, self.id2relation_tg)
+
+    def init_triple_coefficient(self):
+        # get relation2conf
+        self.relation2conf_sr = get_relation2conf(self.rules_sr)
+        self.relation2conf_tg = get_relation2conf(self.rules_tg)
+        print_time_info('sr r2conf num: ' + str(len(self.relation2conf_sr)) + ' average: ' + str(
+            sum(self.relation2conf_sr.values()) / len(self.relation2conf_sr)), dash_top=True)
+        print_time_info('tg r2conf num: ' + str(len(self.relation2conf_tg)) + ' average: ' + str(
+            sum(self.relation2conf_tg.values()) / len(self.relation2conf_tg)), dash_top=True)
 
         # get relation2imp
         self.relation2imp_sr = get_relation2imp(self.triples_sr, len(self.id2relation_sr))

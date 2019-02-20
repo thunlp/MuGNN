@@ -27,6 +27,7 @@ class Config(object):
         self.num_layer = 3
         self.non_acylic = True
         self.embedding_dim = 300
+        self.graph_completion = True
 
         # dataset
         self.shuffle = True
@@ -50,7 +51,7 @@ class Config(object):
         if load:
             self.cgc = CrossGraphCompletion.restore(language_pair_dirs[0] / 'running_temp')
         else:
-            self.cgc = CrossGraphCompletion(language_pair_dirs[0], self.train_seeds_ratio)
+            self.cgc = CrossGraphCompletion(language_pair_dirs[0], self.train_seeds_ratio, self.graph_completion)
             self.cgc.init()
             self.cgc.save(language_pair_dirs[0] / 'running_temp')
 
@@ -168,7 +169,7 @@ if __name__ == '__main__':
         os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]
     except IndexError:
         config.set_cuda(False)
-    config.init(True)
+    config.init(False)
     config.print_parameter()
     config.train()
     # config.init(True)

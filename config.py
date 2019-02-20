@@ -1,6 +1,5 @@
-import torch, os
+import torch
 from torch import optim
-from project_path import bin_dir
 from graph_completion.CrossGraphCompletion import CrossGraphCompletion
 from graph_completion.AlignmentDataset import AliagnmentDataset
 from torch.utils.data import DataLoader
@@ -47,7 +46,7 @@ class Config(object):
 
     def init(self, load=True):
         set_random_seed()
-        language_pair_dirs = list(directory.glob('*_en'))
+        language_pair_dirs = list(self.directory.glob('*_en'))
         if load:
             self.cgc = CrossGraphCompletion.restore(language_pair_dirs[0] / 'running_temp')
         else:
@@ -135,16 +134,6 @@ class Config(object):
             print_time_info('My patience is limited. It is time to stop!', dash_bot=True)
             exit()
 
-    def loop(self):
-        # todo: finish it
-        train_seeds_ratio = 0.3
-        directory = bin_dir / 'dbp15k'
-        language_pair_dirs = list(directory.glob('*_en'))
-        for local_directory in language_pair_dirs:
-            cgc = CrossGraphCompletion(local_directory, train_seeds_ratio)
-            cgc.init()
-            cgc.save(local_directory / 'running_temp')
-
     def print_parameter(self):
         parameters = self.__dict__
         print_time_info('Parameter setttings:', dash_top=True)
@@ -159,3 +148,13 @@ class Config(object):
 
     def set_net(self, net):
         self.net = net(self.cgc, self.num_layer, self.embedding_dim, self.dropout_rate, self.non_acylic, self.is_cuda)
+
+    def loop(self, bin_dir):
+        # todo: finish it
+        train_seeds_ratio = 0.3
+        directory = bin_dir / 'dbp15k'
+        language_pair_dirs = list(directory.glob('*_en'))
+        for local_directory in language_pair_dirs:
+            cgc = CrossGraphCompletion(local_directory, train_seeds_ratio)
+            cgc.init()
+            cgc.save(local_directory / 'running_temp')

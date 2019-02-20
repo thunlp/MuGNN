@@ -1,7 +1,6 @@
 import torch, os
 from torch import optim
 from project_path import bin_dir
-from graph_completion.nets import TrainNet
 from graph_completion.CrossGraphCompletion import CrossGraphCompletion
 from graph_completion.AlignmentDataset import AliagnmentDataset
 from torch.utils.data import DataLoader
@@ -24,14 +23,15 @@ class Config(object):
         self.train_seeds_ratio = 0.3
 
         # model
-        self.num_layer = 3
+        self.net = None
+        self.num_layer = 2
         self.non_acylic = True
         self.embedding_dim = 300
         self.graph_completion = True
 
         # dataset
         self.shuffle = True
-        self.batch_size = 16
+        self.batch_size = 64
         self.num_workers = 4  # for the data_loader
         self.nega_sample_num = 24  # number of negative samples for each positive one
 
@@ -66,8 +66,6 @@ class Config(object):
         relation_seeds = DataLoader(relation_seeds, batch_size=self.batch_size, shuffle=self.shuffle,
                                     num_workers=self.num_workers)
 
-        self.net = TrainNet(self.is_cuda, cgc, self.num_layer, self.embedding_dim, self.dropout_rate,
-                            non_acylic=self.non_acylic)
         if self.is_cuda:
             self.net.cuda()
         # for name, param in gcn.named_parameters():
@@ -150,6 +148,7 @@ class Config(object):
     def print_parameter(self):
         parameters = self.__dict__
         print_time_info('Parameter setttings:', dash_top=True)
+        print('\tNet: ', type(self.net).__name__)
         for key, value in parameters.items():
             if type(value) in {int, float, str, bool}:
                 print('\t%s:' % key, value)
@@ -158,18 +157,5 @@ class Config(object):
     def set_cuda(self, is_cuda):
         self.is_cuda = is_cuda
 
-
-if __name__ == '__main__':
-    # CUDA_LAUNCH_BLOCKING=1
-    import sys
-
-    directory = bin_dir / 'dbp15k'
-    config = Config(directory)
-    try:
-        os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]
-    except IndexError:
-        config.set_cuda(False)
-    config.init(False)
-    config.print_parameter()
-    config.train()
-    # config.init(True)
+    def set_net(self, net):
+        self.net = net(self.cgc, self.num_layer, self.embedding_dim, self.dropout_rate, self.non_acylic, self.is_cuda)

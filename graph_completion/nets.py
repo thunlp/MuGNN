@@ -8,12 +8,30 @@ from graph_completion.functions import cosine_similarity_nbyn
 from scipy.optimize import linear_sum_assignment
 
 
-class TrainNet(nn.Module):
-    def __init__(self, cuda, cgc, num_layer, dim, dropout_rate=0.5, bias=False, non_acylic=False):
-        super(TrainNet, self).__init__()
+class AlignGraphNet(nn.Module):
+    def __init__(self, dropout_rate=0.5, non_acylic=False, cuda=True):
+        super(AlignGraphNet, self).__init__()
+        self.is_cuda = cuda
+        self.non_acylic = non_acylic
+        self.dropout_rate = dropout_rate
+
+    def predict(self, sr_data, tg_data):
+        raise NotImplementedError
+
+    def bootstrap(self, *args):
+        raise NotImplementedError
+
+class GATNet(AlignGraphNet):
+    def __init__(self, *args, **kwargs):
+        super(GATNet, self).__init__(*args, **kwargs)
+
+
+class GCNNet(AlignGraphNet):
+    def __init__(self, cgc, num_layer, dim, *args, **kwargs):
+        super(GCNNet, self).__init__(*args, **kwargs)
         assert isinstance(cgc, CrossGraphCompletion)
-        self.cam = CrossAdjacencyMatrix(dim, cgc, cuda, non_acylic=non_acylic)
-        self.gcn = GCN(dim, num_layer, dropout_rate, bias)
+        self.cam = CrossAdjacencyMatrix(dim, cgc, self.cuda, non_acylic=self.non_acylic)
+        self.gcn = GCN(dim, num_layer, self.dropout_rate)
         self.entity_embedding = DoubleEmbedding(len(cgc.id2entity_sr), len(cgc.id2entity_tg), dim)
         self.relation_embedding = DoubleEmbedding(len(cgc.id2relation_sr), len(cgc.id2relation_tg), dim)
 

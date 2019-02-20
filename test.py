@@ -4,9 +4,11 @@ import numpy as np
 import scipy.sparse as sp
 from torch import sparse
 
-a = torch.FloatTensor(2,2)
-print(a)
+class A(object):
+    pass
 
+a = A()
+print(type(a).__name__)
 
 exit()
 best_hits_10 = (1.0, 2.0, 3)

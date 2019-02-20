@@ -56,14 +56,10 @@ class CrossAdjacencyMatrix(nn.Module):
             list(zip(*str2int4triples(cgc.triples_sr))), dtype=np.int64))
         head_tg, tail_tg, relation_tg = torch.from_numpy(np.asarray(
             list(zip(*str2int4triples(cgc.triples_tg))), dtype=np.int64))
-        self.head_sr = nn.Parameter(head_sr, requires_grad=False)
-        self.head_tg = nn.Parameter(head_tg, requires_grad=False)
-        self.tail_sr = nn.Parameter(tail_sr, requires_grad=False)
-        self.tail_tg = nn.Parameter(tail_tg, requires_grad=False)
         self.relation_sr = nn.Parameter(relation_sr, requires_grad=False)
         self.relation_tg = nn.Parameter(relation_tg, requires_grad=False)
-        self.pos_sr = nn.Parameter(torch.cat((self.head_sr.view(1, -1), self.tail_sr.view(1, -1)), dim=0), requires_grad=False)
-        self.pos_tg = nn.Parameter(torch.cat((self.head_tg.view(1, -1), self.tail_tg.view(1, -1)), dim=0), requires_grad=False)
+        self.pos_sr = nn.Parameter(torch.cat((head_sr.view(1, -1), tail_sr.view(1, -1)), dim=0), requires_grad=False)
+        self.pos_tg = nn.Parameter(torch.cat((head_tg.view(1, -1), tail_tg.view(1, -1)), dim=0), requires_grad=False)
 
         # part of the matrix
         sp_rel_conf_sr, sp_rel_imp_sr, sp_triple_pca_sr = build_adms_rconf_imp_pca(cgc.triples_sr,
@@ -72,7 +68,7 @@ class CrossAdjacencyMatrix(nn.Module):
                                                                                    cgc.relation2conf_sr,
                                                                                    cgc.relation2imp_sr,
                                                                                    self.non_acylic)
-        # self.ad_constant_matrix_sr = nn.Parameter(torch.from_numpy(
+
         sp_rel_conf_tg, sp_rel_imp_tg, sp_triple_pca_tg = build_adms_rconf_imp_pca(cgc.triples_tg,
                                                                                    cgc.new_triple_confs_tg,
                                                                                    self.entity_num_tg,

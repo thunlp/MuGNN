@@ -266,7 +266,7 @@ class CrossGraphCompletion(object):
             directory, self.language_pair['tg'])
         if self.graph_completion:
             self.rule_based_graph_completion()
-        self.init_triple_coefficient()
+            self.init_triple_coefficient()
 
     def rule_based_graph_completion(self):
         # rule transfer

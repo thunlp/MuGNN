@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+from torch.sparse import mm
 
 class SpGraphMultiHeadAttLayer(nn.Module):
     def __init__(self, dim_in, dim_out_s, nheads, dropout, alpha, concat, cuda):
@@ -34,6 +34,50 @@ class SpGraphAttentionLayer(nn.Module):
         self.special_spmm = SpecialSpmm()
 
     def forward(self, inputs, adj):
+        # input shape shape [num_entity, embedding_dim]
+        N = inputs.size()[0]
+
+        # edge = adj.nonzero().t()
+        edge = adj.indices()
+        h = torch.mm(inputs, self.W)
+        # h: N x out
+        assert not torch.isnan(h).any()
+
+        # Self-attention on the nodes - Shared attention mechanism
+        edge_h = torch.cat((h[edge[0, :], :], h[edge[1, :], :]), dim=1).t()
+        # edge: 2*D x E
+
+        edge_e = torch.exp(-self.leakyrelu(self.a.mm(edge_h).squeeze()))
+        assert not torch.isnan(edge_e).any()
+        # edge_e: E
+        ones = torch.ones(size=(N, 1))
+        sp_adj_tmp = torch.sparse_coo_tensor(edge, edge_e, torch.Size([N, N]))
+        if self.is_cuda:
+            ones = ones.cuda()
+        e_rowsum = torch.sparse.mm(sp_adj_tmp, ones)
+        # e_rowsum = self.special_spmm(edge, edge_e, torch.Size([N, N]), ones)
+        # e_rowsum: N x 1
+
+        edge_e = self.dropout(edge_e)
+        sp_adj_tmp = torch.sparse_coo_tensor(edge, edge_e, torch.Size([N, N]))
+        # edge_e: E
+        h_prime = torch.sparse.mm(sp_adj_tmp, h)
+        # h_prime = self.special_spmm(edge, edge_e, torch.Size([N, N]), h)
+        assert not torch.isnan(h_prime).any()
+        # h_prime: N x out
+
+        h_prime = h_prime.div(e_rowsum)
+        # h_prime: N x out
+        assert not torch.isnan(h_prime).any()
+
+        if self.concat:
+            # if this layer is not last layer,
+            return F.elu(h_prime)
+        else:
+            # if this layer is last layer,
+            return h_prime
+
+    def forward2(self, inputs, adj):
         # input shape shape [num_entity, embedding_dim]
         N = inputs.size()[0]
 

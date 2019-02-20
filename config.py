@@ -24,11 +24,11 @@ class Config(object):
 
         # model
         self.net = None
-        self.nheads = 8
+        self.nheads = 4
         self.num_layer = 2
         self.non_acylic = True
-        self.embedding_dim = 128
-        self.graph_completion = True
+        self.embedding_dim = 300
+        self.graph_completion = False
 
         # dataset
         self.shuffle = True
@@ -150,6 +150,9 @@ class Config(object):
     def set_net(self, net):
         self.net = net(self.cgc, self.num_layer, self.embedding_dim, self.nheads, self.alpha, self.dropout_rate,
                        self.non_acylic, self.is_cuda)
+
+    def set_graph_completion(self, graph_completion):
+        self.graph_completion = graph_completion
 
     def loop(self, bin_dir):
         # todo: finish it

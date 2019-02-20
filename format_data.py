@@ -1,12 +1,12 @@
 import time
 from project_path import bin_dir
 from graph_completion import reader
-from data.format_dbp15k import format_dbp15k
+from data.format_dbp15k import format_dbp15k_full, format_dbp15k
 from graph_completion.rule_mining import mine_rule_with_amie, parse_and_dump_rules
 
-def mine_rule_for_dbp15k():
+def mine_rule_for_dbp15k(path_name):
     from project_path import bin_dir
-    bin_dir = bin_dir / 'dbp15k'
+    bin_dir = bin_dir / path_name
     language_pair_dirs = list(bin_dir.glob('*_en'))
     for directory in language_pair_dirs:
         local_bin_dir = directory / 'AMIE'
@@ -15,7 +15,10 @@ def mine_rule_for_dbp15k():
             file_name = file_path.name
             output_path = local_bin_dir / ('rule_for_' + file_name)
             mine_rule_with_amie(file_path, output_path)
-    time.sleep(120)
+    while True:
+        info = input('\tIf amie ended, please input: "amie ended"\n')
+        if info == 'amie ended':
+            break
     for directory in language_pair_dirs:
         local_bin_dir = directory / 'AMIE'
         file_paths = local_bin_dir.glob('rule_for_triples_*.txt')
@@ -32,5 +35,8 @@ if __name__ == '__main__':
         'test_ratio': 0.0,
     }
     
-    format_dbp15k(bin_dir, TransE_conf)
-    mine_rule_for_dbp15k()
+    # format_dbp15k(bin_dir, 'dbp15k', 'dbp15k')
+    # mine_rule_for_dbp15k('dbp15k')
+
+    format_dbp15k_full(bin_dir, 'full_dbp15k', 'Full_DBP15k')
+    mine_rule_for_dbp15k('full_dbp15k')

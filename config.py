@@ -27,7 +27,7 @@ class Config(object):
         self.nheads = 4
         self.num_layer = 2
         self.non_acylic = True
-        self.embedding_dim = 300
+        self.embedding_dim = 256
         self.graph_completion = False
 
         # dataset
@@ -40,10 +40,10 @@ class Config(object):
         self.lr = 1e-3
         self.beta = 0.01  # ratio of relation loss
         self.alpha = 0.2  # alpha for the leaky relu
+        self.l2_penalty = 0.0001
         self.dropout_rate = 0.5
         self.entity_gamma = 3.0  # margin for entity loss
         self.relation_gamma = 3.0  # margin for relation loss
-
         # cuda
         self.is_cuda = True
 
@@ -72,7 +72,7 @@ class Config(object):
             self.net.cuda()
         # for name, param in gcn.named_parameters():
         #     print(name, param.requires_grad)
-        optimizer = optim.Adam(self.net.parameters(), lr=self.lr)
+        optimizer = optim.Adam(self.net.parameters(), lr=self.lr, weight_decay=self.l2_penalty)
         criterion_entity = GCNAlignLoss(self.entity_gamma, cuda=self.is_cuda)
         criterion_relation = GCNAlignLoss(self.relation_gamma, re_scale=self.beta, cuda=self.is_cuda)
 
@@ -156,6 +156,15 @@ class Config(object):
 
     def set_learning_rate(self, learning_rate):
         self.lr = learning_rate
+
+    def  set_dropout(self, dropout):
+        self.dropout_rate = dropout
+
+    def set_gamma(self, gamma):
+        self.entity_gamma = gamma
+
+    def set_dim(self, dim):
+        self.embedding_dim = dim
 
     def loop(self, bin_dir):
         # todo: finish it

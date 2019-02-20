@@ -34,13 +34,13 @@ class GCNAlignLoss(nn.Module):
         # if next(self.parameters()).is_cuda:
         if self.is_cuda:
             y = y.cuda()
-        # global batch
-        # batch += 1
-        # if batch % 10 == 0:
-        #     print('')
-        #     print(pos_score.mean())
-        #     print(nega_score.mean())
-        #     print('')
+        global batch
+        batch += 1
+        if batch % 20 == 0:
+            print('')
+            print(pos_score.mean())
+            print(nega_score.mean())
+            print('')
         loss = self.criterion(pos_score, nega_score, y)
         return loss
 

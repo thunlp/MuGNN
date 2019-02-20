@@ -1,12 +1,12 @@
 import torch
 from torch import optim
-from graph_completion.CrossGraphCompletion import CrossGraphCompletion
-from graph_completion.AlignmentDataset import AliagnmentDataset
-from torch.utils.data import DataLoader
-from graph_completion.functions import GCNAlignLoss
-from tools.print_time_info import print_time_info
-from graph_completion.functions import get_hits, set_random_seed
 from tools.timeit import timeit
+from torch.utils.data import DataLoader
+from tools.print_time_info import print_time_info
+from graph_completion.functions import GCNAlignLoss
+from graph_completion.AlignmentDataset import AliagnmentDataset
+from graph_completion.functions import get_hits, set_random_seed
+from graph_completion.CrossGraphCompletion import CrossGraphCompletion
 
 
 class Config(object):

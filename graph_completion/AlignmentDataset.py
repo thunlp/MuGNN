@@ -7,8 +7,9 @@ from torch.utils.data import Dataset, DataLoader
 class AliagnmentDataset(Dataset):
     """Seed alignment dataset."""
 
-    def __init__(self, seeds, nega_sample_num, num_sr, num_tg):
+    def __init__(self, seeds, nega_sample_num, num_sr, num_tg, cuda):
         assert nega_sample_num % 2 == 0
+        self.cuda = cuda
         self.num_sr = num_sr
         self.num_tg = num_tg
         self.nega_sample_num = nega_sample_num
@@ -34,7 +35,12 @@ class AliagnmentDataset(Dataset):
         sr_data = [sr] + nega_sr + [sr] * nega_sample_num
         tg_data = [tg] + [tg] * nega_sample_num + nega_tg
         # the first data is the positive one
-        return torch.tensor(sr_data, dtype=torch.int64), torch.tensor(tg_data, dtype=torch.int64)
+        sr_data = torch.tensor(sr_data, dtype=torch.int64)
+        tg_data = torch.tensor(tg_data, dtype=torch.int64)
+        # if self.cuda:
+        #     sr_data = sr_data.cuda()
+        #     tg_data = tg_data.cuda()
+        return sr_data, tg_data
 
 
 if __name__ == '__main__':

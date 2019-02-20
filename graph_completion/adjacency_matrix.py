@@ -1,28 +1,32 @@
 import torch
-import math
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
-from scipy.optimize import linear_sum_assignment
 from graph_completion.CrossGraphCompletion import CrossGraphCompletion
-from graph_completion.functions import RelationWeighting, cosine_similarity_nbyn, normalize_adj_torch
+from graph_completion.functions import str2int4triples
+from graph_completion.torch_functions import RelationWeighting, normalize_adj_torch
 
 
-def watch_sp(sp, row_num):
-    try:
-        sp = sp.coo_matrix(sp)
-        sp = sp.coalesce()
-        row = sp.indices()[0]
-        col = sp.indices()[1]
-        values = sp.values()
-        for i, ele in enumerate(row):
-            if ele == row_num:
-                print('(', row_num, int(col[i]), ')', float(values[i]))
-    except:
-        row = sp[row_num]
-        for i, ele in enumerate(row):
-            if ele != 0:
-                print('(', row_num, i, ')', float(ele))
+class SpTwinAdj(object):
+    def __init__(self, num_sr, num_tg, triples_sr, triples_tg, non_acylic):
+        def _triple2sp_m(triples, size):
+            heads, tails, relations = list(zip(*triples))
+            pos = list(zip(heads, tails))
+            if non_acylic:
+                pos += list(zip(tails, heads))
+            pos += [(i, i) for i in range(size)] # unit matrix
+            pos = set(pos)
+            heads, tails = list(zip(*pos))
+            pos = torch.tensor([heads, tails], dtype=torch.int64)
+            value = torch.ones((len(heads),))
+            return torch.sparse_coo_tensor(pos, value, size=torch.Size((size, size)))
+
+        self.sp_adj_sr = _triple2sp_m(triples_sr, num_sr).coalesce()
+        self.sp_adj_tg = _triple2sp_m(triples_tg, num_tg).coalesce()
+
+    @property
+    def sp_adj(self):
+        return self.sp_adj_sr, self.sp_adj_tg
 
 def g_func_template(a, b, c, e):
     '''
@@ -32,10 +36,12 @@ def g_func_template(a, b, c, e):
     # return a * b * (1.0*c + 0.0*e)
     return a * b * c
 
+
 def get_sparse_unit_matrix(size):
     values = torch.from_numpy(np.ones([size], dtype=np.float32))
     poses = torch.from_numpy(np.asarray([[i for i in range(size)] for _ in range(2)], dtype=np.int64))
     return torch_trans2sp(poses, values, (size, size))
+
 
 class CrossAdjacencyMatrix(nn.Module):
     def __init__(self, embedding_dim, cgc, cuda, non_acylic=False):
@@ -107,10 +113,6 @@ class CrossAdjacencyMatrix(nn.Module):
         return sp_rel_att_sr, sp_rel_att_tg
 
 
-def str2int4triples(triples):
-    return [(int(head), int(tail), int(relation)) for head, tail, relation in triples]
-
-
 def torch_trans2sp(indices, values, size):
     return torch.sparse.FloatTensor(indices, values, size=torch.Size(size))
 
@@ -157,3 +159,21 @@ def build_adms_rconf_imp_pca(triples, new_triple_confs, num_entity, relation2con
         sp_matrix[key] = torch_trans2sp(poses, values, [num_entity, num_entity])
     # print_time_info('The duplicate triple num: %d/%d.'%(i, len(triples)))
     return sp_matrix[0], sp_matrix[1], sp_matrix[2]
+
+
+
+def watch_sp(sp, row_num):
+    try:
+        sp = sp.coo_matrix(sp)
+        sp = sp.coalesce()
+        row = sp.indices()[0]
+        col = sp.indices()[1]
+        values = sp.values()
+        for i, ele in enumerate(row):
+            if ele == row_num:
+                print('(', row_num, int(col[i]), ')', float(values[i]))
+    except:
+        row = sp[row_num]
+        for i, ele in enumerate(row):
+            if ele != 0:
+                print('(', row_num, i, ')', float(ele))

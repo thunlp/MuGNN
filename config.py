@@ -3,9 +3,10 @@ from torch import optim
 from tools.timeit import timeit
 from torch.utils.data import DataLoader
 from tools.print_time_info import print_time_info
-from graph_completion.functions import GCNAlignLoss
+from graph_completion.torch_functions import GCNAlignLoss
 from graph_completion.AlignmentDataset import AliagnmentDataset
-from graph_completion.functions import get_hits, set_random_seed
+from graph_completion.torch_functions import set_random_seed
+from graph_completion.functions import get_hits
 from graph_completion.CrossGraphCompletion import CrossGraphCompletion
 
 
@@ -23,9 +24,10 @@ class Config(object):
 
         # model
         self.net = None
+        self.nheads = 8
         self.num_layer = 2
         self.non_acylic = True
-        self.embedding_dim = 300
+        self.embedding_dim = 128
         self.graph_completion = True
 
         # dataset
@@ -37,7 +39,8 @@ class Config(object):
         # hyper parameter
         self.lr = 1e-3
         self.beta = 0.01  # ratio of relation loss
-        self.dropout_rate = 0.5
+        self.alpha = 0.2  # alpha for the leaky relu
+        self.dropout_rate = 0.6
         self.entity_gamma = 3.0  # margin for entity loss
         self.relation_gamma = 3.0  # margin for relation loss
 
@@ -57,11 +60,11 @@ class Config(object):
     def train(self):
         cgc = self.cgc
         entity_seeds = AliagnmentDataset(cgc.train_entity_seeds, self.nega_sample_num, len(cgc.id2entity_sr),
-                                         len(cgc.id2entity_tg))
+                                         len(cgc.id2entity_tg), self.is_cuda)
         entity_seeds = DataLoader(entity_seeds, batch_size=self.batch_size, shuffle=self.shuffle,
                                   num_workers=self.num_workers)
         relation_seeds = AliagnmentDataset(cgc.relation_seeds, self.nega_sample_num, len(cgc.id2relation_sr),
-                                           len(cgc.id2relation_tg))
+                                           len(cgc.id2relation_tg), self.is_cuda)
         relation_seeds = DataLoader(relation_seeds, batch_size=self.batch_size, shuffle=self.shuffle,
                                     num_workers=self.num_workers)
 
@@ -87,18 +90,16 @@ class Config(object):
                 optimizer.zero_grad()
                 sr_data, tg_data = batch
                 if self.is_cuda:
-                    sr_data, tg_data = sr_data.cuda(), tg_data.cuda()
-                try:
-                    sr_rel_data, tg_rel_data = next(relation_seeds_iter)
-                except StopIteration:
-                    relation_seeds_iter = iter(relation_seeds)
-                    sr_rel_data, tg_rel_data = next(relation_seeds_iter)
-                if self.is_cuda:
-                    sr_rel_data, tg_rel_data = sr_rel_data.cuda(), tg_rel_data.cuda()
-                repre_e_sr, repre_e_tg, repre_r_sr, repre_r_tg = self.net(sr_data, tg_data, sr_rel_data, tg_rel_data)
+                    sr_data, tg_data= sr_data.cuda(), tg_data.cuda()
+                # try:
+                #     sr_rel_data, tg_rel_data = next(relation_seeds_iter)
+                # except StopIteration:
+                #     relation_seeds_iter = iter(relation_seeds)
+                #     sr_rel_data, tg_rel_data = next(relation_seeds_iter)
+                # if self.is_cuda:
+                #     sr_rel_data, tg_rel_data = sr_rel_data.cuda(), tg_rel_data.cuda()
+                repre_e_sr, repre_e_tg, = self.net(sr_data, tg_data)
                 entity_loss = criterion_entity(repre_e_sr, repre_e_tg)
-                # relation_loss = criterion_relation(repre_r_sr, repre_r_tg)
-                # loss = sum([entity_loss, relation_loss])
                 loss = entity_loss
                 loss.backward()
                 loss_acc += float(loss)
@@ -112,7 +113,7 @@ class Config(object):
     @timeit
     def evaluate(self):
         self.net.eval()
-        print('Training: ' + str(self.net.gcn.dropout.training))
+        print('Training: ' + str(self.net.sp_gat.dropout.training))
         sr_data, tg_data = list(zip(*self.cgc.test_entity_seeds))
         sr_data = [int(ele) for ele in sr_data]
         tg_data = [int(ele) for ele in tg_data]
@@ -147,7 +148,8 @@ class Config(object):
         self.is_cuda = is_cuda
 
     def set_net(self, net):
-        self.net = net(self.cgc, self.num_layer, self.embedding_dim, self.dropout_rate, self.non_acylic, self.is_cuda)
+        self.net = net(self.cgc, self.num_layer, self.embedding_dim, self.nheads, self.alpha, self.dropout_rate,
+                       self.non_acylic, self.is_cuda)
 
     def loop(self, bin_dir):
         # todo: finish it

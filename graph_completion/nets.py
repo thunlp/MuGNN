@@ -1,11 +1,14 @@
 import torch.nn as nn
 import torch.nn.functional as F
-from graph_completion.models import GCN
+from .functions import str2int4triples
+from graph_completion.models import GCN, SpGAT
 from graph_completion.layers import DoubleEmbedding
-from graph_completion.CrossAdjacencyMatrix import CrossAdjacencyMatrix
+from graph_completion.adjacency_matrix import CrossAdjacencyMatrix, SpTwinAdj
 from graph_completion.CrossGraphCompletion import CrossGraphCompletion
-from graph_completion.functions import cosine_similarity_nbyn
+from graph_completion.torch_functions import cosine_similarity_nbyn
 from scipy.optimize import linear_sum_assignment
+
+__all__ = ['SpGATNet']
 
 
 class AlignGraphNet(nn.Module):
@@ -21,9 +24,31 @@ class AlignGraphNet(nn.Module):
     def bootstrap(self, *args):
         raise NotImplementedError
 
-class GATNet(AlignGraphNet):
-    def __init__(self, *args, **kwargs):
-        super(GATNet, self).__init__(*args, **kwargs)
+
+class SpGATNet(AlignGraphNet):
+    def __init__(self, cgc, num_layer, dim, nheads, alpha=0.2, *args, **kwargs):
+        super(SpGATNet, self).__init__(*args, **kwargs)
+        assert isinstance(cgc, CrossGraphCompletion)
+        num_entity_sr = len(cgc.id2entity_sr)
+        num_entity_tg = len(cgc.id2entity_tg)
+        sp_twin_adj = SpTwinAdj(num_entity_sr, num_entity_tg, str2int4triples(cgc.triples_sr),
+                                str2int4triples(cgc.triples_tg), self.non_acylic)
+        self.adj_sr = nn.Parameter(sp_twin_adj.sp_adj_sr, requires_grad=False)
+        self.adj_tg = nn.Parameter(sp_twin_adj.sp_adj_tg, requires_grad=False)
+        self.sp_gat = SpGAT(dim, dim, nheads, num_layer, self.dropout_rate, alpha, self.is_cuda)
+        self.entity_embedding = DoubleEmbedding(num_entity_sr, num_entity_tg, dim)
+
+    def forward(self, sr_data, tg_data):
+        graph_embedding_sr, graph_embedding_tg = self.entity_embedding.weight
+        graph_embedding_sr = self.sp_gat(graph_embedding_sr, self.adj_sr)
+        graph_embedding_tg = self.sp_gat(graph_embedding_tg, self.adj_tg)
+        repre_e_sr = F.embedding(sr_data, graph_embedding_sr)
+        repre_e_tg = F.embedding(tg_data, graph_embedding_tg)
+        return repre_e_sr, repre_e_tg
+
+    def predict(self, sr_data, tg_data):
+        repre_e_sr, repre_e_tg = self.forward(sr_data, tg_data)
+        return repre_e_sr.cpu().detach().numpy(), repre_e_tg.cpu().detach().numpy()
 
 
 class GCNNet(AlignGraphNet):

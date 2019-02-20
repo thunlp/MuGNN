@@ -1,6 +1,6 @@
 import sys, os
 from config import Config
-from graph_completion.nets import GCNNet
+from graph_completion.nets import *
 from project_path import bin_dir
 
 # CUDA_LAUNCH_BLOCKING=1
@@ -12,6 +12,6 @@ try:
 except IndexError:
     config.set_cuda(False)
 config.init(load=True)
-config.set_net(GCNNet)
+config.set_net(SpGATNet)
 config.print_parameter()
 config.train()

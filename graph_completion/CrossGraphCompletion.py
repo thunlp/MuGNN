@@ -1,6 +1,6 @@
 import random, pickle
 from graph_completion.TripleGraph import TripleGraph
-from data.reader import read_mapping, read_triples, read_seeds, read_rules
+from .reader import read_mapping, read_triples, read_seeds, read_rules
 from tools.print_time_info import print_time_info
 
 

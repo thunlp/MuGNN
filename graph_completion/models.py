@@ -12,7 +12,7 @@ class SpGAT(nn.Module):
         for i in range(layers):
             if i != 0:
                 dim_in = dim_out
-            self.att_layers.append(
+            self.multi_head_att_layers.append(
                 SpGraphMultiHeadAttLayer(dim_in, dim_out // nheads, nheads, dropout_rate, alpha, True, cuda))
 
     def forward(self, x, adj):

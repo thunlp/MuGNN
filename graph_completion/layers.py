@@ -36,8 +36,9 @@ class SpGraphAttentionLayer(nn.Module):
     def forward(self, inputs, adj):
         # input shape shape [num_entity, embedding_dim]
         N = inputs.size()[0]
-        edge = adj.nonzero().t()
 
+        # edge = adj.nonzero().t()
+        edge = adj.indices()
         h = torch.mm(inputs, self.W)
         # h: N x out
         assert not torch.isnan(h).any()
@@ -51,13 +52,12 @@ class SpGraphAttentionLayer(nn.Module):
         # edge_e: E
         ones = torch.ones(size=(N, 1))
         if self.is_cuda:
-            ones.cuda()
+            ones = ones.cuda()
         e_rowsum = self.special_spmm(edge, edge_e, torch.Size([N, N]), ones)
         # e_rowsum: N x 1
 
         edge_e = self.dropout(edge_e)
         # edge_e: E
-
         h_prime = self.special_spmm(edge, edge_e, torch.Size([N, N]), h)
         assert not torch.isnan(h_prime).any()
         # h_prime: N x out

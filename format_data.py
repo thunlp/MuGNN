@@ -34,9 +34,11 @@ if __name__ == '__main__':
         'valid_ratio': 0.0,
         'test_ratio': 0.0,
     }
-    
-    # format_dbp15k(bin_dir, 'dbp15k', 'dbp15k')
-    # mine_rule_for_dbp15k('dbp15k')
 
-    format_dbp15k_full(bin_dir, 'full_dbp15k', 'Full_DBP15k')
-    mine_rule_for_dbp15k('full_dbp15k')
+    print(bin_dir.parent)
+    exit()
+    format_dbp15k(bin_dir, 'dbp15k', 'dbp15k')
+    mine_rule_for_dbp15k('dbp15k')
+
+    # format_dbp15k_full(bin_dir, 'full_dbp15k', 'Full_DBP15k')
+    # mine_rule_for_dbp15k('full_dbp15k')

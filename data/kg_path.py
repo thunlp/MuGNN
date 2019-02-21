@@ -9,5 +9,7 @@ if node == 'achar':
     kg_data_dir = Path(r'E:\knowledge_graph')
 elif node[:-1] == 'next-gpu':
     kg_data_dir = Path('/storage/zyliu/Data/knowledge_graph')
+elif node == 'achar-ultra-book':
+    kg_data_dir = Path('/mnt/winDATA/knowledge_graph')
 else:
     raise NotImplementedError('Check the environment to make sure whether it was in the supported list.')

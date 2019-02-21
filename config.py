@@ -27,7 +27,7 @@ class Config(object):
         self.nheads = 4
         self.num_layer = 2
         self.non_acylic = True
-        self.embedding_dim = 256
+        self.embedding_dim = 300
         self.graph_completion = False
 
         # dataset
@@ -61,13 +61,16 @@ class Config(object):
         cgc = self.cgc
         entity_seeds = AliagnmentDataset(cgc.train_entity_seeds, self.nega_sample_num, len(cgc.id2entity_sr),
                                          len(cgc.id2entity_tg), self.is_cuda)
-        entity_seeds = DataLoader(entity_seeds, batch_size=self.batch_size, shuffle=self.shuffle,
+        entity_loader = DataLoader(entity_seeds, batch_size=self.batch_size, shuffle=self.shuffle,
                                   num_workers=self.num_workers)
         relation_seeds = AliagnmentDataset(cgc.relation_seeds, self.nega_sample_num, len(cgc.id2relation_sr),
                                            len(cgc.id2relation_tg), self.is_cuda)
         relation_seeds = DataLoader(relation_seeds, batch_size=self.batch_size, shuffle=self.shuffle,
                                     num_workers=self.num_workers)
-
+        para = self.net.named_parameters()
+        for key, value in para:
+            print(key)
+        exit()
         if self.is_cuda:
             self.net.cuda()
         # for name, param in gcn.named_parameters():
@@ -80,13 +83,13 @@ class Config(object):
             criterion_entity.cuda()
             criterion_relation.cuda()
 
-        batch_num = len(entity_seeds)
+        batch_num = len(entity_loader)
         for epoch in range(self.num_epoch):
             relation_seeds_iter = iter(relation_seeds)
             print_time_info('Epoch: %d started!' % (epoch + 1))
             self.net.train()
             loss_acc = 0
-            for i_batch, batch in enumerate(entity_seeds):
+            for i_batch, batch in enumerate(entity_loader):
                 optimizer.zero_grad()
                 sr_data, tg_data = batch
                 if self.is_cuda:
@@ -106,6 +109,9 @@ class Config(object):
                 optimizer.step()
                 if (i_batch) % 10 == 0:
                     print('\rBatch: %d/%d; loss = %f' % (i_batch + 1, batch_num, loss_acc / (i_batch + 1)), end='')
+            if epoch % 10 == 0:
+                entity_loader = DataLoader(entity_seeds, batch_size=self.batch_size, shuffle=self.shuffle,
+                                           num_workers=self.num_workers)
             print('')
             self.now_epoch += 1
             self.evaluate()
@@ -165,6 +171,15 @@ class Config(object):
 
     def set_dim(self, dim):
         self.embedding_dim = dim
+
+    def set_nheads(self, nheads):
+        self.nheads = nheads
+
+    def set_l2_penalty(self, l2_penalty):
+        self.l2_penalty = l2_penalty
+
+    def set_num_layer(self, num_layer):
+        self.num_layer = num_layer
 
     def loop(self, bin_dir):
         # todo: finish it

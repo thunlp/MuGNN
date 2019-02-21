@@ -7,10 +7,16 @@ def get_hits(sr_embedding, tg_embedding, top_k=(1, 10, 50, 100)):
     Lvec = sr_embedding
     Rvec = tg_embedding
     sim = spatial.distance.cdist(Lvec, Rvec, metric='cityblock')
+    print(sim)
     top_lr = [0] * len(top_k)
     for i in range(Lvec.shape[0]):
         rank = sim[i, :].argsort()
+        print(rank)
+        print(np.where(rank == i))
+        # exit()
         rank_index = np.where(rank == i)[0][0]
+        print(rank_index)
+        # exit()
         for j in range(len(top_k)):
             if rank_index < top_k[j]:
                 top_lr[j] += 1

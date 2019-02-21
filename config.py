@@ -15,6 +15,7 @@ class Config(object):
     def __init__(self, directory):
         # training
         self.patience = 10
+        self.min_epoch = 300
         self.bad_result = 0
         self.now_epoch = 0
         self.best_hits_10 = (0, 0, 0)  # (epoch, sr, tg)
@@ -76,11 +77,13 @@ class Config(object):
             criterion_relation.cuda()
 
         batch_num = len(entity_loader)
+        loss_acc = 0
         for epoch in range(self.num_epoch):
             # relation_seeds_iter = iter(relation_seeds)
             print_time_info('Epoch: %d started!' % (epoch + 1))
             self.net.train()
-            loss_acc = 0
+            if epoch % 10 == 0:
+                loss_acc = 0
             for i_batch, batch in enumerate(entity_loader):
                 optimizer.zero_grad()
                 sr_data, tg_data = batch
@@ -92,11 +95,12 @@ class Config(object):
                 loss.backward()
                 loss_acc += float(loss)
                 optimizer.step()
-                if (i_batch) % 10 == 0:
-                    print('\rBatch: %d/%d; loss = %f' % (i_batch + 1, batch_num, loss_acc / (i_batch + 1)), end='')
-            print('')
+                # if (i_batch) % 10 == 0:
+                #     print('\rBatch: %d/%d; loss = %f' % (i_batch + 1, batch_num, loss_acc / (i_batch + 1)), end='')
             self.now_epoch += 1
-            self.evaluate()
+            if epoch % 10 == 0:
+                print('\rBatch: %d; loss = %f' % (epoch + 1, loss_acc / 10))
+                self.evaluate()
 
     @timeit
     def evaluate(self):
@@ -119,6 +123,8 @@ class Config(object):
             self.bad_result += 1
         print_time_info('Current best Hits@10 at the %dth epoch: (%.2f, %.2f)' % (self.best_hits_10))
 
+        if self.now_epoch < self.min_epoch:
+            return
         if self.bad_result >= self.patience:
             print_time_info('My patience is limited. It is time to stop!', dash_bot=True)
             exit()

@@ -30,13 +30,18 @@ def _load_languge(directory, language):
     id2relation = {i: relation for relation, i in relation2id.items()}
     return triples, id2entity, id2relation, rules
 
+# train_entity_seeds = read_seeds(
+#         directory / 'JAPE' / ('0_' + str(int(10 * train_seeds_ratio))) / 'train_entity_seeds.txt')
+#     test_entity_seeds = read_seeds(
+#         directory / 'JAPE' / ('0_' + str(int(10 * train_seeds_ratio))) / 'test_entity_seeds.txt')
 
 def _load_seeds(directory, train_seeds_ratio):
     relation_seeds = read_seeds(directory / 'relation_seeds.txt')
-    train_entity_seeds = read_seeds(
-        directory / 'JAPE' / ('0_' + str(int(10 * train_seeds_ratio))) / 'train_entity_seeds.txt')
-    test_entity_seeds = read_seeds(
-        directory / 'JAPE' / ('0_' + str(int(10 * train_seeds_ratio))) / 'test_entity_seeds.txt')
+    entity_seeds = read_seeds(directory / 'entity_seeds.txt')
+    random.shuffle(entity_seeds)
+    train_entity_seeds = entity_seeds[:int(len(entity_seeds) * train_seeds_ratio)]
+    assert len(train_entity_seeds) == 4500
+    test_entity_seeds = entity_seeds[int(len(entity_seeds) * train_seeds_ratio):]
     return train_entity_seeds, test_entity_seeds, relation_seeds
 
 

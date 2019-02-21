@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 import numpy as np
 from scipy import spatial
 from tools.print_time_info import print_time_info
@@ -7,10 +8,15 @@ from torch import nn
 loss = nn.MarginRankingLoss(margin=2)
 
 
-a = torch.tensor([[1, 1000, 3], [2, 3, 3]], dtype=torch.float)
+a = torch.tensor([[1, 2, 3], [1, 3, 3]], dtype=torch.float)
 
-b = torch.tensor([[100], [3]], dtype=torch.float)
+b = torch.tensor([[1,3, 5 ], [3, 1, 20]], dtype=torch.float)
 
+c = F.pairwise_distance(a, b, p=2)
+sim = spatial.distance.cdist(a, b, metric='minkowski', p=2)
+print(c)
+print(sim)
+exit()
 print(loss(b, a, torch.tensor([-1], dtype=torch.float)))
 
 # print(b * a)

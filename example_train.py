@@ -23,7 +23,7 @@ config.set_dropout(0.5)
 config.set_num_workers(4)
 config.set_learning_rate(0.005)
 config.set_l2_penalty(0)
-config.set_optimizer(Adam)
+config.set_optimizer(Adagrad)
 config.set_sparse(True)
 
 config.print_parameter()

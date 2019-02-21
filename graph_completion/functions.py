@@ -12,8 +12,8 @@ def get_hits(sr_embedding, tg_embedding, top_k=(1, 10, 50, 100)):
     test_num = len(sr_embedding)
     Lvec = sr_embedding
     Rvec = tg_embedding
-    sim = spatial.distance.cdist(Lvec, Rvec, metric='minkowski', p=2)
-    # sim = spatial.distance.cdist(Lvec, Rvec, metric='cityblock')
+    # sim = spatial.distance.cdist(Lvec, Rvec, metric='minkowski', p=2)
+    sim = spatial.distance.cdist(Lvec, Rvec, metric='cityblock')
     top_lr = [0] * len(top_k)
     for i in range(Lvec.shape[0]):
         rank = sim[i, :].argsort()

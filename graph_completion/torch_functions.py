@@ -25,7 +25,7 @@ class GCNAlignLoss(nn.Module):
         repre_sr shape: [batch_size, 1 + nega_sample_num, embedding_dim]
         repre_tg shpae: [batch_size, 1 + nega_sample_num, embedding_dim]
         '''
-        distance = F.pairwise_distance(repre_sr, repre_tg, p=2)
+        distance = torch.abs(repre_sr - repre_tg).sum(dim=-1)
         score = distance
         pos_score = score[:, :1]
         nega_score = score[:, 1:]

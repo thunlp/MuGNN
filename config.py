@@ -80,10 +80,10 @@ class Config(object):
         loss_acc = 0
         for epoch in range(self.num_epoch):
             # relation_seeds_iter = iter(relation_seeds)
-            print_time_info('Epoch: %d started!' % (epoch + 1))
-            self.net.train()
-            if epoch % 10 == 0:
+            if (epoch+1) % 10 == 0:
                 loss_acc = 0
+                print_time_info('Epoch: %d started!' % (epoch + 1))
+            self.net.train()
             for i_batch, batch in enumerate(entity_loader):
                 optimizer.zero_grad()
                 sr_data, tg_data = batch
@@ -98,7 +98,7 @@ class Config(object):
                 # if (i_batch) % 10 == 0:
                 #     print('\rBatch: %d/%d; loss = %f' % (i_batch + 1, batch_num, loss_acc / (i_batch + 1)), end='')
             self.now_epoch += 1
-            if epoch % 10 == 0:
+            if (epoch + 1) % 10 == 0:
                 print('\rBatch: %d; loss = %f' % (epoch + 1, loss_acc / 10))
                 self.evaluate()
 

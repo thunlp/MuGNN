@@ -45,7 +45,9 @@ class GATNet(AlignGraphNet):
 
     def forward(self, sr_data, tg_data):
         graph_embedding_sr, graph_embedding_tg = self.entity_embedding.weight
+        # print(graph_embedding_sr[0])
         graph_embedding_sr = self.sp_gat(graph_embedding_sr, self.adj_sr)
+        # print(graph_embedding_sr[0])
         graph_embedding_tg = self.sp_gat(graph_embedding_tg, self.adj_tg)
         repre_e_sr = F.embedding(sr_data, graph_embedding_sr)
         repre_e_tg = F.embedding(tg_data, graph_embedding_tg)

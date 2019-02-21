@@ -2,13 +2,18 @@ import torch
 import numpy as np
 from scipy import spatial
 from tools.print_time_info import print_time_info
+from torch import nn
 
-a = torch.tensor([[1, 2], [2, 3], [100, 200], ])
-print(a.view((1, 2, -1)))
+loss = nn.MarginRankingLoss(margin=2)
 
-b = torch.tensor([[2, 3]])
 
-print(b * a)
+a = torch.tensor([[1, 1000, 3], [2, 3, 3]], dtype=torch.float)
+
+b = torch.tensor([[100], [3]], dtype=torch.float)
+
+print(loss(b, a, torch.tensor([-1], dtype=torch.float)))
+
+# print(b * a)
 exit()
 
 def get_hits(sr_embedding, tg_embedding, top_k=(1, 10, 50, 100)):

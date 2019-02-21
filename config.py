@@ -36,7 +36,7 @@ class Config(object):
         self.shuffle = True
         self.batch_size = 64
         self.num_workers = 4  # for the data_loader
-        self.nega_sample_num = 24  # number of negative samples for each positive one
+        self.nega_sample_num = 25  # number of negative samples for each positive one
 
         # hyper parameter
         self.lr = 1e-3
@@ -65,16 +65,8 @@ class Config(object):
                                          len(cgc.id2entity_tg), self.is_cuda)
         entity_loader = DataLoader(entity_seeds, batch_size=self.batch_size, shuffle=self.shuffle,
                                    num_workers=self.num_workers)
-        # relation_seeds = AliagnmentDataset(cgc.relation_seeds, self.nega_sample_num, len(cgc.id2relation_sr),
-        #                                    len(cgc.id2relation_tg), self.is_cuda)
-        # relation_seeds = DataLoader(relation_seeds, batch_size=self.batch_size, shuffle=self.shuffle,
-        #                             num_workers=self.num_workers)
-        para = self.net.named_parameters()
-
         if self.is_cuda:
             self.net.cuda()
-        # for name, param in gcn.named_parameters():
-        #     print(name, param.requires_grad)
         optimizer = self.optimizer(self.net.parameters(), lr=self.lr, weight_decay=self.l2_penalty)
         criterion_entity = GCNAlignLoss(self.entity_gamma, cuda=self.is_cuda)
         criterion_relation = GCNAlignLoss(self.relation_gamma, re_scale=self.beta, cuda=self.is_cuda)
@@ -94,13 +86,6 @@ class Config(object):
                 sr_data, tg_data = batch
                 if self.is_cuda:
                     sr_data, tg_data = sr_data.cuda(), tg_data.cuda()
-                # try:
-                #     sr_rel_data, tg_rel_data = next(relation_seeds_iter)
-                # except StopIteration:
-                #     relation_seeds_iter = iter(relation_seeds)
-                #     sr_rel_data, tg_rel_data = next(relation_seeds_iter)
-                # if self.is_cuda:
-                #     sr_rel_data, tg_rel_data = sr_rel_data.cuda(), tg_rel_data.cuda()
                 repre_e_sr, repre_e_tg, = self.net(sr_data, tg_data)
                 entity_loss = criterion_entity(repre_e_sr, repre_e_tg)
                 loss = entity_loss
@@ -109,7 +94,6 @@ class Config(object):
                 optimizer.step()
                 if (i_batch) % 10 == 0:
                     print('\rBatch: %d/%d; loss = %f' % (i_batch + 1, batch_num, loss_acc / (i_batch + 1)), end='')
-
             print('')
             self.now_epoch += 1
             self.evaluate()

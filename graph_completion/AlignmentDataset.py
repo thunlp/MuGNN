@@ -8,7 +8,6 @@ class AliagnmentDataset(Dataset):
     """Seed alignment dataset."""
 
     def __init__(self, seeds, nega_sample_num, num_sr, num_tg, cuda):
-        assert nega_sample_num % 2 == 0
         self.cuda = cuda
         self.num_sr = num_sr
         self.num_tg = num_tg

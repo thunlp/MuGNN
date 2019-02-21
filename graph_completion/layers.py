@@ -85,15 +85,18 @@ class SpGraphAttentionLayer(nn.Module):
         # edge = adj.nonzero().t()
         edge = adj.indices()
         h = torch.mm(inputs, self.W)
+        # h shape: [num_entity, out_dim]
         # h = inputs * self.W
         # h: N x out
         assert not torch.isnan(h).any()
 
         # Self-attention on the nodes - Shared attention mechanism
         edge_h = torch.cat((h[edge[0, :], :], h[edge[1, :], :]), dim=1).t()
+        # h[edge[0, :], :] shape = [N, outdim] # cat后 [N, outdim*2]
+        # edge_h shape [outdim *2, N]
         # edge: 2*D x E
 
-        edge_e = torch.exp(-self.leakyrelu(self.a.mm(edge_h).squeeze()))
+        edge_e = torch.exp(self.leakyrelu(self.a.mm(edge_h).squeeze()))
         assert not torch.isnan(edge_e).any()
         # edge_e: E
         ones = torch.ones(size=(N, 1))

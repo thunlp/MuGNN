@@ -1,13 +1,57 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.sparse import mm
 
-class SpGraphMultiHeadAttLayer(nn.Module):
-    def __init__(self, dim_in, dim_out_s, nheads, dropout, alpha, concat, cuda):
-        super(SpGraphMultiHeadAttLayer, self).__init__()
+
+# [gat(dim_in, dim_out_s, dropout, alpha, concat, cuda) for _ in range(nheads)])
+
+class GraphAttentionLayer(nn.Module):
+    """
+    Simple GAT layer, similar to https://arxiv.org/abs/1710.10903
+    """
+
+    def __init__(self, in_features, out_features, dropout, alpha, concat=True, cuda=True):
+        super(GraphAttentionLayer, self).__init__()
+        self.dropout = nn.Dropout(dropout)
+        self.in_features = in_features
+        self.out_features = out_features
+        self.concat = concat
+        self.W = nn.Parameter(torch.zeros(size=(in_features, out_features)))
+        self.a = nn.Parameter(torch.zeros(size=(2*out_features, 1)))
+        nn.init.xavier_uniform_(self.W.data, gain=1.414)
+        nn.init.xavier_uniform_(self.a.data, gain=1.414)
+        self.leakyrelu = nn.LeakyReLU(alpha)
+
+    def forward(self, inputs, adj):
+        h = torch.mm(inputs, self.W)
+        N = h.size()[0]
+
+        a_input = torch.cat((h.repeat(1, N).view(N * N, -1), h.repeat(N, 1)), dim=1).view(N, -1, 2 * self.out_features)
+        e = self.leakyrelu(torch.matmul(a_input, self.a).squeeze(2))
+        zero_vec = -9e15*torch.ones_like(e)
+        attention = torch.where(adj > 0, e, zero_vec)
+        attention = F.softmax(attention, dim=1)
+        attention = self.dropout(attention)
+        h_prime = torch.matmul(attention, h)
+        if self.concat:
+            return F.elu(h_prime)
+        else:
+            return h_prime
+
+    def __repr__(self):
+        return self.__class__.__name__ + ' (' + str(self.in_features) + ' -> ' + str(self.out_features) + ')'
+
+
+
+class GraphMultiHeadAttLayer(nn.Module):
+    def __init__(self, dim_in, dim_out_s, nheads, dropout, alpha, concat, sp, cuda):
+        super(GraphMultiHeadAttLayer, self).__init__()
+        if sp:
+            gat = SpGraphAttentionLayer
+        else:
+            gat = GraphAttentionLayer
         self.attentions = nn.ModuleList(
-            [SpGraphAttentionLayer(dim_in, dim_out_s, dropout, alpha, concat, cuda) for _ in range(nheads)])
+            [gat(dim_in, dim_out_s, dropout, alpha, concat, cuda) for _ in range(nheads)])
 
     def forward(self, inputs, adj):
         outputs = torch.cat(tuple([att(inputs, adj) for att in self.attentions]), dim=1)
@@ -21,6 +65,7 @@ class SpGraphAttentionLayer(nn.Module):
 
     def __init__(self, in_features, out_features, dropout, alpha, concat=True, cuda=True):
         super(SpGraphAttentionLayer, self).__init__()
+        # assert in_features == out_features
         self.is_cuda = cuda
         self.concat = concat
         self.in_features = in_features
@@ -33,50 +78,6 @@ class SpGraphAttentionLayer(nn.Module):
         self.leakyrelu = nn.LeakyReLU(alpha)
         self.special_spmm = SpecialSpmm()
 
-    def forward123(self, inputs, adj):
-        # input shape shape [num_entity, embedding_dim]
-        N = inputs.size()[0]
-
-        # edge = adj.nonzero().t()
-        edge = adj.indices()
-        h = torch.mm(inputs, self.W)
-        # h: N x out
-        assert not torch.isnan(h).any()
-
-        # Self-attention on the nodes - Shared attention mechanism
-        edge_h = torch.cat((h[edge[0, :], :], h[edge[1, :], :]), dim=1).t()
-        # edge: 2*D x E
-
-        edge_e = torch.exp(-self.leakyrelu(self.a.mm(edge_h).squeeze()))
-        assert not torch.isnan(edge_e).any()
-        # edge_e: E
-        ones = torch.ones(size=(N, 1))
-        sp_adj_tmp = torch.sparse_coo_tensor(edge, edge_e, torch.Size([N, N]))
-        if self.is_cuda:
-            ones = ones.cuda()
-        e_rowsum = torch.sparse.mm(sp_adj_tmp, ones)
-        # e_rowsum = self.special_spmm(edge, edge_e, torch.Size([N, N]), ones)
-        # e_rowsum: N x 1
-
-        edge_e = self.dropout(edge_e)
-        sp_adj_tmp = torch.sparse_coo_tensor(edge, edge_e, torch.Size([N, N]))
-        # edge_e: E
-        h_prime = torch.sparse.mm(sp_adj_tmp, h)
-        # h_prime = self.special_spmm(edge, edge_e, torch.Size([N, N]), h)
-        assert not torch.isnan(h_prime).any()
-        # h_prime: N x out
-
-        h_prime = h_prime.div(e_rowsum)
-        # h_prime: N x out
-        assert not torch.isnan(h_prime).any()
-
-        if self.concat:
-            # if this layer is not last layer,
-            return F.elu(h_prime)
-        else:
-            # if this layer is last layer,
-            return h_prime
-
     def forward(self, inputs, adj):
         # input shape shape [num_entity, embedding_dim]
         N = inputs.size()[0]
@@ -84,6 +85,7 @@ class SpGraphAttentionLayer(nn.Module):
         # edge = adj.nonzero().t()
         edge = adj.indices()
         h = torch.mm(inputs, self.W)
+        # h = inputs * self.W
         # h: N x out
         assert not torch.isnan(h).any()
 

@@ -1,11 +1,11 @@
 import torch.nn as nn
-from graph_completion.layers import GraphConvolution, SpGraphMultiHeadAttLayer
+from graph_completion.layers import GraphConvolution, GraphMultiHeadAttLayer
 
 
-class SpGAT(nn.Module):
-    def __init__(self, dim_in, dim_out, nheads, layers, dropout_rate, alpha, cuda):
+class GAT(nn.Module):
+    def __init__(self, dim_in, dim_out, nheads, layers, dropout_rate, alpha, sp, cuda):
         """Sparse version of GAT."""
-        super(SpGAT, self).__init__()
+        super(GAT, self).__init__()
         assert dim_out % nheads == 0
         self.dropout = nn.Dropout(dropout_rate)
         self.multi_head_att_layers = nn.ModuleList()
@@ -13,7 +13,7 @@ class SpGAT(nn.Module):
             if i != 0:
                 dim_in = dim_out
             self.multi_head_att_layers.append(
-                SpGraphMultiHeadAttLayer(dim_in, dim_out // nheads, nheads, dropout_rate, alpha, True, cuda))
+                GraphMultiHeadAttLayer(dim_in, dim_out // nheads, nheads, dropout_rate, alpha, True, sp, cuda))
 
     def forward(self, x, adj):
         for att_layer in self.multi_head_att_layers:

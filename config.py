@@ -24,6 +24,8 @@ class Config(object):
 
         # model
         self.net = None
+        self.sparse = True
+        self.optimizer = None
         self.nheads = 4
         self.num_layer = 2
         self.non_acylic = True
@@ -62,20 +64,18 @@ class Config(object):
         entity_seeds = AliagnmentDataset(cgc.train_entity_seeds, self.nega_sample_num, len(cgc.id2entity_sr),
                                          len(cgc.id2entity_tg), self.is_cuda)
         entity_loader = DataLoader(entity_seeds, batch_size=self.batch_size, shuffle=self.shuffle,
-                                  num_workers=self.num_workers)
-        relation_seeds = AliagnmentDataset(cgc.relation_seeds, self.nega_sample_num, len(cgc.id2relation_sr),
-                                           len(cgc.id2relation_tg), self.is_cuda)
-        relation_seeds = DataLoader(relation_seeds, batch_size=self.batch_size, shuffle=self.shuffle,
-                                    num_workers=self.num_workers)
+                                   num_workers=self.num_workers)
+        # relation_seeds = AliagnmentDataset(cgc.relation_seeds, self.nega_sample_num, len(cgc.id2relation_sr),
+        #                                    len(cgc.id2relation_tg), self.is_cuda)
+        # relation_seeds = DataLoader(relation_seeds, batch_size=self.batch_size, shuffle=self.shuffle,
+        #                             num_workers=self.num_workers)
         para = self.net.named_parameters()
-        for key, value in para:
-            print(key)
-        exit()
+
         if self.is_cuda:
             self.net.cuda()
         # for name, param in gcn.named_parameters():
         #     print(name, param.requires_grad)
-        optimizer = optim.Adam(self.net.parameters(), lr=self.lr, weight_decay=self.l2_penalty)
+        optimizer = self.optimizer(self.net.parameters(), lr=self.lr, weight_decay=self.l2_penalty)
         criterion_entity = GCNAlignLoss(self.entity_gamma, cuda=self.is_cuda)
         criterion_relation = GCNAlignLoss(self.relation_gamma, re_scale=self.beta, cuda=self.is_cuda)
 
@@ -85,7 +85,7 @@ class Config(object):
 
         batch_num = len(entity_loader)
         for epoch in range(self.num_epoch):
-            relation_seeds_iter = iter(relation_seeds)
+            # relation_seeds_iter = iter(relation_seeds)
             print_time_info('Epoch: %d started!' % (epoch + 1))
             self.net.train()
             loss_acc = 0
@@ -93,7 +93,7 @@ class Config(object):
                 optimizer.zero_grad()
                 sr_data, tg_data = batch
                 if self.is_cuda:
-                    sr_data, tg_data= sr_data.cuda(), tg_data.cuda()
+                    sr_data, tg_data = sr_data.cuda(), tg_data.cuda()
                 # try:
                 #     sr_rel_data, tg_rel_data = next(relation_seeds_iter)
                 # except StopIteration:
@@ -109,9 +109,7 @@ class Config(object):
                 optimizer.step()
                 if (i_batch) % 10 == 0:
                     print('\rBatch: %d/%d; loss = %f' % (i_batch + 1, batch_num, loss_acc / (i_batch + 1)), end='')
-            if epoch % 10 == 0:
-                entity_loader = DataLoader(entity_seeds, batch_size=self.batch_size, shuffle=self.shuffle,
-                                           num_workers=self.num_workers)
+
             print('')
             self.now_epoch += 1
             self.evaluate()
@@ -154,8 +152,8 @@ class Config(object):
         self.is_cuda = is_cuda
 
     def set_net(self, net):
-        self.net = net(self.cgc, self.num_layer, self.embedding_dim, self.nheads, self.alpha, self.dropout_rate,
-                       self.non_acylic, self.is_cuda)
+        self.net = net(self.cgc, self.num_layer, self.embedding_dim, self.nheads, self.sparse, self.alpha,
+                       self.dropout_rate, self.non_acylic, self.is_cuda)
 
     def set_graph_completion(self, graph_completion):
         self.graph_completion = graph_completion
@@ -163,7 +161,7 @@ class Config(object):
     def set_learning_rate(self, learning_rate):
         self.lr = learning_rate
 
-    def  set_dropout(self, dropout):
+    def set_dropout(self, dropout):
         self.dropout_rate = dropout
 
     def set_gamma(self, gamma):
@@ -180,6 +178,18 @@ class Config(object):
 
     def set_num_layer(self, num_layer):
         self.num_layer = num_layer
+
+    def set_optimizer(self, optimizer):
+        self.optimizer = optimizer
+
+    def set_sparse(self, sparse):
+        self.sparse = sparse
+
+    def set_batch_size(self, batch_size):
+        self.batch_size = batch_size
+
+    def set_num_workers(self, num_workers):
+        self.num_workers = num_workers
 
     def loop(self, bin_dir):
         # todo: finish it

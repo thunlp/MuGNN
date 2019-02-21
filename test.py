@@ -1,6 +1,15 @@
+import torch
 import numpy as np
 from scipy import spatial
 from tools.print_time_info import print_time_info
+
+a = torch.tensor([[1, 2], [2, 3], [100, 200], ])
+print(a.view((1, 2, -1)))
+
+b = torch.tensor([[2, 3]])
+
+print(b * a)
+exit()
 
 def get_hits(sr_embedding, tg_embedding, top_k=(1, 10, 50, 100)):
     test_num = len(sr_embedding)

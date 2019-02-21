@@ -18,11 +18,11 @@ class SpTwinAdj(object):
             pos = set(pos)
             heads, tails = list(zip(*pos))
             pos = torch.tensor([heads, tails], dtype=torch.int64)
-            value = torch.ones((len(heads),))
+            value = torch.ones((len(heads),), dtype=torch.int64)
             return torch.sparse_coo_tensor(pos, value, size=torch.Size((size, size)))
 
-        self.sp_adj_sr = _triple2sp_m(triples_sr, num_sr).coalesce()
-        self.sp_adj_tg = _triple2sp_m(triples_tg, num_tg).coalesce()
+        self.sp_adj_sr = _triple2sp_m(triples_sr, num_sr).coalesce() #.detach() #.to_dense()
+        self.sp_adj_tg = _triple2sp_m(triples_tg, num_tg).coalesce() #.detach() #.to_dense()
 
     @property
     def sp_adj(self):

@@ -14,10 +14,9 @@ class AliagnmentDataset(Dataset):
         self.num_tg = num_tg
         self.nega_sample_num = nega_sample_num
         self.seeds = [[int(sr), int(tg)] for sr, tg in seeds]
-        self.init_negative_sample()
+        # self.init_negative_sample()
 
     def init_negative_sample(self):
-        print('---------------------------------------------------------------I am called now!')
         self.data = []
         nega_sample_num = self.nega_sample_num
         for seed in self.seeds:
@@ -38,11 +37,32 @@ class AliagnmentDataset(Dataset):
             self.data.append((sr_data, tg_data))
 
     def __len__(self):
-        return len(self.data)
+        return len(self.seeds)
+
+    # def __getitem__(self, idx):
+    #     sr_data, tg_data = self.data[idx]
+    #     # the first data is the positive one
+    #     sr_data = torch.tensor(sr_data, dtype=torch.int64)
+    #     tg_data = torch.tensor(tg_data, dtype=torch.int64)
+    #     return sr_data, tg_data
 
     def __getitem__(self, idx):
-        sr_data, tg_data = self.data[idx]
+        nega_sample_num = self.nega_sample_num
+        sr, tg = self.seeds[idx]
         # the first data is the positive one
+        nega_sr = []
+        nega_tg = []
+        for _ in range(nega_sample_num):
+            can_sr = random.randint(0, self.num_sr - 2)
+            can_tg = random.randint(0, self.num_tg - 2)
+            if can_sr >= sr:
+                can_sr += 1
+            if can_tg >= tg:
+                can_tg += 1
+            nega_sr.append(can_sr)
+            nega_tg.append(can_tg)
+        sr_data = [sr] + nega_sr + [sr] * nega_sample_num
+        tg_data = [tg] + [tg] * nega_sample_num + nega_tg
         sr_data = torch.tensor(sr_data, dtype=torch.int64)
         tg_data = torch.tensor(tg_data, dtype=torch.int64)
         return sr_data, tg_data

@@ -43,18 +43,31 @@ class GATNet(AlignGraphNet):
             self.adj_sr = self.adj_sr.cuda()
             self.adj_tg = self.adj_tg.cuda()
 
-    def forward(self, sr_data, tg_data):
+    def trans_e(self, ent_embedding, rel_embedding, h_list, t_list, r_list):
+        h = F.embedding(h_list, ent_embedding)
+        t = F.embedding(t_list, ent_embedding)
+        r = F.embedding(r_list, rel_embedding)
+        # shape [num, 2*nega + 1, dim]
+        return h + r - t
+
+    def entity_align(self, sr_embedding, tg_embedding):
+        return sr_embedding - tg_embedding
+
+    def forward(self, sr_data, tg_data, h_list_sr, h_list_tg, t_list_sr, t_list_tg, r_list_sr, r_list_tg):
         graph_embedding_sr, graph_embedding_tg = self.entity_embedding.weight
-        # print(graph_embedding_sr[0])
+        rel_embedding_sr, rel_embedding_tg = self.relation_embedding.weight
         graph_embedding_sr = self.sp_gat(graph_embedding_sr, self.adj_sr)
-        # print(graph_embedding_sr[0])
         graph_embedding_tg = self.sp_gat(graph_embedding_tg, self.adj_tg)
-        repre_e_sr = F.embedding(sr_data, graph_embedding_sr)
-        repre_e_tg = F.embedding(tg_data, graph_embedding_tg)
-        return repre_e_sr, repre_e_tg
+        align_score = self.entity_align(F.embedding(sr_data, graph_embedding_sr), F.embedding(tg_data, graph_embedding_tg))
+        sr_transe_score = self.trans_e(graph_embedding_sr, rel_embedding_sr, h_list_sr, t_list_sr, r_list_sr)
+        tg_transe_score = self.trans_e(graph_embedding_tg, rel_embedding_tg, h_list_tg, t_list_tg, r_list_tg)
+        return align_score, sr_transe_score, tg_transe_score
 
     def predict(self, sr_data, tg_data):
-        repre_e_sr, repre_e_tg = self.forward(sr_data, tg_data)
+        graph_embedding_sr, graph_embedding_tg = self.entity_embedding.weight
+        graph_embedding_sr = self.sp_gat(graph_embedding_sr, self.adj_sr)
+        graph_embedding_tg = self.sp_gat(graph_embedding_tg, self.adj_tg)
+        repre_e_sr, repre_e_tg = F.embedding(sr_data, graph_embedding_sr), F.embedding(tg_data, graph_embedding_tg)
         return repre_e_sr.cpu().detach().numpy(), repre_e_tg.cpu().detach().numpy()
 
 

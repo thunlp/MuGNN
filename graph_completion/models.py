@@ -1,5 +1,29 @@
+import torch
 import torch.nn as nn
-from graph_completion.layers import GraphConvolution, GraphMultiHeadAttLayer
+from graph_completion.layers import GraphConvolution, GraphMultiHeadAttLayer, DoubleEmbedding
+
+
+class TransE(nn.Module):
+    def __init__(self, num_ent, num_rel, dim):
+        super(TransE, self).__init__()
+        self.ent_embeddings = nn.Embedding(num_ent, dim, _weight=torch.zeros((num_ent, dim), dtype=torch.double))
+        self.rel_embeddings = nn.Embedding(num_rel, dim, _weight=torch.zeros((num_rel, dim), dtype=torch.double))
+        nn.init.xavier_uniform_(self.entity_embedding.weight.data)
+        nn.init.xavier_uniform_(self.rel_embeddings.weight.data)
+
+    def _calc(self, h, t, r):
+        return torch.norm(h + r - t, p=1, dim=-1)
+
+    def loss(self, p_score, n_score):
+        y = torch.Tensor([-1]).cuda()
+        return self.criterion(p_score, n_score, y)
+
+    def forward(self, h_list, t_list, r_list):
+        # shape = [num, 2*nega+1, embedding_dim]
+        h = self.ent_embeddings(h_list)
+        t = self.ent_embeddings(t_list)
+        r = self.rel_embeddings(r_list)
+        return h + r - t
 
 
 class GAT(nn.Module):

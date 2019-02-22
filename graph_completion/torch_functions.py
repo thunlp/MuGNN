@@ -13,33 +13,23 @@ def set_random_seed(seed_value=999):
     random.seed(seed_value)
 
 batch = 0
-class GCNAlignLoss(nn.Module):
+class SpecialLoss(nn.Module):
     def __init__(self, margin, re_scale=1.0, cuda=True):
-        super(GCNAlignLoss, self).__init__()
+        super(SpecialLoss, self).__init__()
         self.re_scale = re_scale
         self.criterion = nn.MarginRankingLoss(margin)
         self.is_cuda = cuda
 
-    def forward(self, repre_sr, repre_tg):
+    def forward(self, score):
         '''
-        repre_sr shape: [batch_size, 1 + nega_sample_num, embedding_dim]
-        repre_tg shpae: [batch_size, 1 + nega_sample_num, embedding_dim]
+        score shape: [batch_size, 1 + nega_sample_num, embedding_dim]
         '''
-        distance = torch.abs(repre_sr - repre_tg).sum(dim=-1)
-        score = distance
-        pos_score = score[:, :1]
-        nega_score = score[:, 1:]
+        distance = torch.abs(score).sum(dim=-1) * self.re_scale
+        pos_score = distance[:, :1]
+        nega_score = distance[:, 1:]
         y = torch.DoubleTensor([-1.0])
-        # if next(self.parameters()).is_cuda:
         if self.is_cuda:
             y = y.cuda()
-        # global batch
-        # batch += 1
-        # if batch % 20 == 0:
-        #     print('')
-        #     print(pos_score.mean())
-        #     print(nega_score.mean())
-        #     print('')
         loss = self.criterion(pos_score, nega_score, y)
         return loss
 

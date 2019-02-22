@@ -3,8 +3,9 @@ from torch import optim
 from tools.timeit import timeit
 from torch.utils.data import DataLoader
 from tools.print_time_info import print_time_info
-from graph_completion.torch_functions import GCNAlignLoss
-from graph_completion.Datasets import AliagnmentDataset
+from graph_completion.functions import str2int4triples
+from graph_completion.torch_functions import SpecialLoss
+from graph_completion.Datasets import AliagnmentDataset, TripleDataset
 from graph_completion.torch_functions import set_random_seed
 from graph_completion.functions import get_hits
 from graph_completion.CrossGraphCompletion import CrossGraphCompletion
@@ -37,42 +38,57 @@ class Config(object):
         self.shuffle = True
         self.batch_size = 64
         self.num_workers = 4  # for the data_loader
-        self.nega_sample_num = 25  # number of negative samples for each positive one
+        self.nega_n_e = 25  # number of negative samples for each positive one
+        self.nega_n_r = 2
 
         # hyper parameter
         self.lr = 1e-3
-        self.beta = 0.01  # ratio of relation loss
+        self.beta = 1.0  # ratio of transe loss
         self.alpha = 0.2  # alpha for the leaky relu
         self.l2_penalty = 0.0001
         self.dropout_rate = 0.5
         self.entity_gamma = 3.0  # margin for entity loss
-        self.relation_gamma = 3.0  # margin for relation loss
+        self.transe_gamma = 3.0  # margin for relation loss
         # cuda
         self.is_cuda = True
 
     def init(self, load=True):
         set_random_seed()
         language_pair_dirs = list(self.directory.glob('*_en'))
+        directory = language_pair_dirs[0]
         if load:
-            self.cgc = CrossGraphCompletion.restore(language_pair_dirs[0] / 'running_temp')
+            self.cgc = CrossGraphCompletion.restore(directory / 'running_temp')
         else:
-            self.cgc = CrossGraphCompletion(language_pair_dirs[0], self.train_seeds_ratio, self.graph_completion)
+            self.cgc = CrossGraphCompletion(directory, self.train_seeds_ratio, self.graph_completion)
             self.cgc.init()
-            self.cgc.save(language_pair_dirs[0] / 'running_temp')
+            self.cgc.save(directory / 'running_temp')
+        if load:
+            self.triples_sr = TripleDataset.restore(directory / 'running_temp' / 'td_sr.pkl')
+            self.triples_tg = TripleDataset.restore(directory / 'running_temp' / 'td_tg.pkl')
+        else:
+            self.triples_sr = TripleDataset(str2int4triples(self.cgc.triples_sr), self.nega_n_r)
+            self.triples_tg = TripleDataset(str2int4triples(self.cgc.triples_tg), self.nega_n_r)
+            self.triples_sr.save(directory / 'running_temp' / 'td_sr.pkl')
+            self.triples_tg.save(directory / 'running_temp' / 'td_tg.pkl')
 
     def train(self):
         cgc = self.cgc
-        entity_seeds = AliagnmentDataset(cgc.train_entity_seeds, self.nega_sample_num, len(cgc.id2entity_sr),
+        entity_seeds = AliagnmentDataset(cgc.train_entity_seeds, self.nega_n_e, len(cgc.id2entity_sr),
                                          len(cgc.id2entity_tg), self.is_cuda)
         entity_loader = DataLoader(entity_seeds, batch_size=self.batch_size, shuffle=self.shuffle,
                                    num_workers=self.num_workers)
-        if self.is_cuda:
-            self.net.cuda()
-        optimizer = self.optimizer(self.net.parameters(), lr=self.lr, weight_decay=self.l2_penalty)
-        criterion_entity = GCNAlignLoss(self.entity_gamma, cuda=self.is_cuda)
+
+        h_sr, t_sr, r_sr = self.triples_sr.get_all()
+        h_tg, t_tg, r_tg = self.triples_tg.get_all()
 
         if self.is_cuda:
-            criterion_entity.cuda()
+            self.net.cuda()
+            h_sr, t_sr, r_sr = h_sr.cuda(), t_sr.cuda(), r_sr.cuda()
+            h_tg, t_tg, r_tg = h_tg.cuda(), t_tg.cuda(), r_tg.cuda()
+
+        optimizer = self.optimizer(self.net.parameters(), lr=self.lr, weight_decay=self.l2_penalty)
+        criterion_align = SpecialLoss(self.entity_gamma, cuda=self.is_cuda)
+        criterion_transe = SpecialLoss(self.transe_gamma, re_scale=self.beta , cuda=self.is_cuda)
 
         loss_acc = 0
         for epoch in range(self.num_epoch):
@@ -86,9 +102,11 @@ class Config(object):
                 sr_data, tg_data = batch
                 if self.is_cuda:
                     sr_data, tg_data = sr_data.cuda(), tg_data.cuda()
-                repre_e_sr, repre_e_tg, = self.net(sr_data, tg_data)
-                entity_loss = criterion_entity(repre_e_sr, repre_e_tg)
-                loss = entity_loss
+                align_score, sr_transe_score, tg_transe_score = self.net(sr_data, tg_data, h_sr, h_tg, t_sr, t_tg, r_sr, r_tg)
+                align_loss = criterion_align(align_score)
+                sr_transe_loss = criterion_transe(sr_transe_score)
+                tg_transe_loss = criterion_transe(tg_transe_score)
+                loss = sum([align_loss, sr_transe_loss, tg_transe_loss])
                 loss.backward()
                 loss_acc += float(loss)
                 optimizer.step()
@@ -176,8 +194,8 @@ class Config(object):
     def set_num_workers(self, num_workers):
         self.num_workers = num_workers
 
-    def set_dropout(self, dropout):
-        self.dropout_rate = dropout
+    def set_beta(self, beta):
+        self.beta = beta
 
     def loop(self, bin_dir):
         # todo: finish it

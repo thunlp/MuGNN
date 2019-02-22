@@ -4,16 +4,17 @@ import numpy as np
 from scipy import spatial
 from tools.print_time_info import print_time_info
 from torch import nn
+import random
 
-
-a = torch.tensor([[1, 2, 3], [1, 3, 3]], dtype=torch.double)
-
-b = torch.tensor([[1,3, 5 ], [3, 1, 20]], dtype=torch.double)
-
-drop = nn.Dropout(0.7)
-drop.eval()
-print(drop.training)
-a = drop(a)
+a = set(list(range(10))).remove(3)
+print(a)
+exit()
+print(random.sample(a, k=2))
+exit()
+a = set(list(range(10)))
+a = set(str(i) for i in a)
+a.remove('1')
+a.remove('2')
 print(a)
 exit()
 print(loss(b, a, torch.tensor([-1], dtype=torch.double)))

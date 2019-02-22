@@ -3,6 +3,26 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
 
+class TipleDataset(Dataset):
+    def __init__(self, triples, nega_sapmle_num, cuda):
+        self.triples = triples
+        self.triple_set = set(triples)
+        self.nega_sample_num = nega_sapmle_num
+        self.relation_dict = {}
+        for head, tail, relation in triples:
+            if relation not in self.relation_dict:
+                relation_dict[relation] = {'h':{head}, 't': {tail,}}
+            else:
+                relation_dict[relation]['h'].add(head)
+                relation_dict[relation]['t'].add(tail)
+
+    def __len__(self):
+        return len(self.triples)
+
+    def __getitem__(self, idx):
+        h, t, r = self.triples[idx]
+        for i in range(self.nega_sample_num):
+            pass
 
 class AliagnmentDataset(Dataset):
     """Seed alignment dataset."""

@@ -9,11 +9,14 @@ class GAT(nn.Module):
         assert dim_out % nheads == 0
         self.dropout = nn.Dropout(dropout_rate)
         self.multi_head_att_layers = nn.ModuleList()
+        concat = True
         for i in range(layers):
             if i != 0:
                 dim_in = dim_out
+            if i == layers - 1:
+                concat = False
             self.multi_head_att_layers.append(
-                GraphMultiHeadAttLayer(dim_in, dim_out // nheads, nheads, dropout_rate, alpha, True, sp, cuda))
+                GraphMultiHeadAttLayer(dim_in, dim_out // nheads, nheads, dropout_rate, alpha, concat, sp, cuda))
 
     def forward(self, x, adj):
         for att_layer in self.multi_head_att_layers:

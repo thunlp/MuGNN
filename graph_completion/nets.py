@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from .functions import str2int4triples
@@ -33,15 +34,14 @@ class GATNet(AlignGraphNet):
         num_entity_tg = len(cgc.id2entity_tg)
         sp_twin_adj = SpTwinAdj(num_entity_sr, num_entity_tg, str2int4triples(cgc.triples_sr),
                                 str2int4triples(cgc.triples_tg), self.non_acylic)
-
         self.adj_sr = sp_twin_adj.sp_adj_sr
         self.adj_tg = sp_twin_adj.sp_adj_tg
+        self.sp_gat = GAT(dim, dim, nheads, num_layer, self.dropout_rate, alpha, sp, self.is_cuda)
+        self.entity_embedding = DoubleEmbedding(num_entity_sr, num_entity_tg, dim)
+        self.relation_embedding = DoubleEmbedding(len(cgc.id2relation_sr), len(cgc.id2entity_tg), dim)
         if self.is_cuda:
             self.adj_sr = self.adj_sr.cuda()
             self.adj_tg = self.adj_tg.cuda()
-        self.sp_gat = GAT(dim, dim, nheads, num_layer, self.dropout_rate, alpha, sp, self.is_cuda)
-        self.entity_embedding = DoubleEmbedding(num_entity_sr, num_entity_tg, dim)
-
 
     def forward(self, sr_data, tg_data):
         graph_embedding_sr, graph_embedding_tg = self.entity_embedding.weight

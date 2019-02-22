@@ -4,7 +4,7 @@ from tools.timeit import timeit
 from torch.utils.data import DataLoader
 from tools.print_time_info import print_time_info
 from graph_completion.torch_functions import GCNAlignLoss
-from graph_completion.AlignmentDataset import AliagnmentDataset
+from graph_completion.Datasets import AliagnmentDataset
 from graph_completion.torch_functions import set_random_seed
 from graph_completion.functions import get_hits
 from graph_completion.CrossGraphCompletion import CrossGraphCompletion
@@ -74,7 +74,6 @@ class Config(object):
         if self.is_cuda:
             criterion_entity.cuda()
 
-        batch_num = len(entity_loader)
         loss_acc = 0
         for epoch in range(self.num_epoch):
             # relation_seeds_iter = iter(relation_seeds)

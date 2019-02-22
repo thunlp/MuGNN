@@ -6,8 +6,8 @@ from graph_completion.layers import GraphConvolution, GraphMultiHeadAttLayer, Do
 class TransE(nn.Module):
     def __init__(self, num_ent, num_rel, dim):
         super(TransE, self).__init__()
-        self.ent_embeddings = nn.Embedding(num_ent, dim, _weight=torch.zeros((num_ent, dim), dtype=torch.double))
-        self.rel_embeddings = nn.Embedding(num_rel, dim, _weight=torch.zeros((num_rel, dim), dtype=torch.double))
+        self.ent_embeddings = nn.Embedding(num_ent, dim, _weight=torch.zeros((num_ent, dim), dtype=torch.float))
+        self.rel_embeddings = nn.Embedding(num_rel, dim, _weight=torch.zeros((num_rel, dim), dtype=torch.float))
         nn.init.xavier_uniform_(self.entity_embedding.weight.data)
         nn.init.xavier_uniform_(self.rel_embeddings.weight.data)
 

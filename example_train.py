@@ -29,6 +29,6 @@ config.set_beta(1.0)
 config.set_sparse(True)
 
 config.print_parameter()
-config.init(load=False)
+config.init(load=True)
 config.set_net(GATNet)
 config.train()

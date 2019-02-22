@@ -52,12 +52,12 @@ class TripleDataset(Dataset):
     def save(self, path):
         with open(path, 'wb') as f:
             pickle.dump(self, f)
-        print_time_info('Successfully save triple dataset to %s.' % path)
+        print_time_info('Successfully saved triple dataset to %s.' % path)
 
     @classmethod
     def restore(self, path):
         with open(path, 'rb') as f:
-            print_time_info('Successfully load triple dataset from %s.' % path)
+            print_time_info('Successfully loaded triple dataset from %s.' % path)
             return pickle.load(f)
 
     def __len__(self):

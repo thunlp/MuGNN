@@ -16,8 +16,8 @@ class GraphAttentionLayer(nn.Module):
         self.in_features = in_features
         self.out_features = out_features
         self.concat = concat
-        self.W = nn.Parameter(torch.zeros(size=(in_features, out_features), dtype=torch.double))
-        self.a = nn.Parameter(torch.zeros(size=(2*out_features, 1), dtype=torch.double))
+        self.W = nn.Parameter(torch.zeros(size=(in_features, out_features), dtype=torch.float))
+        self.a = nn.Parameter(torch.zeros(size=(2*out_features, 1), dtype=torch.float))
         nn.init.xavier_uniform_(self.W.data, gain=1.414)
         nn.init.xavier_uniform_(self.a.data, gain=1.414)
         self.leakyrelu = nn.LeakyReLU(alpha)
@@ -71,8 +71,8 @@ class SpGraphAttentionLayer(nn.Module):
         self.residual = residual
         self.in_features = in_features
         self.out_features = out_features
-        self.W = nn.Parameter(torch.zeros(size=(in_features, out_features), dtype=torch.double))
-        self.a = nn.Parameter(torch.zeros(size=(1, 2 * out_features), dtype=torch.double))
+        self.W = nn.Parameter(torch.zeros(size=(in_features, out_features), dtype=torch.float))
+        self.a = nn.Parameter(torch.zeros(size=(1, 2 * out_features), dtype=torch.float32))
         nn.init.xavier_uniform_(self.W.data, gain=1.414)
         nn.init.xavier_uniform_(self.a.data, gain=1.414)
         self.dropout = nn.Dropout(dropout)
@@ -100,7 +100,7 @@ class SpGraphAttentionLayer(nn.Module):
         edge_e = torch.exp(self.leakyrelu(self.a.mm(edge_h).squeeze()))
         assert not torch.isnan(edge_e).any()
         # edge_e: E
-        ones = torch.ones(size=(N, 1), dtype=torch.double)
+        ones = torch.ones(size=(N, 1), dtype=torch.float32)
         if self.is_cuda:
             ones = ones.cuda()
         e_rowsum = self.special_spmm(edge, edge_e, torch.Size([N, N]), ones)
@@ -160,8 +160,8 @@ class GraphConvolution(nn.Module):
 class DoubleEmbedding(nn.Module):
     def __init__(self, num_sr, num_tg, embedding_dim):
         super(DoubleEmbedding, self).__init__()
-        self.embedding_sr = nn.Embedding(num_sr, embedding_dim, _weight=torch.zeros((num_sr, embedding_dim), dtype=torch.double))
-        self.embedding_tg = nn.Embedding(num_tg, embedding_dim, _weight=torch.zeros((num_tg, embedding_dim), dtype=torch.double))
+        self.embedding_sr = nn.Embedding(num_sr, embedding_dim, _weight=torch.zeros((num_sr, embedding_dim), dtype=torch.float))
+        self.embedding_tg = nn.Embedding(num_tg, embedding_dim, _weight=torch.zeros((num_tg, embedding_dim), dtype=torch.float))
         nn.init.xavier_uniform_(self.embedding_sr.weight.data)
         nn.init.xavier_uniform_(self.embedding_tg.weight.data)
 

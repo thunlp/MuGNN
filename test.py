@@ -17,7 +17,7 @@ a.remove('1')
 a.remove('2')
 print(a)
 exit()
-print(loss(b, a, torch.tensor([-1], dtype=torch.double)))
+print(loss(b, a, torch.tensor([-1], dtype=torch.float)))
 
 # print(b * a)
 exit()

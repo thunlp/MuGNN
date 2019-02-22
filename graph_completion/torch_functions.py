@@ -27,7 +27,7 @@ class SpecialLoss(nn.Module):
         distance = torch.abs(score).sum(dim=-1) * self.re_scale
         pos_score = distance[:, :1]
         nega_score = distance[:, 1:]
-        y = torch.DoubleTensor([-1.0])
+        y = torch.FloatTensor([-1.0])
         if self.is_cuda:
             y = y.cuda()
         loss = self.criterion(pos_score, nega_score, y)

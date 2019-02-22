@@ -118,7 +118,7 @@ class SpGraphAttentionLayer(nn.Module):
 
         if self.concat:
             # if this layer is not last layer,
-            output =  F.relu(h_prime)
+            output =  F.elu(h_prime)
         else:
             # if this layer is last layer,
             output =  h_prime

@@ -92,8 +92,6 @@ class Config(object):
                 loss.backward()
                 loss_acc += float(loss)
                 optimizer.step()
-                # if (i_batch) % 10 == 0:
-                #     print('\rBatch: %d/%d; loss = %f' % (i_batch + 1, batch_num, loss_acc / (i_batch + 1)), end='')
             self.now_epoch += 1
             if (epoch + 1) % 10 == 0:
                 print('\rBatch: %d; loss = %f' % (epoch + 1, loss_acc / 10))

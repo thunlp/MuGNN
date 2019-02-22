@@ -24,7 +24,7 @@ config.set_num_workers(4)
 config.set_learning_rate(0.001)
 config.set_l2_penalty(0.0001)
 config.set_optimizer(Adam)
-config.set_dropout(0.5)
+config.set_dropout(0.0)
 config.set_sparse(True)
 
 config.print_parameter()

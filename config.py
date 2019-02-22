@@ -70,11 +70,9 @@ class Config(object):
             self.net.cuda()
         optimizer = self.optimizer(self.net.parameters(), lr=self.lr, weight_decay=self.l2_penalty)
         criterion_entity = GCNAlignLoss(self.entity_gamma, cuda=self.is_cuda)
-        criterion_relation = GCNAlignLoss(self.relation_gamma, re_scale=self.beta, cuda=self.is_cuda)
 
         if self.is_cuda:
             criterion_entity.cuda()
-            criterion_relation.cuda()
 
         batch_num = len(entity_loader)
         loss_acc = 0
@@ -180,6 +178,9 @@ class Config(object):
 
     def set_num_workers(self, num_workers):
         self.num_workers = num_workers
+
+    def set_dropout(self, dropout):
+        self.dropout_rate = dropout
 
     def loop(self, bin_dir):
         # todo: finish it

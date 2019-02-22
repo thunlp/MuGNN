@@ -5,20 +5,18 @@ from scipy import spatial
 from tools.print_time_info import print_time_info
 from torch import nn
 
-loss = nn.MarginRankingLoss(margin=2)
 
+a = torch.tensor([[1, 2, 3], [1, 3, 3]], dtype=torch.double)
 
-a = torch.tensor([[1, 2, 3], [1, 3, 3]], dtype=torch.float)
+b = torch.tensor([[1,3, 5 ], [3, 1, 20]], dtype=torch.double)
 
-b = torch.tensor([[1,3, 5 ], [3, 1, 20]], dtype=torch.float)
-
-c = F.pairwise_distance(a, b, p=2)
-sim = spatial.distance.cdist(a, b, metric='minkowski', p=1)
-sim2 = spatial.distance.cdist(a, b, metric='cityblock')
-print(sim)
-print(sim2)
+drop = nn.Dropout(0.7)
+drop.eval()
+print(drop.training)
+a = drop(a)
+print(a)
 exit()
-print(loss(b, a, torch.tensor([-1], dtype=torch.float)))
+print(loss(b, a, torch.tensor([-1], dtype=torch.double)))
 
 # print(b * a)
 exit()

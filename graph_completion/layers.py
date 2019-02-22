@@ -16,8 +16,8 @@ class GraphAttentionLayer(nn.Module):
         self.in_features = in_features
         self.out_features = out_features
         self.concat = concat
-        self.W = nn.Parameter(torch.zeros(size=(in_features, out_features)))
-        self.a = nn.Parameter(torch.zeros(size=(2*out_features, 1)))
+        self.W = nn.Parameter(torch.zeros(size=(in_features, out_features), dtype=torch.double))
+        self.a = nn.Parameter(torch.zeros(size=(2*out_features, 1), dtype=torch.double))
         nn.init.xavier_uniform_(self.W.data, gain=1.414)
         nn.init.xavier_uniform_(self.a.data, gain=1.414)
         self.leakyrelu = nn.LeakyReLU(alpha)
@@ -63,15 +63,16 @@ class SpGraphAttentionLayer(nn.Module):
     Sparse version GAT layer, similar to https://arxiv.org/abs/1710.10903
     """
 
-    def __init__(self, in_features, out_features, dropout, alpha, concat=True, cuda=True):
+    def __init__(self, in_features, out_features, dropout, alpha, concat=True, cuda=True, residual=True):
         super(SpGraphAttentionLayer, self).__init__()
         # assert in_features == out_features
         self.is_cuda = cuda
         self.concat = concat
+        self.residual = residual
         self.in_features = in_features
         self.out_features = out_features
-        self.W = nn.Parameter(torch.zeros(size=(in_features, out_features)))
-        self.a = nn.Parameter(torch.zeros(size=(1, 2 * out_features)))
+        self.W = nn.Parameter(torch.zeros(size=(in_features, out_features), dtype=torch.double))
+        self.a = nn.Parameter(torch.zeros(size=(1, 2 * out_features), dtype=torch.double))
         nn.init.xavier_uniform_(self.W.data, gain=1.414)
         nn.init.xavier_uniform_(self.a.data, gain=1.414)
         self.dropout = nn.Dropout(dropout)
@@ -99,7 +100,7 @@ class SpGraphAttentionLayer(nn.Module):
         edge_e = torch.exp(self.leakyrelu(self.a.mm(edge_h).squeeze()))
         assert not torch.isnan(edge_e).any()
         # edge_e: E
-        ones = torch.ones(size=(N, 1))
+        ones = torch.ones(size=(N, 1), dtype=torch.double)
         if self.is_cuda:
             ones = ones.cuda()
         e_rowsum = self.special_spmm(edge, edge_e, torch.Size([N, N]), ones)
@@ -117,10 +118,14 @@ class SpGraphAttentionLayer(nn.Module):
 
         if self.concat:
             # if this layer is not last layer,
-            return F.elu(h_prime)
+            output =  F.elu(h_prime)
         else:
             # if this layer is last layer,
-            return h_prime
+            output =  h_prime
+        if self.residual:
+            output = inputs + output
+            assert output.size() == inputs.size()
+        return output
 
     def __repr__(self):
         return self.__class__.__name__ + ' (' + str(self.in_features) + ' -> ' + str(self.out_features) + ')'
@@ -130,9 +135,9 @@ class GraphConvolution(nn.Module):
     def __init__(self, input_dim, output_dim, bias=False):
         super(GraphConvolution, self).__init__()
         self.act_func = F.relu
-        self.weights = nn.Parameter(torch.FloatTensor(input_dim, output_dim))
+        self.weights = nn.Parameter(torch.DoubleTensor(input_dim, output_dim))
         if bias:
-            self.bias = nn.Parameter(torch.FloatTensor(output_dim))
+            self.bias = nn.Parameter(torch.DoubleTensor(output_dim))
         else:
             self.register_parameter('bias', None)
         self.init()
@@ -155,8 +160,8 @@ class GraphConvolution(nn.Module):
 class DoubleEmbedding(nn.Module):
     def __init__(self, num_sr, num_tg, embedding_dim):
         super(DoubleEmbedding, self).__init__()
-        self.embedding_sr = nn.Embedding(num_sr, embedding_dim)
-        self.embedding_tg = nn.Embedding(num_tg, embedding_dim)
+        self.embedding_sr = nn.Embedding(num_sr, embedding_dim, _weight=torch.zeros((num_sr, embedding_dim), dtype=torch.double))
+        self.embedding_tg = nn.Embedding(num_tg, embedding_dim, _weight=torch.zeros((num_tg, embedding_dim), dtype=torch.double))
         nn.init.xavier_uniform_(self.embedding_sr.weight.data)
         nn.init.xavier_uniform_(self.embedding_tg.weight.data)
 

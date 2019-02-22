@@ -29,7 +29,7 @@ class GCNAlignLoss(nn.Module):
         score = distance
         pos_score = score[:, :1]
         nega_score = score[:, 1:]
-        y = torch.FloatTensor([-1.0])
+        y = torch.DoubleTensor([-1.0])
         # if next(self.parameters()).is_cuda:
         if self.is_cuda:
             y = y.cuda()

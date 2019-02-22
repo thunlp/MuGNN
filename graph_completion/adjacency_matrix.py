@@ -38,7 +38,7 @@ def g_func_template(a, b, c, e):
 
 
 def get_sparse_unit_matrix(size):
-    values = torch.from_numpy(np.ones([size], dtype=np.float32))
+    values = torch.from_numpy(np.ones([size], dtype=np.double))
     poses = torch.from_numpy(np.asarray([[i for i in range(size)] for _ in range(2)], dtype=np.int64))
     return torch_trans2sp(poses, values, (size, size))
 
@@ -114,7 +114,7 @@ class CrossAdjacencyMatrix(nn.Module):
 
 
 def torch_trans2sp(indices, values, size):
-    return torch.sparse.FloatTensor(indices, values, size=torch.Size(size))
+    return torch.sparse.DoubleTensor(indices, values, size=torch.Size(size))
 
 
 def build_adms_rconf_imp_pca(triples, new_triple_confs, num_entity, relation2conf, relation2imp, non_acylic=False):
@@ -154,7 +154,7 @@ def build_adms_rconf_imp_pca(triples, new_triple_confs, num_entity, relation2con
 
     for key, sp_m in sp_matrix.items():
         poses = torch.from_numpy(np.asarray(list(zip(*sp_m.keys())), dtype=np.int64))
-        values = torch.from_numpy(np.asarray(list(sp_m.values()), dtype=np.float32))
+        values = torch.from_numpy(np.asarray(list(sp_m.values()), dtype=np.double))
         assert len(values) == len(poses[0]) == len(poses[-1])
         sp_matrix[key] = torch_trans2sp(poses, values, [num_entity, num_entity])
     # print_time_info('The duplicate triple num: %d/%d.'%(i, len(triples)))

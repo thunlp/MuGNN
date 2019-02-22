@@ -88,7 +88,7 @@ class Config(object):
 
         optimizer = self.optimizer(self.net.parameters(), lr=self.lr, weight_decay=self.l2_penalty)
         criterion_align = SpecialLoss(self.entity_gamma, cuda=self.is_cuda)
-        criterion_transe = SpecialLoss(self.transe_gamma, re_scale=self.beta , cuda=self.is_cuda)
+        criterion_transe = SpecialLoss(self.transe_gamma, re_scale=self.beta , reduction='mean', cuda=self.is_cuda)
 
         loss_acc = 0
         for epoch in range(self.num_epoch):
@@ -98,18 +98,24 @@ class Config(object):
                 print_time_info('Epoch: %d started!' % (epoch + 1))
             self.net.train()
             for i_batch, batch in enumerate(entity_loader):
-                optimizer.zero_grad()
                 sr_data, tg_data = batch
+                optimizer.zero_grad()
                 if self.is_cuda:
                     sr_data, tg_data = sr_data.cuda(), tg_data.cuda()
                 align_score, sr_transe_score, tg_transe_score = self.net(sr_data, tg_data, h_sr, h_tg, t_sr, t_tg, r_sr, r_tg)
                 align_loss = criterion_align(align_score)
                 sr_transe_loss = criterion_transe(sr_transe_score)
                 tg_transe_loss = criterion_transe(tg_transe_score)
-                loss = sum([align_loss, sr_transe_loss, tg_transe_loss])
+                print('align loss' , align_loss)
+                print('sr_transe', sr_transe_loss)
+                print('tg_transe', tg_transe_loss)
+                if epoch % 2 == 0:
+                    loss = align_loss
+                else:
+                    loss = sum([sr_transe_loss, tg_transe_loss])
                 loss.backward()
-                loss_acc += float(loss)
                 optimizer.step()
+                loss_acc += float(loss)
             self.now_epoch += 1
             if (epoch + 1) % 10 == 0:
                 print('\rBatch: %d; loss = %f' % (epoch + 1, loss_acc / 10))

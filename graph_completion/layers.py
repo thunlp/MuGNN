@@ -63,15 +63,15 @@ class SpGraphAttentionLayer(nn.Module):
     Sparse version GAT layer, similar to https://arxiv.org/abs/1710.10903
     """
 
-    def __init__(self, in_features, out_features, dropout, alpha, concat=True, cuda=True, residual=True):
+    def __init__(self, in_features, out_features, dropout, alpha, concat=True, cuda=True, residual=False):
         super(SpGraphAttentionLayer, self).__init__()
-        # assert in_features == out_features
+        assert in_features == out_features
         self.is_cuda = cuda
         self.concat = concat
         self.residual = residual
         self.in_features = in_features
         self.out_features = out_features
-        self.W = nn.Parameter(torch.zeros(size=(in_features, out_features), dtype=torch.float))
+        self.W = nn.Parameter(torch.zeros(size=(1, out_features), dtype=torch.float))
         self.a = nn.Parameter(torch.zeros(size=(1, 2 * out_features), dtype=torch.float32))
         nn.init.xavier_uniform_(self.W.data, gain=1.414)
         nn.init.xavier_uniform_(self.a.data, gain=1.414)
@@ -85,9 +85,9 @@ class SpGraphAttentionLayer(nn.Module):
 
         # edge = adj.nonzero().t()
         edge = adj.indices()
-        h = torch.mm(inputs, self.W)
+        # h = torch.mm(inputs, self.W)
         # h shape: [num_entity, out_dim]
-        # h = inputs * self.W
+        h = inputs * self.W
         # h: N x out
         assert not torch.isnan(h).any()
 

@@ -6,6 +6,10 @@ from tools.print_time_info import print_time_info
 from torch import nn
 import random
 
+a = torch.tensor([[1,2,3], [1,3,4]])
+b = torch.tensor([[2,3,0]])
+print(a*b)
+exit()
 a = set(list(range(10))).remove(3)
 print(a)
 exit()

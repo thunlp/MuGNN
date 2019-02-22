@@ -44,9 +44,9 @@ class GATNet(AlignGraphNet):
             self.adj_tg = self.adj_tg.cuda()
 
     def trans_e(self, ent_embedding, rel_embedding, h_list, t_list, r_list):
-        h = F.embedding(h_list, ent_embedding)
-        t = F.embedding(t_list, ent_embedding)
-        r = F.embedding(r_list, rel_embedding)
+        h = ent_embedding[h_list]
+        t = ent_embedding[t_list]
+        r = rel_embedding[r_list]
         # shape [num, 2*nega + 1, dim]
         return h + r - t
 
@@ -56,48 +56,20 @@ class GATNet(AlignGraphNet):
     def forward(self, sr_data, tg_data, h_list_sr, h_list_tg, t_list_sr, t_list_tg, r_list_sr, r_list_tg):
         graph_embedding_sr, graph_embedding_tg = self.entity_embedding.weight
         rel_embedding_sr, rel_embedding_tg = self.relation_embedding.weight
-        graph_embedding_sr = self.sp_gat(graph_embedding_sr, self.adj_sr)
-        graph_embedding_tg = self.sp_gat(graph_embedding_tg, self.adj_tg)
-        align_score = self.entity_align(F.embedding(sr_data, graph_embedding_sr), F.embedding(tg_data, graph_embedding_tg))
-        sr_transe_score = self.trans_e(graph_embedding_sr, rel_embedding_sr, h_list_sr, t_list_sr, r_list_sr)
-        tg_transe_score = self.trans_e(graph_embedding_tg, rel_embedding_tg, h_list_tg, t_list_tg, r_list_tg)
+        output_sr = self.sp_gat(graph_embedding_sr, self.adj_sr)
+        output_tg = self.sp_gat(graph_embedding_tg, self.adj_tg)
+        align_score = self.entity_align(output_sr[sr_data], output_tg[tg_data])
+        sr_transe_score = self.trans_e(output_sr, rel_embedding_sr, h_list_sr, t_list_sr, r_list_sr)
+        tg_transe_score = self.trans_e(output_tg, rel_embedding_tg, h_list_tg, t_list_tg, r_list_tg)
         return align_score, sr_transe_score, tg_transe_score
 
     def predict(self, sr_data, tg_data):
         graph_embedding_sr, graph_embedding_tg = self.entity_embedding.weight
         graph_embedding_sr = self.sp_gat(graph_embedding_sr, self.adj_sr)
         graph_embedding_tg = self.sp_gat(graph_embedding_tg, self.adj_tg)
-        repre_e_sr, repre_e_tg = F.embedding(sr_data, graph_embedding_sr), F.embedding(tg_data, graph_embedding_tg)
+        repre_e_sr, repre_e_tg = graph_embedding_sr[sr_data], graph_embedding_tg[tg_data]
         return repre_e_sr.cpu().detach().numpy(), repre_e_tg.cpu().detach().numpy()
 
-
-class GCNNet(AlignGraphNet):
-    def __init__(self, cgc, num_layer, dim, *args, **kwargs):
-        super(GCNNet, self).__init__(*args, **kwargs)
-        assert isinstance(cgc, CrossGraphCompletion)
-        self.cam = CrossAdjacencyMatrix(dim, cgc, self.cuda, non_acylic=self.non_acylic)
-        self.gcn = GCN(dim, num_layer, self.dropout_rate)
-        self.entity_embedding = DoubleEmbedding(len(cgc.id2entity_sr), len(cgc.id2entity_tg), dim)
-        self.relation_embedding = DoubleEmbedding(len(cgc.id2relation_sr), len(cgc.id2relation_tg), dim)
-
-    def forward(self, sr_data, tg_data, sr_rel_data, tg_rel_data):
-        adjacency_matrix_sr, adjacency_matrix_tg = self.cam(*self.relation_embedding.weight)
-        graph_embedding_sr, graph_embedding_tg = self.entity_embedding.weight
-        graph_embedding_sr = self.gcn(graph_embedding_sr, adjacency_matrix_sr)
-        graph_embedding_tg = self.gcn(graph_embedding_tg, adjacency_matrix_tg)
-        repre_e_sr = F.embedding(sr_data, graph_embedding_sr)
-        repre_e_tg = F.embedding(tg_data, graph_embedding_tg)
-        repre_r_sr, repre_r_tg = self.relation_embedding(sr_rel_data, tg_rel_data)
-        return repre_e_sr, repre_e_tg, repre_r_sr, repre_r_tg
-
-    def predict(self, sr_data, tg_data):
-        adjacency_matrix_sr, adjacency_matrix_tg = self.cam(*self.relation_embedding.weight)
-        graph_embedding_sr, graph_embedding_tg = self.entity_embedding.weight
-        graph_embedding_sr = self.gcn(graph_embedding_sr, adjacency_matrix_sr)
-        graph_embedding_tg = self.gcn(graph_embedding_tg, adjacency_matrix_tg)
-        repre_e_sr = F.embedding(sr_data, graph_embedding_sr)
-        repre_e_tg = F.embedding(tg_data, graph_embedding_tg)
-        return repre_e_sr.cpu().detach().numpy(), repre_e_tg.cpu().detach().numpy()
 
     def bootstrap(self, entity_seeds, relation_seeds):
         adjacency_matrix_sr, adjacency_matrix_tg = self.cam()

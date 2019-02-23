@@ -47,19 +47,16 @@ class GATNet(AlignGraphNet):
         h = ent_embedding[h_list]
         t = ent_embedding[t_list]
         r = rel_embedding[r_list]
-
         # shape [num, 2*nega + 1, dim]
         return h + r - t
 
-    def entity_align(self, sr_embedding, tg_embedding):
-        return sr_embedding - tg_embedding
 
     def forward(self, sr_data, tg_data, h_list_sr, h_list_tg, t_list_sr, t_list_tg, r_list_sr, r_list_tg):
         graph_embedding_sr, graph_embedding_tg = self.entity_embedding.weight
         rel_embedding_sr, rel_embedding_tg = self.relation_embedding.weight
         output_sr = self.sp_gat(graph_embedding_sr, self.adj_sr)
         output_tg = self.sp_gat(graph_embedding_tg, self.adj_tg)
-        align_score = self.entity_align(output_sr[sr_data], output_tg[tg_data])
+        align_score = output_sr[sr_data] - output_tg[tg_data]
         sr_transe_score = self.trans_e(output_sr, rel_embedding_sr, h_list_sr, t_list_sr, r_list_sr)
         tg_transe_score = self.trans_e(output_tg, rel_embedding_tg, h_list_tg, t_list_tg, r_list_tg)
         return align_score, sr_transe_score, tg_transe_score

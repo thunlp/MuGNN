@@ -98,12 +98,14 @@ class SpGraphAttentionLayer(nn.Module):
         # edge: 2*D x E
 
         edge_e = torch.exp(self.leakyrelu(self.a.mm(edge_h).squeeze()))
+
         assert not torch.isnan(edge_e).any()
         # edge_e: E
-        ones = torch.ones(size=(N, 1), dtype=torch.float32)
+        ones = torch.ones(size=(N, 1), dtype=torch.float32,)
         if self.is_cuda:
             ones = ones.cuda()
         e_rowsum = self.special_spmm(edge, edge_e, torch.Size([N, N]), ones)
+
         # e_rowsum: N x 1
 
         edge_e = self.dropout(edge_e)
@@ -113,6 +115,7 @@ class SpGraphAttentionLayer(nn.Module):
         # h_prime: N x out
 
         h_prime = h_prime.div(e_rowsum)
+
         # h_prime: N x out
         assert not torch.isnan(h_prime).any()
 
@@ -122,6 +125,7 @@ class SpGraphAttentionLayer(nn.Module):
         else:
             # if this layer is last layer,
             output =  h_prime
+
         if self.residual:
             output = inputs + output
             assert output.size() == inputs.size()

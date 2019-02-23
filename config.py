@@ -87,7 +87,7 @@ class Config(object):
 
         optimizer = self.optimizer(self.net.parameters(), lr=self.lr, weight_decay=self.l2_penalty)
         criterion_align = SpecialLoss(self.entity_gamma, cuda=self.is_cuda)
-        criterion_transe = SpecialLoss(self.transe_gamma, re_scale=self.beta, reduction='mean', cuda=self.is_cuda)
+        criterion_transe = SpecialLoss(self.transe_gamma, re_scale=self.beta, cuda=self.is_cuda)
 
         loss_acc = 0
         for epoch, epoch_data in enumerate(entity_loader):
@@ -100,27 +100,24 @@ class Config(object):
             if self.is_cuda:
                 sr_data, tg_data = sr_data.cuda(), tg_data.cuda()
 
-            align_score, sr_transe_score, tg_transe_score = self.net(sr_data, tg_data, h_sr, h_tg, t_sr, t_tg, r_sr, r_tg)
+            align_score, sr_transe_score, tg_transe_score = self.net(sr_data, tg_data, h_sr, h_tg, t_sr, t_tg, r_sr,
+                                                                     r_tg)
             align_loss = criterion_align(align_score)
             sr_transe_loss = criterion_transe(sr_transe_score)
             tg_transe_loss = criterion_transe(tg_transe_score)
-
-            if epoch % 2 == 0:
-                loss = align_loss
-            else:
-                loss = sum([sr_transe_loss, tg_transe_loss])
+            loss = sum([align_loss, sr_transe_loss, tg_transe_loss])
             loss.backward()
             optimizer.step()
             loss_acc += float(loss)
             self.now_epoch += 1
-            if (epoch + 1) % 1 == 0:
-                print('\rEpoch: %d; loss = %f' % (epoch + 1, loss_acc / 10))
-                self.evaluate()
+            # if (epoch + 1) % 1 == 0:
+            print('\rEpoch: %d; align loss = %f, sr_transe_loss: %f, tg_transe_loss %f.' % (
+            epoch + 1, float(align_loss), float(sr_transe_loss), float(tg_transe_loss)))
+            self.evaluate()
 
     @timeit
     def evaluate(self):
         self.net.eval()
-        print('Training: ' + str(self.net.sp_gat.dropout.training))
         sr_data, tg_data = list(zip(*self.cgc.test_entity_seeds))
         sr_data = [int(ele) for ele in sr_data]
         tg_data = [int(ele) for ele in tg_data]

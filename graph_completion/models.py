@@ -43,6 +43,7 @@ class GAT(nn.Module):
                 GraphMultiHeadAttLayer(dim_in, dim_out // nheads, nheads, dropout_rate, alpha, concat, sp, cuda))
 
     def forward(self, x, adj):
+
         for att_layer in self.multi_head_att_layers:
             x = self.dropout(x)
             x = att_layer(x, adj)

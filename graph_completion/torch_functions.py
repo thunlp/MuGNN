@@ -119,3 +119,10 @@ def cosine_similarity_nbyn(a, b):
     a = a / (a.norm(dim=-1, keepdim=True) + 1e-8)
     b = b / (b.norm(dim=-1, keepdim=True) + 1e-8)
     return torch.mm(a, b.transpose(0, 1))
+
+def torch_l2distance(a, b):
+    x1 = torch.sum(a*a,dim=-1).view(-1,1)
+    x2 = torch.sum(b*b,dim=-1).view(-1,1)
+    x3 = -2 * torch.matmul(a, b.t())
+    sim = x1 + x2.t() + x3 #.pow(0.5)
+    return sim #.pow(0.5)

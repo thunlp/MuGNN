@@ -6,7 +6,7 @@ from graph_completion.models import GCN, GAT
 from graph_completion.layers import DoubleEmbedding
 from graph_completion.adjacency_matrix import CrossAdjacencyMatrix, SpTwinAdj
 from graph_completion.CrossGraphCompletion import CrossGraphCompletion
-from graph_completion.torch_functions import cosine_similarity_nbyn
+from graph_completion.torch_functions import cosine_similarity_nbyn, torch_l2distance
 from scipy.optimize import linear_sum_assignment
 
 __all__ = ['GATNet']
@@ -68,7 +68,8 @@ class GATNet(AlignGraphNet):
         graph_embedding_sr = self.sp_gat(graph_embedding_sr, self.adj_sr)
         graph_embedding_tg = self.sp_gat(graph_embedding_tg, self.adj_tg)
         repre_e_sr, repre_e_tg = graph_embedding_sr[sr_data], graph_embedding_tg[tg_data]
-        return repre_e_sr.cpu().detach().numpy(), repre_e_tg.cpu().detach().numpy()
+        sim = torch_l2distance(repre_e_sr.detach(), repre_e_tg.detach()).cpu().numpy()
+        return sim
 
 
     def bootstrap(self, entity_seeds, relation_seeds):

@@ -133,8 +133,8 @@ class Config(object):
         if self.is_cuda:
             sr_data = sr_data.cuda()
             tg_data = tg_data.cuda()
-        repre_sr, repre_tg = self.net.predict(sr_data, tg_data)
-        hits_10 = get_hits(repre_sr, repre_tg)
+        sim = self.net.predict(sr_data, tg_data)
+        hits_10 = get_hits(sim)
         if sum(hits_10) > self.best_hits_10[1] + self.best_hits_10[2]:
             self.best_hits_10 = (self.now_epoch, hits_10[0], hits_10[1])
             self.bad_result = 0

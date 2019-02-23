@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 from tools.print_time_info import print_time_info
 from graph_completion.functions import str2int4triples
 from graph_completion.torch_functions import SpecialLoss
-from graph_completion.Datasets import AliagnmentDataset, TripleDataset
+from graph_completion.Datasets import AliagnmentDataset, TripleDataset, EpochDataset
 from graph_completion.torch_functions import set_random_seed
 from graph_completion.functions import get_hits
 from graph_completion.CrossGraphCompletion import CrossGraphCompletion
@@ -16,11 +16,11 @@ class Config(object):
     def __init__(self, directory):
         # training
         self.patience = 10
-        self.min_epoch = 300
+        self.min_epoch = 3000
         self.bad_result = 0
         self.now_epoch = 0
         self.best_hits_10 = (0, 0, 0)  # (epoch, sr, tg)
-        self.num_epoch = 1000
+        self.num_epoch = 10000
         self.directory = directory
         self.train_seeds_ratio = 0.3
 
@@ -73,10 +73,9 @@ class Config(object):
 
     def train(self):
         cgc = self.cgc
-        entity_seeds = AliagnmentDataset(cgc.train_entity_seeds, self.nega_n_e, len(cgc.id2entity_sr),
-                                         len(cgc.id2entity_tg), self.is_cuda)
-        entity_loader = DataLoader(entity_seeds, batch_size=self.batch_size, shuffle=self.shuffle,
-                                   num_workers=self.num_workers)
+        entity_seeds = EpochDataset(AliagnmentDataset(cgc.train_entity_seeds, self.nega_n_e, len(cgc.id2entity_sr),
+                                                      len(cgc.id2entity_tg), self.is_cuda), self.num_epoch)
+        entity_loader = DataLoader(entity_seeds, shuffle=self.shuffle, num_workers=self.num_workers)
 
         h_sr, t_sr, r_sr = self.triples_sr.get_all()
         h_tg, t_tg, r_tg = self.triples_tg.get_all()
@@ -88,37 +87,35 @@ class Config(object):
 
         optimizer = self.optimizer(self.net.parameters(), lr=self.lr, weight_decay=self.l2_penalty)
         criterion_align = SpecialLoss(self.entity_gamma, cuda=self.is_cuda)
-        criterion_transe = SpecialLoss(self.transe_gamma, re_scale=self.beta , reduction='mean', cuda=self.is_cuda)
+        criterion_transe = SpecialLoss(self.transe_gamma, re_scale=self.beta, reduction='mean', cuda=self.is_cuda)
 
         loss_acc = 0
-        for epoch in range(self.num_epoch):
-            # relation_seeds_iter = iter(relation_seeds)
-            if (epoch+1) % 10 == 0:
-                loss_acc = 0
-                print_time_info('Epoch: %d started!' % (epoch + 1))
+        for epoch, epoch_data in enumerate(entity_loader):
             self.net.train()
-            for i_batch, batch in enumerate(entity_loader):
-                sr_data, tg_data = batch
-                optimizer.zero_grad()
-                if self.is_cuda:
-                    sr_data, tg_data = sr_data.cuda(), tg_data.cuda()
-                align_score, sr_transe_score, tg_transe_score = self.net(sr_data, tg_data, h_sr, h_tg, t_sr, t_tg, r_sr, r_tg)
-                align_loss = criterion_align(align_score)
-                sr_transe_loss = criterion_transe(sr_transe_score)
-                tg_transe_loss = criterion_transe(tg_transe_score)
-                print('align loss' , align_loss)
-                print('sr_transe', sr_transe_loss)
-                print('tg_transe', tg_transe_loss)
-                if epoch % 2 == 0:
-                    loss = align_loss
-                else:
-                    loss = sum([sr_transe_loss, tg_transe_loss])
-                loss.backward()
-                optimizer.step()
-                loss_acc += float(loss)
+            if (epoch + 1) % 10 == 0:
+                print_time_info('Epoch: %d started!' % (epoch + 1))
+            optimizer.zero_grad()
+            sr_data, tg_data = epoch_data
+            sr_data, tg_data = sr_data.squeeze(0), tg_data.squeeze(0)
+            if self.is_cuda:
+                sr_data, tg_data = sr_data.cuda(), tg_data.cuda()
+            align_score, sr_transe_score, tg_transe_score = self.net(sr_data, tg_data, h_sr, h_tg, t_sr, t_tg, r_sr, r_tg)
+            align_loss = criterion_align(align_score)
+            sr_transe_loss = criterion_transe(sr_transe_score)
+            tg_transe_loss = criterion_transe(tg_transe_score)
+            print('align loss', align_loss)
+            print('sr_transe', sr_transe_loss)
+            print('tg_transe', tg_transe_loss)
+            if epoch % 2 == 0:
+                loss = align_loss
+            else:
+                loss = sum([sr_transe_loss, tg_transe_loss])
+            loss.backward()
+            optimizer.step()
+            loss_acc += float(loss)
             self.now_epoch += 1
             if (epoch + 1) % 10 == 0:
-                print('\rBatch: %d; loss = %f' % (epoch + 1, loss_acc / 10))
+                print('\rEpoch: %d; loss = %f' % (epoch + 1, loss_acc / 10))
                 self.evaluate()
 
     @timeit

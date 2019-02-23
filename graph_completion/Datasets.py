@@ -4,6 +4,22 @@ import torch
 from tools.print_time_info import print_time_info
 from torch.utils.data import Dataset, DataLoader
 
+
+class EpochDataset(Dataset):
+    def __init__(self, dataset, epoch):
+        super(EpochDataset, self).__init__()
+        assert isinstance(dataset, Dataset)
+        self.epoch = epoch
+        self.dataset = dataset
+
+    def __len__(self):
+        return self.epoch
+
+    def __getitem__(self, idx):
+        epoch_data = next(iter(DataLoader(self.dataset, batch_size=len(self.dataset))))
+        return epoch_data
+
+
 class TripleDataset(Dataset):
     def __init__(self, triples, nega_sapmle_num):
         self.triples = triples
@@ -15,7 +31,7 @@ class TripleDataset(Dataset):
         self.r2e = {}
         for head, tail, relation in triples:
             if relation not in self.r2e:
-                self.r2e[relation] = {'h':{head,}, 't': {tail,}}
+                self.r2e[relation] = {'h': {head, }, 't': {tail, }}
             else:
                 self.r2e[relation]['h'].add(head)
                 self.r2e[relation]['t'].add(tail)
@@ -23,8 +39,10 @@ class TripleDataset(Dataset):
 
     def init(self):
         r2e = self.r2e
+
         def exists(h, t, r):
             return (h, t, r) in self.triple_set
+
         def _init_one(h, t, r):
             nega_sample_num = self.nega_sample_num
             h_a = list({ele for ele in r2e[r]['h'] if ele != h})
@@ -45,6 +63,7 @@ class TripleDataset(Dataset):
             t_list = [t] + [t] * nega_sample_num + nega_t
             r_list = [r] * len(h_list)
             return h_list, t_list, r_list
+
         self.data = []
         for h, t, r in self.triples:
             self.data.append(_init_one(h, t, r))
@@ -147,6 +166,7 @@ class AliagnmentDataset(Dataset):
 if __name__ == '__main__':
     from project_path import bin_dir
     from data.reader import read_seeds, read_mapping
+
     directory = bin_dir / 'dbp15k' / 'fr_en'
     seeds = read_seeds(directory / 'entity_seeds.txt')
     entity_sr = read_mapping(directory / 'entity2id_fr.txt')

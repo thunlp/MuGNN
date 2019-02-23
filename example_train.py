@@ -32,3 +32,6 @@ config.print_parameter()
 config.init(load=True)
 config.set_net(GATNet)
 config.train()
+
+# 1st faster evaluation
+# 2nd faster data load

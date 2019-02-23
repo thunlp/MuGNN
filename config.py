@@ -40,7 +40,7 @@ class Config(object):
         self.num_workers = 4  # for the data_loader
         self.nega_n_e = 25  # number of negative samples for each positive one
         self.nega_n_r = 2
-
+        self.corrupt = False
         # hyper parameter
         self.lr = 1e-3
         self.beta = 1.0  # ratio of transe loss
@@ -66,15 +66,15 @@ class Config(object):
             self.triples_sr = TripleDataset.restore(directory / 'running_temp' / 'td_sr.pkl')
             self.triples_tg = TripleDataset.restore(directory / 'running_temp' / 'td_tg.pkl')
         else:
-            self.triples_sr = TripleDataset(str2int4triples(self.cgc.triples_sr), self.nega_n_r)
-            self.triples_tg = TripleDataset(str2int4triples(self.cgc.triples_tg), self.nega_n_r)
+            self.triples_sr = TripleDataset(str2int4triples(self.cgc.triples_sr), self.nega_n_r, corruput=self.corrupt)
+            self.triples_tg = TripleDataset(str2int4triples(self.cgc.triples_tg), self.nega_n_r, corruput=self.corrupt)
             self.triples_sr.save(directory / 'running_temp' / 'td_sr.pkl')
             self.triples_tg.save(directory / 'running_temp' / 'td_tg.pkl')
 
     def train(self):
         cgc = self.cgc
         entity_seeds = EpochDataset(AliagnmentDataset(cgc.train_entity_seeds, self.nega_n_e, len(cgc.id2entity_sr),
-                                                      len(cgc.id2entity_tg), self.is_cuda), self.num_epoch)
+                                                      len(cgc.id2entity_tg), self.is_cuda, corruput=self.corrupt), self.num_epoch)
         entity_loader = DataLoader(entity_seeds, shuffle=self.shuffle, num_workers=self.num_workers)
 
         h_sr, t_sr, r_sr = self.triples_sr.get_all()
@@ -196,6 +196,12 @@ class Config(object):
 
     def set_beta(self, beta):
         self.beta = beta
+
+    def set_shuffle(self, shuffle):
+        self.shuffle = shuffle
+
+    def set_corrupt(self, corrupt):
+        self.corrupt = corrupt
 
     def loop(self, bin_dir):
         # todo: finish it

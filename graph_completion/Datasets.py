@@ -21,7 +21,8 @@ class EpochDataset(Dataset):
 
 
 class TripleDataset(Dataset):
-    def __init__(self, triples, nega_sapmle_num):
+    def __init__(self, triples, nega_sapmle_num, corruput=False):
+        self.corruput = corruput
         self.triples = triples
         self.triple_set = set(triples)
         self.nega_sample_num = nega_sapmle_num
@@ -74,6 +75,11 @@ class TripleDataset(Dataset):
             self.postive_data[1] += [t] * len(nega_h)
             self.postive_data[2] += [r] * len(nega_h)
 
+        if self.corruput:
+            z = list(zip(*self.negative_data))
+            random.shuffle(z)
+            self.negative_data = list(zip(*z))
+
     def save(self, path):
         with open(path, 'wb') as f:
             pickle.dump(self, f)
@@ -114,8 +120,9 @@ class TripleDataset(Dataset):
 class AliagnmentDataset(Dataset):
     """Seed alignment dataset."""
 
-    def __init__(self, seeds, nega_sample_num, num_sr, num_tg, cuda):
+    def __init__(self, seeds, nega_sample_num, num_sr, num_tg, cuda, corruput=False):
         self.cuda = cuda
+        self.corruput = corruput
         self.num_sr = num_sr
         self.num_tg = num_tg
         self.nega_sample_num = nega_sample_num
@@ -145,6 +152,11 @@ class AliagnmentDataset(Dataset):
             self.negative_data[1] += nega_tg_data
             self.positive_data[0] += [sr] * nega_sample_num * 2
             self.positive_data[1] += [tg] * nega_sample_num * 2
+
+        if self.corruput:
+            z = list(zip(*self.negative_data))
+            random.shuffle(z)
+            self.negative_data = list(zip(*z))
 
     def __len__(self):
         return len(self.positive_data[0])

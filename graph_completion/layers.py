@@ -73,7 +73,7 @@ class SpGraphAttentionLayer(nn.Module):
         self.out_features = out_features
         self.W = nn.Parameter(torch.zeros(size=(1, out_features), dtype=torch.float))
         self.a = nn.Parameter(torch.zeros(size=(1, 2 * out_features), dtype=torch.float32))
-        nn.init.xavier_uniform_(self.W.data, gain=1.414)
+        nn.init.ones_(self.W.data)
         nn.init.xavier_uniform_(self.a.data, gain=1.414)
         self.dropout = nn.Dropout(dropout)
         self.leakyrelu = nn.LeakyReLU(alpha)
@@ -101,7 +101,8 @@ class SpGraphAttentionLayer(nn.Module):
 
         assert not torch.isnan(edge_e).any()
         # edge_e: E
-        ones = torch.ones(size=(N, 1), dtype=torch.float32,)
+        ones = torch.ones(size=(N, 1), dtype=torch.float32)
+
         if self.is_cuda:
             ones = ones.cuda()
         e_rowsum = self.special_spmm(edge, edge_e, torch.Size([N, N]), ones)
@@ -111,6 +112,7 @@ class SpGraphAttentionLayer(nn.Module):
         edge_e = self.dropout(edge_e)
         # edge_e: E
         h_prime = self.special_spmm(edge, edge_e, torch.Size([N, N]), h)
+
         assert not torch.isnan(h_prime).any()
         # h_prime: N x out
 

@@ -86,7 +86,7 @@ class Config(object):
             h_tg, t_tg, r_tg = h_tg.cuda(), t_tg.cuda(), r_tg.cuda()
 
         optimizer = self.optimizer(self.net.parameters(), lr=self.lr, weight_decay=self.l2_penalty)
-        criterion_align = SpecialLoss(self.entity_gamma, cuda=self.is_cuda)
+        criterion_align = SpecialLoss(self.entity_gamma, cuda=self.is_cuda, name='align')
         criterion_transe = SpecialLoss(self.transe_gamma, re_scale=self.beta, cuda=self.is_cuda)
 
         loss_acc = 0
@@ -102,6 +102,7 @@ class Config(object):
 
             align_score, sr_transe_score, tg_transe_score = self.net(sr_data, tg_data, h_sr, h_tg, t_sr, t_tg, r_sr,
                                                                      r_tg)
+            # print('align score', torch.max(align_score), torch.min(align_score))
             align_loss = criterion_align(align_score)
             sr_transe_loss = criterion_transe(sr_transe_score)
             tg_transe_loss = criterion_transe(tg_transe_score)

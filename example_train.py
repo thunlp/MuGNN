@@ -24,7 +24,6 @@ config.set_num_workers(4)
 config.set_learning_rate(0.005)
 config.set_l2_penalty(0.0)
 config.set_optimizer(Adagrad)
-config.set_dropout(0.1)
 config.set_beta(1.0)
 config.set_sparse(True)
 

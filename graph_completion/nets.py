@@ -47,6 +47,7 @@ class GATNet(AlignGraphNet):
         h = ent_embedding[h_list]
         t = ent_embedding[t_list]
         r = rel_embedding[r_list]
+
         # shape [num, 2*nega + 1, dim]
         return h + r - t
 

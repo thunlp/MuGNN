@@ -99,13 +99,12 @@ class Config(object):
             sr_data, tg_data = sr_data.squeeze(0), tg_data.squeeze(0)
             if self.is_cuda:
                 sr_data, tg_data = sr_data.cuda(), tg_data.cuda()
+
             align_score, sr_transe_score, tg_transe_score = self.net(sr_data, tg_data, h_sr, h_tg, t_sr, t_tg, r_sr, r_tg)
             align_loss = criterion_align(align_score)
             sr_transe_loss = criterion_transe(sr_transe_score)
             tg_transe_loss = criterion_transe(tg_transe_score)
-            print('align loss', align_loss)
-            print('sr_transe', sr_transe_loss)
-            print('tg_transe', tg_transe_loss)
+
             if epoch % 2 == 0:
                 loss = align_loss
             else:
@@ -114,7 +113,7 @@ class Config(object):
             optimizer.step()
             loss_acc += float(loss)
             self.now_epoch += 1
-            if (epoch + 1) % 10 == 0:
+            if (epoch + 1) % 1 == 0:
                 print('\rEpoch: %d; loss = %f' % (epoch + 1, loss_acc / 10))
                 self.evaluate()
 

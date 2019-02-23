@@ -35,6 +35,8 @@ class TripleDataset(Dataset):
             else:
                 self.r2e[relation]['h'].add(head)
                 self.r2e[relation]['t'].add(tail)
+        self.postive_data = [[], [], []]
+        self.negative_data = [[], [], []]
         self.init()
 
     def init(self):
@@ -59,14 +61,18 @@ class TripleDataset(Dataset):
                 tt = random.choice(self.ts)
                 if not exists(h, tt, r):
                     nega_t.append(tt)
-            h_list = [h] + nega_h + [h] * nega_sample_num
-            t_list = [t] + [t] * nega_sample_num + nega_t
-            r_list = [r] * len(h_list)
-            return h_list, t_list, r_list
+            h_list = nega_h + [h] * nega_sample_num
+            t_list = [t] * nega_sample_num + nega_t
+            return h_list, t_list
 
-        self.data = []
         for h, t, r in self.triples:
-            self.data.append(_init_one(h, t, r))
+            nega_h, nega_t = _init_one(h, t, r)
+            self.negative_data[0] += nega_h
+            self.negative_data[1] += nega_t
+            self.negative_data[2] += [r] * len(nega_h)
+            self.postive_data[0] += [h] * len(nega_h)
+            self.postive_data[1] += [t] * len(nega_h)
+            self.postive_data[2] += [r] * len(nega_h)
 
     def save(self, path):
         with open(path, 'wb') as f:
@@ -83,10 +89,15 @@ class TripleDataset(Dataset):
         return len(self.triples)
 
     def __getitem__(self, idx):
-        h_list, t_list, r_list = self.data[idx]
-        h_list = torch.tensor(h_list, dtype=torch.int64)
-        t_list = torch.tensor(t_list, dtype=torch.int64)
-        r_list = torch.tensor(r_list, dtype=torch.int64)
+        pos_h = self.postive_data[0][idx]
+        pos_t = self.postive_data[1][idx]
+        pos_r = self.postive_data[2][idx]
+        neg_h = self.negative_data[0][idx]
+        neg_t = self.negative_data[1][idx]
+        neg_r = self.negative_data[2][idx]
+        h_list = torch.tensor([pos_h, neg_h], dtype=torch.int64)
+        t_list = torch.tensor([pos_t, neg_t], dtype=torch.int64)
+        r_list = torch.tensor([pos_r, neg_r], dtype=torch.int64)
         return h_list, t_list, r_list
 
     def get_all(self):
@@ -109,10 +120,11 @@ class AliagnmentDataset(Dataset):
         self.num_tg = num_tg
         self.nega_sample_num = nega_sample_num
         self.seeds = [[int(sr), int(tg)] for sr, tg in seeds]
-        # self.init_negative_sample()
+        self.positive_data = [[], []]
+        self.negative_data = [[], []]
+        self.init()
 
-    def init_negative_sample(self):
-        self.data = []
+    def init(self):
         nega_sample_num = self.nega_sample_num
         for seed in self.seeds:
             sr, tg = seed
@@ -127,55 +139,47 @@ class AliagnmentDataset(Dataset):
                     can_tg += 1
                 nega_sr.append(can_sr)
                 nega_tg.append(can_tg)
-            sr_data = [sr] + nega_sr + [sr] * nega_sample_num
-            tg_data = [tg] + [tg] * nega_sample_num + nega_tg
-            self.data.append((sr_data, tg_data))
+            nega_sr_data = nega_sr + [sr] * nega_sample_num
+            nega_tg_data = [tg] * nega_sample_num + nega_tg
+            self.negative_data[0] += nega_sr_data
+            self.negative_data[1] += nega_tg_data
+            self.positive_data[0] += [sr] * nega_sample_num * 2
+            self.positive_data[1] += [tg] * nega_sample_num * 2
 
     def __len__(self):
-        return len(self.seeds)
+        return len(self.positive_data[0])
+
+    def __getitem__(self, idx):
+        pos_sr = self.positive_data[0][idx]
+        pos_tg = self.positive_data[1][idx]
+        neg_sr = self.negative_data[0][idx]
+        neg_tg = self.negative_data[1][idx]
+        # the first data is the positive one
+        sr_data = torch.tensor([pos_sr, neg_sr], dtype=torch.int64)
+        tg_data = torch.tensor([pos_tg, neg_tg], dtype=torch.int64)
+        return sr_data, tg_data
 
     # def __getitem__(self, idx):
-    #     sr_data, tg_data = self.data[idx]
+    #     nega_sample_num = self.nega_sample_num
+    #     sr, tg = self.seeds[idx]
     #     # the first data is the positive one
+    #     nega_sr = []
+    #     nega_tg = []
+    #     for _ in range(nega_sample_num):
+    #         can_sr = random.randint(0, self.num_sr - 2)
+    #         can_tg = random.randint(0, self.num_tg - 2)
+    #         if can_sr >= sr:
+    #             can_sr += 1
+    #         if can_tg >= tg:
+    #             can_tg += 1
+    #         nega_sr.append(can_sr)
+    #         nega_tg.append(can_tg)
+    #     sr_data = [sr] + nega_sr + [sr] * nega_sample_num
+    #     tg_data = [tg] + [tg] * nega_sample_num + nega_tg
     #     sr_data = torch.tensor(sr_data, dtype=torch.int64)
     #     tg_data = torch.tensor(tg_data, dtype=torch.int64)
     #     return sr_data, tg_data
 
-    def __getitem__(self, idx):
-        nega_sample_num = self.nega_sample_num
-        sr, tg = self.seeds[idx]
-        # the first data is the positive one
-        nega_sr = []
-        nega_tg = []
-        for _ in range(nega_sample_num):
-            can_sr = random.randint(0, self.num_sr - 2)
-            can_tg = random.randint(0, self.num_tg - 2)
-            if can_sr >= sr:
-                can_sr += 1
-            if can_tg >= tg:
-                can_tg += 1
-            nega_sr.append(can_sr)
-            nega_tg.append(can_tg)
-        sr_data = [sr] + nega_sr + [sr] * nega_sample_num
-        tg_data = [tg] + [tg] * nega_sample_num + nega_tg
-        sr_data = torch.tensor(sr_data, dtype=torch.int64)
-        tg_data = torch.tensor(tg_data, dtype=torch.int64)
-        return sr_data, tg_data
-
 
 if __name__ == '__main__':
-    from project_path import bin_dir
-    from data.reader import read_seeds, read_mapping
-
-    directory = bin_dir / 'dbp15k' / 'fr_en'
-    seeds = read_seeds(directory / 'entity_seeds.txt')
-    entity_sr = read_mapping(directory / 'entity2id_fr.txt')
-    entity_tg = read_mapping(directory / 'entity2id_en.txt')
-    ad = AliagnmentDataset(seeds, 24,
-                           len(entity_sr), len(entity_tg))
-    ad_loader = DataLoader(ad, batch_size=1, shuffle=True, num_workers=4)
-    for i, batch in enumerate(ad_loader):
-        sr_data, tg_data = batch
-        print(sr_data)
-        print(tg_data)
-        break
+    pass

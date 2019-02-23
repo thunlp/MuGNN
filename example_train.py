@@ -35,3 +35,4 @@ config.train()
 
 # 1st faster evaluation
 # 2nd faster data load
+# 3rd each negative sample have a positive sample

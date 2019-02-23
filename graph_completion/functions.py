@@ -11,6 +11,7 @@ def str2int4triples(triples):
 
 def get_hits(sim, top_k=(1, 10, 50, 100)):
     test_num = sim.shape[0]
+
     # sim = spatial.distance.cdist(Lvec, Rvec, metric='minkowski', p=2)
     # sim = spatial.distance.cdist(Lvec, Rvec, metric='cityblock')
     def top_get(sim, top_k):
@@ -22,6 +23,7 @@ def get_hits(sim, top_k=(1, 10, 50, 100)):
                 if rank_index < top_k[j]:
                     top_x[j] += 1
         return top_x
+
     top_lr = multiprocess_topk(sim, top_k)
     top_rl = multiprocess_topk(sim.T, top_k)
     print_time_info('For each source:')

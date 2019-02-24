@@ -2,6 +2,7 @@ import torch
 from torch import optim
 from tools.timeit import timeit
 from torch.utils.data import DataLoader
+from tensorboardX import SummaryWriter
 from tools.print_time_info import print_time_info
 from graph_completion.functions import str2int4triples
 from graph_completion.torch_functions import SpecialLoss
@@ -19,7 +20,7 @@ class Config(object):
         self.min_epoch = 3000
         self.bad_result = 0
         self.now_epoch = 0
-        self.best_hits_10 = (0, 0, 0)  # (epoch, sr, tg)
+        self.best_hits_1 = (0, 0, 0)  # (epoch, sr, tg)
         self.num_epoch = 10000
         self.directory = directory
         self.train_seeds_ratio = 0.3
@@ -73,22 +74,23 @@ class Config(object):
 
     def train(self):
         cgc = self.cgc
-        ad = AliagnmentDataset(cgc.train_entity_seeds, self.nega_n_e, len(cgc.id2entity_sr), len(cgc.id2entity_tg),
-                               self.is_cuda, corruput=self.corrupt)
-        sr_data, tg_data = EpochDataset(ad, self.num_epoch).get_data()
-
         h_sr, t_sr, r_sr = self.triples_sr.get_all()
         h_tg, t_tg, r_tg = self.triples_tg.get_all()
-
         if self.is_cuda:
             self.net.cuda()
-            sr_data, tg_data = sr_data.cuda(), tg_data.cuda()
             h_sr, t_sr, r_sr = h_sr.cuda(), t_sr.cuda(), r_sr.cuda()
             h_tg, t_tg, r_tg = h_tg.cuda(), t_tg.cuda(), r_tg.cuda()
 
+        # for the log
+        writer = self.writer
+
+        ad = AliagnmentDataset(cgc.train_entity_seeds, self.nega_n_e, len(cgc.id2entity_sr), len(cgc.id2entity_tg),
+                               self.is_cuda, corruput=self.corrupt)
+        sr_data, tg_data = self.negative_sampling(ad)
+
         optimizer = self.optimizer(self.net.parameters(), lr=self.lr, weight_decay=self.l2_penalty)
         criterion_align = SpecialLoss(self.entity_gamma, cuda=self.is_cuda)
-        criterion_transe = SpecialLoss(self.transe_gamma, p=2, re_scale=self.beta, cuda=self.is_cuda)
+        criterion_transe = SpecialLoss(self.transe_gamma, p=1, re_scale=self.beta, cuda=self.is_cuda)
 
         loss_acc = 0
         for epoch in range(self.num_epoch):
@@ -110,17 +112,25 @@ class Config(object):
             # if (epoch + 1) % 1 == 0:
             print('\rEpoch: %d; align loss = %f, sr_transe_loss: %f, tg_transe_loss %f.' % (
                 epoch + 1, float(align_loss), float(sr_transe_loss), float(tg_transe_loss)))
+            writer.add_scalars('data/train_loss', {'Align Loss': align_loss.item(),
+                                                   'SR TransE Loss': sr_transe_loss.item(),
+                                                   'TG TransE Loss': tg_transe_loss.item()},
+                               epoch)
             self.evaluate()
-            if (epoch + 1) % 10 == 0:
-                sr_seeds, tg_seeds = ad.get_seeds()
-                if self.is_cuda:
-                    sr_seeds = sr_seeds.cuda()
-                    tg_seeds = tg_seeds.cuda()
-                sr_nns, tg_nns = self.net.negative_sample(sr_seeds, tg_seeds)
-                ad.update_negative_sample(sr_nns, tg_nns)
-                sr_dat, tg_data = EpochDataset(ad, self.num_epoch).get_data()
-                if self.is_cuda:
-                    sr_data, tg_data = sr_data.cuda(), tg_data.cuda()
+            if (epoch + 1) % 5 == 0:
+                sr_data, tg_data = self.negative_sampling(ad)
+
+    def negative_sampling(self, ad):
+        sr_seeds, tg_seeds = ad.get_seeds()
+        if self.is_cuda:
+            sr_seeds = sr_seeds.cuda()
+            tg_seeds = tg_seeds.cuda()
+        sr_nns, tg_nns = self.net.negative_sample(sr_seeds, tg_seeds)
+        ad.update_negative_sample(sr_nns, tg_nns)
+        sr_data, tg_data = EpochDataset(ad, self.num_epoch).get_data()
+        if self.is_cuda:
+            sr_data, tg_data = sr_data.cuda(), tg_data.cuda()
+        return sr_data, tg_data
 
     @timeit
     def evaluate(self):
@@ -134,13 +144,19 @@ class Config(object):
             sr_data = sr_data.cuda()
             tg_data = tg_data.cuda()
         sim = self.net.predict(sr_data, tg_data)
-        hits_10 = get_hits(sim)
-        if sum(hits_10) > self.best_hits_10[1] + self.best_hits_10[2]:
-            self.best_hits_10 = (self.now_epoch, hits_10[0], hits_10[1])
+        top_lr, top_rl = get_hits(sim)
+        self.writer.add_scalars('data/performance', {'Hits@1 sr': top_lr[0],
+                                                     'Hits@10 sr': top_lr[1],
+                                                     'Hits@1 tg': top_rl[0],
+                                                     'Hits@10 tg': top_rl[1]},
+                                self.now_epoch)
+
+        if top_lr[0] + top_rl[0] > self.best_hits_1[1] + self.best_hits_1[2]:
+            self.best_hits_1 = (self.now_epoch, top_lr[0], top_rl[0])
             self.bad_result = 0
         else:
             self.bad_result += 1
-        print_time_info('Current best Hits@10 at the %dth epoch: (%.2f, %.2f)' % (self.best_hits_10))
+        print_time_info('Current best Hits@1 at the %dth epoch: (%.2f, %.2f)' % (self.best_hits_1))
 
         if self.now_epoch < self.min_epoch:
             return
@@ -148,14 +164,27 @@ class Config(object):
             print_time_info('My patience is limited. It is time to stop!', dash_bot=True)
             exit()
 
-    def print_parameter(self):
+    def print_parameter(self, file=None):
         parameters = self.__dict__
-        print_time_info('Parameter setttings:', dash_top=True)
-        print('\tNet: ', type(self.net).__name__)
+        print_time_info('Parameter setttings:', dash_top=True, file=file)
+        print('\tNet: ', type(self.net).__name__, file=file)
         for key, value in parameters.items():
             if type(value) in {int, float, str, bool}:
-                print('\t%s:' % key, value)
-        print('---------------------------------------')
+                print('\t%s:' % key, value, file=file)
+        print('---------------------------------------', file=file)
+
+    def init_log(self, comment):
+        from project_path import project_dir
+        log_dir = project_dir / 'log'  #
+        if not log_dir.exists():
+            log_dir.mkdir()
+        log_dir = log_dir / comment
+        if log_dir.exists():
+            raise FileExistsError('The directory already exists!')
+        log_dir.mkdir()
+        self.writer = SummaryWriter(str(log_dir))
+        with open(log_dir / 'parameters.txt', 'w') as f:
+            self.print_parameter(f)
 
     def set_cuda(self, is_cuda):
         self.is_cuda = is_cuda

@@ -1,4 +1,4 @@
-import torch
+import torch, math
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -73,11 +73,15 @@ class SpGraphAttentionLayer(nn.Module):
         self.out_features = out_features
         self.W = nn.Parameter(torch.zeros(size=(1, out_features), dtype=torch.float))
         self.a = nn.Parameter(torch.zeros(size=(1, 2 * out_features), dtype=torch.float32))
+        self.bias = nn.Parameter(torch.zeros(size=(1, out_features), dtype=torch.float))
         nn.init.ones_(self.W.data)
+        # nn.init.xavier_uniform_(self.W.data, gain=1.414)
         nn.init.xavier_uniform_(self.a.data, gain=1.414)
+        nn.init.xavier_uniform_(self.bias.data, gain=1.414)
         self.dropout = nn.Dropout(dropout)
         self.leakyrelu = nn.LeakyReLU(alpha)
         self.special_spmm = SpecialSpmm()
+
 
     def forward(self, inputs, adj):
         # input shape shape [num_entity, embedding_dim]
@@ -120,6 +124,9 @@ class SpGraphAttentionLayer(nn.Module):
 
         # h_prime: N x out
         assert not torch.isnan(h_prime).any()
+
+        # add bias
+        h_prime = h_prime + self.bias
 
         if self.concat:
             # if this layer is not last layer,
@@ -164,12 +171,20 @@ class GraphConvolution(nn.Module):
 
 
 class DoubleEmbedding(nn.Module):
-    def __init__(self, num_sr, num_tg, embedding_dim):
+    def __init__(self, num_sr, num_tg, embedding_dim, type='entity'):
         super(DoubleEmbedding, self).__init__()
         self.embedding_sr = nn.Embedding(num_sr, embedding_dim, _weight=torch.zeros((num_sr, embedding_dim), dtype=torch.float))
         self.embedding_tg = nn.Embedding(num_tg, embedding_dim, _weight=torch.zeros((num_tg, embedding_dim), dtype=torch.float))
         nn.init.xavier_uniform_(self.embedding_sr.weight.data)
         nn.init.xavier_uniform_(self.embedding_tg.weight.data)
+        # if type == 'entity':
+        #     nn.init.normal_(self.embedding_sr.weight.data, std=1.0 / math.sqrt(embedding_dim))
+        #     nn.init.normal_(self.embedding_tg.weight.data, std=1.0 / math.sqrt(embedding_dim))
+        # elif type=='relation':
+        #     nn.init.xavier_uniform_(self.embedding_sr.weight.data)
+        #     nn.init.xavier_uniform_(self.embedding_tg.weight.data)
+        # else:
+        #     raise NotImplementedError
 
     def forward(self, sr_data, tg_data):
         return self.embedding_sr(sr_data), self.embedding_tg(tg_data)

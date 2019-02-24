@@ -38,8 +38,8 @@ class GATNet(AlignGraphNet):
         self.adj_sr = sp_twin_adj.sp_adj_sr
         self.adj_tg = sp_twin_adj.sp_adj_tg
         self.sp_gat = GAT(dim, dim, nheads, num_layer, self.dropout_rate, alpha, sp, self.is_cuda)
-        self.entity_embedding = DoubleEmbedding(num_entity_sr, num_entity_tg, dim)
-        self.relation_embedding = DoubleEmbedding(len(cgc.id2relation_sr), len(cgc.id2entity_tg), dim)
+        self.entity_embedding = DoubleEmbedding(num_entity_sr, num_entity_tg, dim, type='entity')
+        self.relation_embedding = DoubleEmbedding(len(cgc.id2relation_sr), len(cgc.id2entity_tg), dim, type='relation')
         if self.is_cuda:
             self.adj_sr = self.adj_sr.cuda()
             self.adj_tg = self.adj_tg.cuda()

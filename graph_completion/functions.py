@@ -26,15 +26,19 @@ def get_hits(sim, top_k=(1, 10, 50, 100)):
 
     top_lr = multiprocess_topk(sim, top_k)
     top_rl = multiprocess_topk(sim.T, top_k)
+    for i in range(len(top_rl)):
+        top_lr[i] = top_lr[i] / test_num * 100
+        top_rl[i] = top_rl[i] / test_num * 100
+
     print_time_info('For each source:')
     for i in range(len(top_lr)):
-        print_time_info('Hits@%d: %.2f%%' % (top_k[i], top_lr[i] / test_num * 100))
+        print_time_info('Hits@%d: %.2f%%' % (top_k[i], top_lr[i]))
     print('')
     print_time_info('For each target:')
     for i in range(len(top_rl)):
-        print_time_info('Hits@%d: %.2f%%' % (top_k[i], top_rl[i] / test_num * 100))
+        print_time_info('Hits@%d: %.2f%%' % (top_k[i], top_rl[i]))
     # return Hits@10
-    return (top_lr[1] / test_num * 100, top_rl[1] / test_num * 100)
+    return top_lr, top_rl
 
 
 def multiprocess_topk(sim, top_k=(1, 10, 50, 100)):

@@ -19,6 +19,10 @@ class EpochDataset(Dataset):
     def __getitem__(self, idx):
         return self.epoch_data
 
+    def get_data(self):
+        data = [d.squeeze(0) for d in self[0]]
+        return data
+
 
 class TripleDataset(Dataset):
     def __init__(self, triples, nega_sapmle_num, corruput=False):
@@ -131,15 +135,37 @@ class AliagnmentDataset(Dataset):
         self.negative_data = [[], []]
         self.init()
 
+    def get_seeds(self):
+        sr, tg = list(zip(*self.seeds))
+        return torch.tensor(sr), torch.tensor(tg)
+
+    def update_negative_sample(self, sr_nega, tg_nega):
+        pos_sr = self.positive_data[0]
+        pos_tg = self.positive_data[1]
+        nega_sr = []
+        nega_tg = []
+        assert len(set(pos_sr)) == len(sr_nega)
+        assert len(set(pos_tg)) == len(tg_nega)
+        for sr, tg in zip(pos_sr, pos_tg):
+            assert len(set(sr_nega[sr])) == self.nega_sample_num
+            assert len(sr_nega[sr]) == self.nega_sample_num
+            assert len(set(tg_nega[tg])) == self.nega_sample_num
+            assert len(tg_nega[tg]) == self.nega_sample_num
+            nega_sr += sr_nega[sr]
+            nega_tg += [tg] * self.nega_sample_num
+            nega_tg += tg_nega[tg]
+            nega_sr += [sr] * self.nega_sample_num
+        self.nega_data = [nega_sr, nega_tg]
+
     def init(self):
         nega_sample_num = self.nega_sample_num
         for seed in self.seeds:
             sr, tg = seed
             nega_sr = []
             nega_tg = []
-            for _ in range(nega_sample_num):
-                can_sr = random.randint(0, self.num_sr - 2)
-                can_tg = random.randint(0, self.num_tg - 2)
+            can_srs = random.choices(range(0, self.num_sr - 1), k=nega_sample_num)
+            can_tgs = random.choices(range(0, self.num_tg - 1), k=nega_sample_num)
+            for can_sr, can_tg in zip(can_srs, can_tgs):
                 if can_sr >= sr:
                     can_sr += 1
                 if can_tg >= tg:

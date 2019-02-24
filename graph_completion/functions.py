@@ -71,3 +71,32 @@ def multiprocess_topk(sim, top_k=(1, 10, 50, 100)):
         for j in range(len(top_kk)):
             top_x[j] += top_kk[j]
     return top_x
+
+
+def multi_process_get_nearest_neighbor(sim, ranks, nega_sample_num=25):
+    assert len(sim) == len(ranks)
+    manager = multiprocessing.Manager()
+    return_dict = manager.dict()
+    n_p = 4
+    # top_x = [0] * len(top_k)
+    def nega_get(sim, ranks, nega_sample_num, return_dict):
+        for i in range(len(sim)):
+            rank = sim[i, :].argsort()
+            nega_sample = rank[:nega_sample_num + 1]
+            nega_sample = [sample for sample in nega_sample if sample != ranks[i]][:nega_sample_num]
+            assert len(nega_sample) == nega_sample_num
+            return_dict[ranks[i]] = nega_sample
+
+    test_num = len(sim)
+    chunk = test_num // n_p + 1
+    sim_chunked = [sim[i:chunk + i, :] for i in range(0, test_num, chunk)]
+    rank_chunked = [ranks[i:chunk +i] for i in range(0, test_num, chunk)]
+    assert len(sim_chunked) == n_p
+    pool = []
+    for i, sim_chunk in enumerate(sim_chunked):
+        p = multiprocessing.Process(target=nega_get, args=(sim_chunk, rank_chunked[i], nega_sample_num, return_dict))
+        pool.append(p)
+        p.start()
+    for p in pool:
+        p.join()
+    return dict(return_dict)

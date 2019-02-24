@@ -1,12 +1,13 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .functions import str2int4triples
-from graph_completion.models import GCN, GAT
-from graph_completion.layers import DoubleEmbedding
-from graph_completion.adjacency_matrix import CrossAdjacencyMatrix, SpTwinAdj
-from graph_completion.CrossGraphCompletion import CrossGraphCompletion
-from graph_completion.torch_functions import cosine_similarity_nbyn, torch_l2distance
+from .functions import str2int4triples, multi_process_get_nearest_neighbor
+from .models import GAT
+from .layers import DoubleEmbedding
+from .adjacency_matrix import SpTwinAdj
+from .CrossGraphCompletion import CrossGraphCompletion
+from .torch_functions import cosine_similarity_nbyn, torch_l2distance
+from tools.timeit import timeit
 from scipy.optimize import linear_sum_assignment
 
 __all__ = ['GATNet']
@@ -60,6 +61,19 @@ class GATNet(AlignGraphNet):
         sr_transe_score = self.trans_e(output_sr, rel_embedding_sr, h_list_sr, t_list_sr, r_list_sr)
         tg_transe_score = self.trans_e(output_tg, rel_embedding_tg, h_list_tg, t_list_tg, r_list_tg)
         return align_score, sr_transe_score, tg_transe_score
+
+    @timeit
+    def negative_sample(self, sr_data, tg_data):
+        graph_embedding_sr, graph_embedding_tg = self.entity_embedding.weight
+        output_sr = self.sp_gat(graph_embedding_sr, self.adj_sr)
+        output_tg = self.sp_gat(graph_embedding_tg, self.adj_tg)
+        sr_repre = output_sr[sr_data]
+        tg_repre =  output_tg[tg_data]
+        sim_sr = torch_l2distance(sr_repre.detach(), output_sr.detach()).cpu().numpy()
+        sim_tg = torch_l2distance(tg_repre.detach(), output_tg.detach()).cpu().numpy()
+        sr_nns = multi_process_get_nearest_neighbor(sim_sr, sr_data.cpu().numpy())
+        tg_nns = multi_process_get_nearest_neighbor(sim_tg, tg_data.cpu().numpy())
+        return sr_nns, tg_nns
 
     def predict(self, sr_data, tg_data):
         graph_embedding_sr, graph_embedding_tg = self.entity_embedding.weight

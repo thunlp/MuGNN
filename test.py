@@ -1,18 +1,12 @@
 import random
-from torch.utils.data import Dataset, DataLoader
 
-class a(Dataset):
-    def __init__(self):
-        self.len = 10
-    def __getitem__(self, idx):
-        return random.randint(0,10)
-    def __len__(self):
-        return 10
+nega_sr = []
 
-b = DataLoader(a(), shuffle=False, num_workers=4)
+# between 0-9, avoid 4
 
-for ele in b:
-    print(ele, end='')
-print('')
-for ele in b:
-    print(ele, end='')
+can_srs = random.choices(range(0,9), k=10)
+for can_sr in can_srs:
+    if can_sr >= 4:
+        can_sr += 1
+    nega_sr.append(can_sr)
+print(nega_sr)

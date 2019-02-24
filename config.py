@@ -73,15 +73,16 @@ class Config(object):
 
     def train(self):
         cgc = self.cgc
-        entity_seeds = EpochDataset(AliagnmentDataset(cgc.train_entity_seeds, self.nega_n_e, len(cgc.id2entity_sr),
-                                                      len(cgc.id2entity_tg), self.is_cuda, corruput=self.corrupt), self.num_epoch)
-        entity_loader = DataLoader(entity_seeds, shuffle=self.shuffle, num_workers=self.num_workers)
+        ad = AliagnmentDataset(cgc.train_entity_seeds, self.nega_n_e, len(cgc.id2entity_sr), len(cgc.id2entity_tg),
+                               self.is_cuda, corruput=self.corrupt)
+        sr_data, tg_data = EpochDataset(ad, self.num_epoch).get_data()
 
         h_sr, t_sr, r_sr = self.triples_sr.get_all()
         h_tg, t_tg, r_tg = self.triples_tg.get_all()
 
         if self.is_cuda:
             self.net.cuda()
+            sr_data, tg_data = sr_data.cuda(), tg_data.cuda()
             h_sr, t_sr, r_sr = h_sr.cuda(), t_sr.cuda(), r_sr.cuda()
             h_tg, t_tg, r_tg = h_tg.cuda(), t_tg.cuda(), r_tg.cuda()
 
@@ -90,16 +91,11 @@ class Config(object):
         criterion_transe = SpecialLoss(self.transe_gamma, re_scale=self.beta, cuda=self.is_cuda)
 
         loss_acc = 0
-        for epoch, epoch_data in enumerate(entity_loader):
+        for epoch in range(self.num_epoch):
             self.net.train()
             if (epoch + 1) % 10 == 0:
                 print_time_info('Epoch: %d started!' % (epoch + 1))
             optimizer.zero_grad()
-            sr_data, tg_data = epoch_data
-            sr_data, tg_data = sr_data.squeeze(0), tg_data.squeeze(0)
-            if self.is_cuda:
-                sr_data, tg_data = sr_data.cuda(), tg_data.cuda()
-
             align_score, sr_transe_score, tg_transe_score = self.net(sr_data, tg_data, h_sr, h_tg, t_sr, t_tg, r_sr,
                                                                      r_tg)
             # print('align score', torch.max(align_score), torch.min(align_score))
@@ -113,8 +109,18 @@ class Config(object):
             self.now_epoch += 1
             # if (epoch + 1) % 1 == 0:
             print('\rEpoch: %d; align loss = %f, sr_transe_loss: %f, tg_transe_loss %f.' % (
-            epoch + 1, float(align_loss), float(sr_transe_loss), float(tg_transe_loss)))
+                epoch + 1, float(align_loss), float(sr_transe_loss), float(tg_transe_loss)))
             self.evaluate()
+            if (epoch + 1) % 10 == 0:
+                sr_seeds, tg_seeds = ad.get_seeds()
+                if self.is_cuda:
+                    sr_seeds = sr_seeds.cuda()
+                    tg_seeds = tg_seeds.cuda()
+                sr_nns, tg_nns = self.net.negative_sample(sr_seeds, tg_seeds)
+                ad.update_negative_sample(sr_nns, tg_nns)
+                sr_dat, tg_data = EpochDataset(ad, self.num_epoch).get_data()
+                if self.is_cuda:
+                    sr_data, tg_data = sr_data.cuda(), tg_data.cuda()
 
     @timeit
     def evaluate(self):

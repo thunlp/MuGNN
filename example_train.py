@@ -24,16 +24,17 @@ config.set_num_workers(4)
 config.set_learning_rate(0.001)
 config.set_l2_penalty(0.0)
 config.set_optimizer(Adagrad)
-config.set_beta(1.0)
+config.set_beta(0)
 config.set_sparse(True)
 config.set_shuffle(True)
-config.set_corrupt(True)
+config.set_corrupt(False)
 
 config.print_parameter()
-config.init(load=True)
+config.init(load=False)
 config.set_net(GATNet)
 config.train()
 
 # 1st faster evaluation
 # 2nd faster data load
 # 3rd each negative sample have a positive sample
+# 4th nearest neighbor sample

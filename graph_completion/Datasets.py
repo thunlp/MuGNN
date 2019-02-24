@@ -11,13 +11,13 @@ class EpochDataset(Dataset):
         assert isinstance(dataset, Dataset)
         self.epoch = epoch
         self.dataset = dataset
+        self.epoch_data = next(iter(DataLoader(self.dataset, batch_size=len(self.dataset))))
 
     def __len__(self):
         return self.epoch
 
     def __getitem__(self, idx):
-        epoch_data = next(iter(DataLoader(self.dataset, batch_size=len(self.dataset))))
-        return epoch_data
+        return self.epoch_data
 
 
 class TripleDataset(Dataset):

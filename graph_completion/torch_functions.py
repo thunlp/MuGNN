@@ -14,35 +14,28 @@ def set_random_seed(seed_value=999):
 
 batch = 0
 class SpecialLoss(nn.Module):
-    def __init__(self, margin, re_scale=1.0, reduction='mean', cuda=True, name='cdcs'):
+    def __init__(self, margin, p=2, re_scale=1.0, reduction='mean', cuda=True):
         super(SpecialLoss, self).__init__()
+        self.p = p
         self.re_scale = re_scale
         self.criterion = nn.MarginRankingLoss(margin, reduction=reduction)
         self.is_cuda = cuda
-        self.name = name
 
     def forward(self, score):
         '''
         score shape: [batch_size, 1 + nega_sample_num, embedding_dim]
         '''
         # distance = torch.abs(score).sum(dim=-1) * self.re_scale
-        square = torch.pow(score, 2).sum(dim=-1)
-        # print('score', torch.max(score), 'min', torch.min(score))
-        # if self.name == 'align':
-        #     square.register_hook(lambda x: print('square prime max: ', torch.max(x), 'min', torch.min(x)))
-
-        # if self.name == 'align':
-        #     he.register_hook(lambda x: print('he prime max: ', torch.max(x), 'min', torch.min(x)))
-
-        distance = square.pow(0.5) * self.re_scale #+ 1e-7
-        # it is likely that min distance will be 0, and the grad will be inf
-
-
-
+        if self.p == 2:
+            square = torch.pow(score, 2).sum(dim=-1)
+            distance = square.pow(0.5) * self.re_scale #+ 1e-7
+        elif self.p == 1:
+            distance = torch.abs(score).sum(dim=-1) * self.re_scale
+        else:
+            raise NotImplementedError
         pos_score = distance[:, :1]
         nega_score = distance[:, 1:]
         y = torch.FloatTensor([-1.0])
-
         if self.is_cuda:
             y = y.cuda()
         loss = self.criterion(pos_score, nega_score, y)

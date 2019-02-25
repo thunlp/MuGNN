@@ -13,9 +13,9 @@ try:
 except IndexError:
     config.set_cuda(False)
 
-config.set_graph_completion(False)
+config.set_graph_completion(True)
 config.set_dim(128)
-config.set_nheads(2)
+config.set_nheads(1)
 config.set_gamma(3.0)
 config.set_batch_size(4500)
 config.set_num_layer(2)
@@ -30,10 +30,10 @@ config.set_shuffle(True)
 config.set_corrupt(False)
 
 
-config.init(load=False)
+config.init(load=True)
 config.set_net(GATNet)
 config.print_parameter()
-config.init_log('NegaTriple')
+config.init_log('GraphCompletion')
 config.train()
 
 # 1st faster evaluation

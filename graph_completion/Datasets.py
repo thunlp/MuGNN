@@ -6,13 +6,22 @@ from torch.utils.data import Dataset, DataLoader
 
 
 class EpochDataset(object):
-    def __init__(self, dataset):
+    def __init__(self, dataset, batch_num=1):
         assert isinstance(dataset, Dataset)
-        self.epoch_data = next(iter(DataLoader(dataset, batch_size=len(dataset))))
+        self.dataset = dataset
+        self.batch_num = batch_num
+        data_num = len(dataset)
+        if data_num % batch_num == 0:
+            batch_size = data_num // batch_num
+        else:
+            batch_size = data_num // batch_num + 1
+        self.batch_size = batch_size
+
+    def get_data_loader(self):
+        return DataLoader(self.dataset, batch_size=self.batch_size, shuffle=True, num_workers=2)
 
     def get_data(self):
-        data = [d.squeeze(0) for d in self.epoch_data]
-        return data
+        return next(iter(DataLoader(self.dataset, batch_size=len(self.dataset))))
 
 
 class TripleDataset(Dataset):

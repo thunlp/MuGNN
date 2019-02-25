@@ -63,30 +63,24 @@ class Config(object):
             self.cgc = CrossGraphCompletion(directory, self.train_seeds_ratio, self.graph_completion)
             self.cgc.init()
             self.cgc.save(directory / 'running_temp')
-        if load:
-            self.triples_sr = TripleDataset.restore(directory / 'running_temp' / 'td_sr.pkl')
-            self.triples_tg = TripleDataset.restore(directory / 'running_temp' / 'td_tg.pkl')
-        else:
-            self.triples_sr = TripleDataset(str2int4triples(self.cgc.triples_sr), self.nega_n_r, corruput=self.corrupt)
-            self.triples_tg = TripleDataset(str2int4triples(self.cgc.triples_tg), self.nega_n_r, corruput=self.corrupt)
-            self.triples_sr.save(directory / 'running_temp' / 'td_sr.pkl')
-            self.triples_tg.save(directory / 'running_temp' / 'td_tg.pkl')
 
     def train(self):
         cgc = self.cgc
-        h_sr, t_sr, r_sr = self.triples_sr.get_all()
-        h_tg, t_tg, r_tg = self.triples_tg.get_all()
+        with torch.no_grad():
+            triples_sr = TripleDataset(str2int4triples(self.cgc.triples_sr), self.nega_n_r, corruput=self.corrupt)
+            triples_tg = TripleDataset(str2int4triples(self.cgc.triples_tg), self.nega_n_r, corruput=self.corrupt)
+            h_sr, t_sr, r_sr = EpochDataset(triples_sr).get_data()
+            h_tg, t_tg, r_tg = EpochDataset(triples_tg).get_data()
+
+            ad = AliagnmentDataset(cgc.train_entity_seeds, self.nega_n_e, len(cgc.id2entity_sr), len(cgc.id2entity_tg),
+                                   self.is_cuda, corruput=self.corrupt)
+            sr_data, tg_data = EpochDataset(ad).get_data()
+
         if self.is_cuda:
             self.net.cuda()
+            sr_data, tg_data = sr_data.cuda(), tg_data.cuda()
             h_sr, t_sr, r_sr = h_sr.cuda(), t_sr.cuda(), r_sr.cuda()
             h_tg, t_tg, r_tg = h_tg.cuda(), t_tg.cuda(), r_tg.cuda()
-
-        # for the log
-        writer = self.writer
-
-        ad = AliagnmentDataset(cgc.train_entity_seeds, self.nega_n_e, len(cgc.id2entity_sr), len(cgc.id2entity_tg),
-                               self.is_cuda, corruput=self.corrupt)
-        sr_data, tg_data = EpochDataset(ad).get_data()
 
         optimizer = self.optimizer(self.net.parameters(), lr=self.lr, weight_decay=self.l2_penalty)
         criterion_align = SpecialLossAlign(self.entity_gamma, cuda=self.is_cuda)
@@ -97,34 +91,43 @@ class Config(object):
                 print_time_info('Epoch: %d started!' % (epoch + 1))
             optimizer.zero_grad()
             repre_sr, repre_tg, transe_score = self.net(sr_data, tg_data, h_sr, h_tg, t_sr, t_tg, r_sr, r_tg)
-            # print('align score', torch.max(align_score), torch.min(align_score))
             if epoch % 2 == 0:
                 align_loss = criterion_align(repre_sr, repre_tg)
                 align_loss.backward()
                 print('\rEpoch: %d; align loss = %f.' % (epoch + 1, float(align_loss)))
-                writer.add_scalars('data/Loss', {'Align Loss': align_loss.item()}, epoch)
+                self.writer.add_scalars('data/Loss', {'Align Loss': align_loss.item()}, epoch)
             else:
                 transe_loss = criterion_transe(transe_score)
                 transe_loss.backward()
                 print('\rEpoch: %d; transe loss = %f.' % (epoch + 1, float(transe_loss)))
-                writer.add_scalars('data/Loss', {'TransE Loss': transe_loss.item()}, epoch)
+                self.writer.add_scalars('data/Loss', {'TransE Loss': transe_loss.item()}, epoch)
             optimizer.step()
             self.now_epoch += 1
             self.evaluate()
             if (epoch + 1) % 10 == 0:
-                sr_data, tg_data = self.negative_sampling(ad)
+                sr_data, tg_data, h_sr, t_sr, r_sr, h_tg, t_tg, r_tg = self.negative_sampling(ad, triples_sr,
+                                                                                              triples_tg)
+                if self.is_cuda:
+                    torch.cuda.empty_cache()
+                    sr_data, tg_data = sr_data.cuda(), tg_data.cuda()
+                    h_sr, t_sr, r_sr = h_sr.cuda(), t_sr.cuda(), r_sr.cuda()
+                    h_tg, t_tg, r_tg = h_tg.cuda(), t_tg.cuda(), r_tg.cuda()
 
-    def negative_sampling(self, ad):
-        sr_seeds, tg_seeds = ad.get_seeds()
-        if self.is_cuda:
-            sr_seeds = sr_seeds.cuda()
-            tg_seeds = tg_seeds.cuda()
-        sr_nns, tg_nns = self.net.negative_sample(sr_seeds, tg_seeds)
-        ad.update_negative_sample(sr_nns, tg_nns)
-        sr_data, tg_data = EpochDataset(ad, self.num_epoch).get_data()
-        if self.is_cuda:
-            sr_data, tg_data = sr_data.cuda(), tg_data.cuda()
-        return sr_data, tg_data
+    @timeit
+    def negative_sampling(self, ad, triples_sr, triples_tg):
+        with torch.no_grad():
+            sr_seeds, tg_seeds = ad.get_seeds()
+            if self.is_cuda:
+                sr_seeds = sr_seeds.cuda()
+                tg_seeds = tg_seeds.cuda()
+            sr_nns, tg_nns = self.net.negative_sample(sr_seeds, tg_seeds)
+            ad.update_negative_sample(sr_nns, tg_nns)
+            # For Alignment
+            sr_data, tg_data = EpochDataset(ad).get_data()
+            # For TransE
+            h_sr, t_sr, r_sr = EpochDataset(triples_sr.init()).get_data()
+            h_tg, t_tg, r_tg = EpochDataset(triples_tg.init()).get_data()
+            return sr_data, tg_data, h_sr, t_sr, r_sr, h_tg, t_tg, r_tg
 
     @timeit
     def evaluate(self):

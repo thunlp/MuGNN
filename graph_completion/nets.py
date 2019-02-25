@@ -63,7 +63,7 @@ class GATNet(AlignGraphNet):
         # print(sr_transe_score.size())
         return output_sr[sr_data], output_tg[tg_data], transe_score
 
-    @timeit
+
     def negative_sample(self, sr_data, tg_data):
         graph_embedding_sr, graph_embedding_tg = self.entity_embedding.weight
         output_sr = self.sp_gat(graph_embedding_sr, self.adj_sr)
@@ -74,6 +74,9 @@ class GATNet(AlignGraphNet):
         sim_tg = torch_l2distance(tg_repre, tg_repre).cpu().numpy()
         sr_nns = multi_process_get_nearest_neighbor(sim_sr, sr_data.cpu().numpy())
         tg_nns = multi_process_get_nearest_neighbor(sim_tg, tg_data.cpu().numpy())
+        del output_sr, output_tg, sr_repre, tg_repre, sim_sr, sim_tg
+        if self.is_cuda:
+            torch.cuda.empty_cache()
         return sr_nns, tg_nns
 
     def predict(self, sr_data, tg_data):

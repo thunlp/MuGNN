@@ -84,7 +84,7 @@ def multiprocess_topk(sim, top_k=(1, 10, 50, 100)):
     for i in range(len(top_x)):
         top_x[i] = top_x[i] / test_num * 100
     mr = rank_sum / test_num
-    mrr = r_rank_sum / test_num
+    mrr = r_rank_sum / test_num * 100
     return top_x, mr, mrr
 
 

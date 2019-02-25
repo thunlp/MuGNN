@@ -1,26 +1,17 @@
 import random
-import pickle
 import torch
 from tools.print_time_info import print_time_info
+from tools.timeit import timeit
 from torch.utils.data import Dataset, DataLoader
 
 
-class EpochDataset(Dataset):
-    def __init__(self, dataset, epoch=1000):
-        super(EpochDataset, self).__init__()
+class EpochDataset(object):
+    def __init__(self, dataset):
         assert isinstance(dataset, Dataset)
-        self.epoch = epoch
-        self.dataset = dataset
-        self.epoch_data = next(iter(DataLoader(self.dataset, batch_size=len(self.dataset))))
-
-    def __len__(self):
-        return self.epoch
-
-    def __getitem__(self, idx):
-        return self.epoch_data
+        self.epoch_data = next(iter(DataLoader(dataset, batch_size=len(dataset))))
 
     def get_data(self):
-        data = [d.squeeze(0) for d in self[0]]
+        data = [d.squeeze(0) for d in self.epoch_data]
         return data
 
 
@@ -33,31 +24,32 @@ class TripleDataset(Dataset):
         h, t, r = list(zip(*triples))
         self.hs = list(set(h))
         self.ts = list(set(t))
-        self.r2e = {}
+        r2e = {}
         for head, tail, relation in triples:
-            if relation not in self.r2e:
-                self.r2e[relation] = {'h': {head, }, 't': {tail, }}
+            if relation not in r2e:
+                r2e[relation] = {'h': {head, }, 't': {tail, }}
             else:
-                self.r2e[relation]['h'].add(head)
-                self.r2e[relation]['t'].add(tail)
+                r2e[relation]['h'].add(head)
+                r2e[relation]['t'].add(tail)
+        self.r2e = {r: {k: list(box) for k, box in es.items()} for r, es in r2e.items()}
         self.postive_data = [[], [], []]
         self.negative_data = [[], [], []]
         self.init()
 
     def init(self):
         r2e = self.r2e
+        nega_sample_num = self.nega_sample_num
 
         def exists(h, t, r):
             return (h, t, r) in self.triple_set
 
         def _init_one(h, t, r):
-            nega_sample_num = self.nega_sample_num
-            h_a = list({ele for ele in r2e[r]['h'] if ele != h})
-            t_a = list({ele for ele in r2e[r]['t'] if ele != t})
-            random.shuffle(h_a)
-            random.shuffle(t_a)
-            nega_h = [hh for i, hh in enumerate(h_a) if not exists(hh, t, r) and i < nega_sample_num]
-            nega_t = [tt for i, tt in enumerate(t_a) if not exists(h, tt, r) and i < nega_sample_num]
+            h_a = r2e[r]['h']
+            t_a = r2e[r]['t']
+            nega_h = random.sample(h_a, min(nega_sample_num + 1, len(h_a)))
+            nega_t = random.sample(t_a, min(nega_sample_num + 1, len(t_a)))
+            nega_h = [hh for hh in nega_h if not exists(hh, t, r)][:nega_sample_num]
+            nega_t = [tt for tt in nega_t if not exists(h, tt, r)][:nega_sample_num]
             while len(nega_h) < nega_sample_num:
                 hh = random.choice(self.hs)
                 if not exists(hh, t, r):
@@ -66,10 +58,12 @@ class TripleDataset(Dataset):
                 tt = random.choice(self.ts)
                 if not exists(h, tt, r):
                     nega_t.append(tt)
-            h_list = nega_h + [h] * nega_sample_num
-            t_list = [t] * nega_sample_num + nega_t
-            return h_list, t_list
+            nega_h = nega_h + len(nega_h) * [h]
+            nega_t = len(nega_t) * [t] + nega_t
+            return nega_h, nega_t
 
+        self.postive_data = [[], [], []]
+        self.negative_data = [[], [], []]
         for h, t, r in self.triples:
             nega_h, nega_t = _init_one(h, t, r)
             self.negative_data[0] += nega_h
@@ -83,20 +77,10 @@ class TripleDataset(Dataset):
             z = list(zip(*self.negative_data))
             random.shuffle(z)
             self.negative_data = list(zip(*z))
-
-    def save(self, path):
-        with open(path, 'wb') as f:
-            pickle.dump(self, f)
-        print_time_info('Successfully saved triple dataset to %s.' % path)
-
-    @classmethod
-    def restore(self, path):
-        with open(path, 'rb') as f:
-            print_time_info('Successfully loaded triple dataset from %s.' % path)
-            return pickle.load(f)
+        return self
 
     def __len__(self):
-        return len(self.triples)
+        return len(self.postive_data[0])
 
     def __getitem__(self, idx):
         pos_h = self.postive_data[0][idx]
@@ -109,16 +93,6 @@ class TripleDataset(Dataset):
         t_list = torch.tensor([pos_t, neg_t], dtype=torch.int64)
         r_list = torch.tensor([pos_r, neg_r], dtype=torch.int64)
         return h_list, t_list, r_list
-
-    def get_all(self):
-        h_list = []
-        t_list = []
-        r_list = []
-        for h, t, r in self:
-            h_list.append(h.view(1, -1))
-            t_list.append(t.view(1, -1))
-            r_list.append(r.view(1, -1))
-        return torch.cat(h_list, dim=0), torch.cat(t_list, dim=0), torch.cat(r_list, dim=0)
 
 
 class AliagnmentDataset(Dataset):
@@ -158,10 +132,11 @@ class AliagnmentDataset(Dataset):
 
     def init(self):
         nega_sample_num = self.nega_sample_num
-        for seed in self.seeds:
-            sr, tg = seed
-            nega_sr = []
-            nega_tg = []
+        pos_sr = []
+        pos_tg = []
+        nega_sr = []
+        nega_tg = []
+        for sr, tg in self.seeds:
             can_srs = random.choices(range(0, self.num_sr - 1), k=nega_sample_num)
             can_tgs = random.choices(range(0, self.num_tg - 1), k=nega_sample_num)
             for can_sr, can_tg in zip(can_srs, can_tgs):
@@ -171,10 +146,10 @@ class AliagnmentDataset(Dataset):
                     can_tg += 1
                 nega_sr.append(can_sr)
                 nega_tg.append(can_tg)
-            self.negative_data[0] += nega_sr
-            self.negative_data[1] += nega_tg
-            self.positive_data[0] += [sr] * nega_sample_num
-            self.positive_data[1] += [tg] * nega_sample_num
+            pos_sr += [sr] * nega_sample_num
+            pos_tg += [tg] * nega_sample_num
+        self.positive_data = [pos_sr, pos_tg]
+        self.negative_data = [nega_sr, nega_tg]
 
         if self.corruput:
             z = list(zip(*self.negative_data))

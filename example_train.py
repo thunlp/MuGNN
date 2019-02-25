@@ -30,10 +30,10 @@ config.set_shuffle(True)
 config.set_corrupt(False)
 
 
-config.init(load=True)
+config.init(load=False)
 config.set_net(GATNet)
 config.print_parameter()
-config.init_log('Same')
+config.init_log('NegaTriple')
 config.train()
 
 # 1st faster evaluation

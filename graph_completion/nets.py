@@ -48,8 +48,8 @@ class GATNet(AlignGraphNet):
         h = ent_embedding[h_list]
         t = ent_embedding[t_list]
         r = rel_embedding[r_list]
-        # shape [num, 2*nega + 1, dim]
-        return h + r - t
+        score = h + r - t
+        return score
 
 
     def forward(self, sr_data, tg_data, h_list_sr, h_list_tg, t_list_sr, t_list_tg, r_list_sr, r_list_tg):

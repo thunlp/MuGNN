@@ -112,10 +112,7 @@ class Config(object):
             self.now_epoch += 1
             self.evaluate()
             if (epoch + 1) % 10 == 0:
-                print(sr_data.size())
-                print(sr_data[:20])
                 sr_data, tg_data = self.negative_sampling(ad)
-                print(sr_data[0:20])
 
     def negative_sampling(self, ad):
         sr_seeds, tg_seeds = ad.get_seeds()
@@ -142,7 +139,7 @@ class Config(object):
             tg_data = tg_data.cuda()
         sim = self.net.predict(sr_data, tg_data)
         top_lr, top_rl = get_hits(sim)
-        self.writer.add_scalars('data/performance', {'Hits@1 sr': top_lr[0],
+        self.writer.add_scalars('data/Performance', {'Hits@1 sr': top_lr[0],
                                                      'Hits@10 sr': top_lr[1],
                                                      'Hits@1 tg': top_rl[0],
                                                      'Hits@10 tg': top_rl[1]},

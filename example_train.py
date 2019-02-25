@@ -32,7 +32,7 @@ config.set_corrupt(False)
 config.print_parameter()
 config.init(load=True)
 config.set_net(GATNet)
-config.init_log('oneh')
+config.init_log('test')
 config.train()
 
 # 1st faster evaluation

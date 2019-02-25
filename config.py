@@ -86,7 +86,7 @@ class Config(object):
 
         ad = AliagnmentDataset(cgc.train_entity_seeds, self.nega_n_e, len(cgc.id2entity_sr), len(cgc.id2entity_tg),
                                self.is_cuda, corruput=self.corrupt)
-        sr_data, tg_data = self.negative_sampling(ad)
+        sr_data, tg_data = EpochDataset(ad).get_data()
 
         optimizer = self.optimizer(self.net.parameters(), lr=self.lr, weight_decay=self.l2_penalty)
         criterion_align = SpecialLossAlign(self.entity_gamma, cuda=self.is_cuda)
@@ -102,17 +102,20 @@ class Config(object):
                 align_loss = criterion_align(repre_sr, repre_tg)
                 align_loss.backward()
                 print('\rEpoch: %d; align loss = %f.' % (epoch + 1, float(align_loss)))
-                writer.add_scalars('data/train_loss', {'Align Loss': align_loss.item()}, epoch)
+                writer.add_scalars('data/Loss', {'Align Loss': align_loss.item()}, epoch)
             else:
                 transe_loss = criterion_transe(transe_score)
                 transe_loss.backward()
                 print('\rEpoch: %d; transe loss = %f.' % (epoch + 1, float(transe_loss)))
-                writer.add_scalars('data/transe_loss', {'Align Loss': transe_loss.item()}, epoch)
+                writer.add_scalars('data/Loss', {'TransE Loss': transe_loss.item()}, epoch)
             optimizer.step()
             self.now_epoch += 1
             self.evaluate()
             if (epoch + 1) % 10 == 0:
+                print(sr_data.size())
+                print(sr_data[:20])
                 sr_data, tg_data = self.negative_sampling(ad)
+                print(sr_data[0:20])
 
     def negative_sampling(self, ad):
         sr_seeds, tg_seeds = ad.get_seeds()

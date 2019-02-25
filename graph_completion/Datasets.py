@@ -6,7 +6,7 @@ from torch.utils.data import Dataset, DataLoader
 
 
 class EpochDataset(Dataset):
-    def __init__(self, dataset, epoch):
+    def __init__(self, dataset, epoch=1000):
         super(EpochDataset, self).__init__()
         assert isinstance(dataset, Dataset)
         self.epoch = epoch
@@ -152,10 +152,8 @@ class AliagnmentDataset(Dataset):
             assert len(set(tg_nega[tg])) == self.nega_sample_num
             assert len(tg_nega[tg]) == self.nega_sample_num
             nega_sr += sr_nega[sr]
-            nega_tg += [tg] * self.nega_sample_num
             nega_tg += tg_nega[tg]
-            nega_sr += [sr] * self.nega_sample_num
-        self.nega_data = [nega_sr, nega_tg]
+        self.negative_data = [nega_sr, nega_tg]
 
     def init(self):
         nega_sample_num = self.nega_sample_num
@@ -172,12 +170,10 @@ class AliagnmentDataset(Dataset):
                     can_tg += 1
                 nega_sr.append(can_sr)
                 nega_tg.append(can_tg)
-            nega_sr_data = nega_sr + [sr] * nega_sample_num
-            nega_tg_data = [tg] * nega_sample_num + nega_tg
-            self.negative_data[0] += nega_sr_data
-            self.negative_data[1] += nega_tg_data
-            self.positive_data[0] += [sr] * nega_sample_num * 2
-            self.positive_data[1] += [tg] * nega_sample_num * 2
+            self.negative_data[0] += nega_sr
+            self.negative_data[1] += nega_tg
+            self.positive_data[0] += [sr] * nega_sample_num
+            self.positive_data[1] += [tg] * nega_sample_num
 
         if self.corruput:
             z = list(zip(*self.negative_data))

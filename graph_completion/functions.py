@@ -83,13 +83,13 @@ def multi_process_get_nearest_neighbor(sim, ranks, nega_sample_num=25):
     return_dict = manager.dict()
     n_p = 4
     # top_x = [0] * len(top_k)
-    def nega_get(sim, ranks, nega_sample_num, return_dict):
+    def nega_get(sim, c_ranks, ranks, nega_sample_num, return_dict):
         for i in range(len(sim)):
             rank = sim[i, :].argsort()
-            nega_sample = rank[:nega_sample_num + 1]
-            nega_sample = [sample for sample in nega_sample if sample != ranks[i]][:nega_sample_num]
+            nega_sample = rank[1:nega_sample_num + 1]
+            nega_sample = [ranks[sample] for sample in nega_sample]
             assert len(nega_sample) == nega_sample_num
-            return_dict[ranks[i]] = nega_sample
+            return_dict[c_ranks[i]] = nega_sample
 
     test_num = len(sim)
     chunk = test_num // n_p + 1
@@ -98,7 +98,7 @@ def multi_process_get_nearest_neighbor(sim, ranks, nega_sample_num=25):
     assert len(sim_chunked) == n_p
     pool = []
     for i, sim_chunk in enumerate(sim_chunked):
-        p = multiprocessing.Process(target=nega_get, args=(sim_chunk, rank_chunked[i], nega_sample_num, return_dict))
+        p = multiprocessing.Process(target=nega_get, args=(sim_chunk, rank_chunked[i], ranks, nega_sample_num, return_dict))
         pool.append(p)
         p.start()
     for p in pool:

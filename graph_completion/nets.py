@@ -68,10 +68,10 @@ class GATNet(AlignGraphNet):
         graph_embedding_sr, graph_embedding_tg = self.entity_embedding.weight
         output_sr = self.sp_gat(graph_embedding_sr, self.adj_sr)
         output_tg = self.sp_gat(graph_embedding_tg, self.adj_tg)
-        sr_repre = output_sr[sr_data]
-        tg_repre =  output_tg[tg_data]
-        sim_sr = torch_l2distance(sr_repre.detach(), output_sr.detach()).cpu().numpy()
-        sim_tg = torch_l2distance(tg_repre.detach(), output_tg.detach()).cpu().numpy()
+        sr_repre = output_sr[sr_data].detach()
+        tg_repre = output_tg[tg_data].detach()
+        sim_sr = torch_l2distance(sr_repre, sr_repre).cpu().numpy()
+        sim_tg = torch_l2distance(tg_repre, tg_repre).cpu().numpy()
         sr_nns = multi_process_get_nearest_neighbor(sim_sr, sr_data.cpu().numpy())
         tg_nns = multi_process_get_nearest_neighbor(sim_tg, tg_data.cpu().numpy())
         return sr_nns, tg_nns

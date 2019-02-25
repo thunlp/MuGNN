@@ -49,8 +49,7 @@ class SpecialLossTransE(nn.Module):
         score shape: [batch_size, 1 + nega_sample_num, embedding_dim]
         '''
         # distance = torch.abs(score).sum(dim=-1) * self.re_scale
-        print(score.size(), 'score size')
-        distance = F.normalize(score, p=self.p, dim=-1)
+        distance = F.normalize(score, p=self.p, dim=-1) * self.re_scale
         pos_score = distance[:,0,:].sum(-1, keepdim=True)
         nega_score = distance[:,1,:].sum(-1, keepdim=True)
         y = torch.FloatTensor([-1.0])
@@ -72,13 +71,11 @@ class SpecialLossAlign(nn.Module):
         score shape: [batch_size, 2, embedding_dim]
         '''
         # distance = torch.abs(score).sum(dim=-1) * self.re_scale
-        print(repre_sr.size())
-        print(repre_tg.size())
         sr_true = repre_sr[:,0,:]
         sr_nega = repre_sr[:,1,:]
         tg_true = repre_tg[:,0,:]
         tg_nega = repre_tg[:,1,:]
-        loss = self.criterion(torch.cat((sr_true, tg_true), dim=0), torch.cat((tg_true, sr_true), dim=0), torch.cat((sr_nega, tg_nega), dim=0))
+        loss = self.criterion(torch.cat((sr_true, tg_true), dim=0), torch.cat((tg_true, sr_true), dim=0), torch.cat((tg_nega, sr_nega), dim=0))
         return loss
 
 

@@ -1,13 +1,15 @@
 import torch
+import torch.nn.functional as F
 
+def ss(score):
+    # distance = F.normalize(score, p=2, dim=-1)
+    # pos_score = distance[:,0,:].sum(-1, keepdim=True)
+    # nega_score = distance[:,1,:].sum(-1, keepdim=True)
 
-b = [torch.tensor([[i+j+k for k in range(4)] for i in range(j, j+2)], dtype=torch.float) for j in range(3)]
-print(b)
-print(b[0].size())
-b = [bb.unsqueeze(-1) for bb in b]
-print(b[0].size())
-c = torch.cat(b, dim=-1)
-print(c.size())
-d = torch.mean(c, dim=-1)
-print(d.size())
-print(d)
+    pos_score = torch.tensor([1 for _ in range(3)], dtype=torch.float).view(-1,1)
+    neg_score = torch.tensor([2 for _ in range(3)], dtype=torch.float).view(-1,1)
+    y = torch.FloatTensor([-1.0])
+    loss = F.margin_ranking_loss(pos_score, neg_score, y, margin=3)
+    print(loss)
+
+ss(1)

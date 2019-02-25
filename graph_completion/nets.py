@@ -57,10 +57,11 @@ class GATNet(AlignGraphNet):
         rel_embedding_sr, rel_embedding_tg = self.relation_embedding.weight
         output_sr = self.sp_gat(graph_embedding_sr, self.adj_sr)
         output_tg = self.sp_gat(graph_embedding_tg, self.adj_tg)
-        align_score = output_sr[sr_data] - output_tg[tg_data]
         sr_transe_score = self.trans_e(output_sr, rel_embedding_sr, h_list_sr, t_list_sr, r_list_sr)
         tg_transe_score = self.trans_e(output_tg, rel_embedding_tg, h_list_tg, t_list_tg, r_list_tg)
-        return align_score, sr_transe_score, tg_transe_score
+        transe_score = torch.cat((sr_transe_score, tg_transe_score), dim=0)
+        # print(sr_transe_score.size())
+        return output_sr[sr_data], output_tg[tg_data], transe_score
 
     @timeit
     def negative_sample(self, sr_data, tg_data):

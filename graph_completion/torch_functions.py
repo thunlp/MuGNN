@@ -12,7 +12,6 @@ def set_random_seed(seed_value=999):
     if torch.cuda.is_available(): torch.cuda.manual_seed_all(seed_value)
     random.seed(seed_value)
 
-batch = 0
 class SpecialLoss(nn.Module):
     def __init__(self, margin, p=2, re_scale=1.0, reduction='mean', cuda=True):
         super(SpecialLoss, self).__init__()
@@ -23,23 +22,65 @@ class SpecialLoss(nn.Module):
 
     def forward(self, score):
         '''
+        score shape: [batch_size, 2, embedding_dim]
+        '''
+        # distance = torch.abs(score).sum(dim=-1) * self.re_scale
+        # score shape = [num, 2, dim]
+        distance = torch.pow(score, 0.5).sum(-1)
+        pos_distance = distance[:,0,:]
+        neg_distance = distance[:,1,:]
+        y = torch.FloatTensor([-1,0])
+        if self.is_cuda:
+            y = y.cuda()
+        loss = self.criterion(pos_distance, neg_distance, y)
+        return loss
+
+
+class SpecialLossTransE(nn.Module):
+    def __init__(self, margin, p=2, re_scale=1.0, reduction='mean', cuda=True):
+        super(SpecialLossTransE, self).__init__()
+        self.p = p
+        self.re_scale = re_scale
+        self.criterion = nn.MarginRankingLoss(margin, reduction=reduction)
+        self.is_cuda = cuda
+
+    def forward(self, score):
+        '''
         score shape: [batch_size, 1 + nega_sample_num, embedding_dim]
         '''
         # distance = torch.abs(score).sum(dim=-1) * self.re_scale
-        if self.p == 2:
-            square = torch.pow(score, 2).sum(dim=-1)
-            distance = square.pow(0.5) * self.re_scale #+ 1e-7
-        elif self.p == 1:
-            distance = torch.abs(score).sum(dim=-1) * self.re_scale
-        else:
-            raise NotImplementedError
-        pos_score = distance[:, :1]
-        nega_score = distance[:, 1:]
+        print(score.size(), 'score size')
+        distance = F.normalize(score, p=self.p, dim=-1)
+        pos_score = distance[:,0,:].sum(-1, keepdim=True)
+        nega_score = distance[:,1,:].sum(-1, keepdim=True)
         y = torch.FloatTensor([-1.0])
         if self.is_cuda:
             y = y.cuda()
         loss = self.criterion(pos_score, nega_score, y)
         return loss
+
+class SpecialLossAlign(nn.Module):
+    def __init__(self, margin, p=2, re_scale=1.0, reduction='mean', cuda=True):
+        super(SpecialLossAlign, self).__init__()
+        self.p = p
+        self.re_scale = re_scale
+        self.criterion = nn.TripletMarginLoss(margin, p=p, reduction=reduction)
+        self.is_cuda = cuda
+
+    def forward(self, repre_sr, repre_tg):
+        '''
+        score shape: [batch_size, 2, embedding_dim]
+        '''
+        # distance = torch.abs(score).sum(dim=-1) * self.re_scale
+        print(repre_sr.size())
+        print(repre_tg.size())
+        sr_true = repre_sr[:,0,:]
+        sr_nega = repre_sr[:,1,:]
+        tg_true = repre_tg[:,0,:]
+        tg_nega = repre_tg[:,1,:]
+        loss = self.criterion(torch.cat((sr_true, tg_true), dim=0), torch.cat((tg_true, sr_true), dim=0), torch.cat((sr_nega, tg_nega), dim=0))
+        return loss
+
 
 
 class RelationWeighting(nn.Module):
@@ -131,4 +172,4 @@ def torch_l2distance(a, b):
     x2 = torch.sum(b*b,dim=-1).view(-1,1)
     x3 = -2 * torch.matmul(a, b.t())
     sim = x1 + x2.t() + x3 #.pow(0.5)
-    return sim #.pow(0.5)
+    return sim.pow(0.5)

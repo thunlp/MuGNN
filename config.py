@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
 from tools.print_time_info import print_time_info
 from graph_completion.functions import str2int4triples
-from graph_completion.torch_functions import SpecialLoss
+from graph_completion.torch_functions import SpecialLossTransE, SpecialLossAlign
 from graph_completion.Datasets import AliagnmentDataset, TripleDataset, EpochDataset
 from graph_completion.torch_functions import set_random_seed
 from graph_completion.functions import get_hits
@@ -89,35 +89,29 @@ class Config(object):
         sr_data, tg_data = self.negative_sampling(ad)
 
         optimizer = self.optimizer(self.net.parameters(), lr=self.lr, weight_decay=self.l2_penalty)
-        criterion_align = SpecialLoss(self.entity_gamma, cuda=self.is_cuda)
-        criterion_transe = SpecialLoss(self.transe_gamma, p=1, re_scale=self.beta, cuda=self.is_cuda)
-
-        loss_acc = 0
+        criterion_align = SpecialLossAlign(self.entity_gamma, cuda=self.is_cuda)
+        criterion_transe = SpecialLossTransE(self.transe_gamma, p=2, re_scale=self.beta, cuda=self.is_cuda)
         for epoch in range(self.num_epoch):
             self.net.train()
             if (epoch + 1) % 10 == 0:
                 print_time_info('Epoch: %d started!' % (epoch + 1))
             optimizer.zero_grad()
-            align_score, sr_transe_score, tg_transe_score = self.net(sr_data, tg_data, h_sr, h_tg, t_sr, t_tg, r_sr,
-                                                                     r_tg)
+            repre_sr, repre_tg, transe_score = self.net(sr_data, tg_data, h_sr, h_tg, t_sr, t_tg, r_sr, r_tg)
             # print('align score', torch.max(align_score), torch.min(align_score))
-            align_loss = criterion_align(align_score)
-            sr_transe_loss = criterion_transe(sr_transe_score)
-            tg_transe_loss = criterion_transe(tg_transe_score)
-            loss = sum([align_loss, sr_transe_loss, tg_transe_loss])
-            loss.backward()
+            if epoch % 2 == 0:
+                align_loss = criterion_align(repre_sr, repre_tg)
+                align_loss.backward()
+                print('\rEpoch: %d; align loss = %f.' % (epoch + 1, float(align_loss)))
+                writer.add_scalars('data/train_loss', {'Align Loss': align_loss.item()}, epoch)
+            else:
+                transe_loss = criterion_transe(transe_score)
+                transe_loss.backward()
+                print('\rEpoch: %d; transe loss = %f.' % (epoch + 1, float(transe_loss)))
+                writer.add_scalars('data/transe_loss', {'Align Loss': transe_loss.item()}, epoch)
             optimizer.step()
-            loss_acc += float(loss)
             self.now_epoch += 1
-            # if (epoch + 1) % 1 == 0:
-            print('\rEpoch: %d; align loss = %f, sr_transe_loss: %f, tg_transe_loss %f.' % (
-                epoch + 1, float(align_loss), float(sr_transe_loss), float(tg_transe_loss)))
-            writer.add_scalars('data/train_loss', {'Align Loss': align_loss.item(),
-                                                   'SR TransE Loss': sr_transe_loss.item(),
-                                                   'TG TransE Loss': tg_transe_loss.item()},
-                               epoch)
             self.evaluate()
-            if (epoch + 1) % 5 == 0:
+            if (epoch + 1) % 10 == 0:
                 sr_data, tg_data = self.negative_sampling(ad)
 
     def negative_sampling(self, ad):
@@ -184,6 +178,7 @@ class Config(object):
         log_dir.mkdir()
         self.writer = SummaryWriter(str(log_dir))
         with open(log_dir / 'parameters.txt', 'w') as f:
+            print_time_info(comment, file=f)
             self.print_parameter(f)
 
     def set_cuda(self, is_cuda):

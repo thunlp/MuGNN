@@ -40,7 +40,7 @@ class GAT(nn.Module):
             if i == layers - 1:
                 concat = False
             self.multi_head_att_layers.append(
-                GraphMultiHeadAttLayer(dim_in, dim_out // nheads, nheads, dropout_rate, alpha, concat, sp, cuda))
+                GraphMultiHeadAttLayer(dim_in, dim_out, nheads, dropout_rate, alpha, concat, sp, cuda))
 
     def forward(self, x, adj):
 

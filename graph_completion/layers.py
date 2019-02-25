@@ -54,7 +54,10 @@ class GraphMultiHeadAttLayer(nn.Module):
             [gat(dim_in, dim_out_s, dropout, alpha, concat, cuda) for _ in range(nheads)])
 
     def forward(self, inputs, adj):
-        outputs = torch.cat(tuple([att(inputs, adj) for att in self.attentions]), dim=1)
+        # inputs shape = [num, dim]
+        outputs = torch.cat(tuple([att(inputs, adj).unsqueeze(-1) for att in self.attentions]), dim=-1)
+        # shape = [num, dim, nheads]
+        outputs =  torch.mean(outputs, dim=-1)
         return outputs
 
 
@@ -71,13 +74,17 @@ class SpGraphAttentionLayer(nn.Module):
         self.residual = residual
         self.in_features = in_features
         self.out_features = out_features
-        self.W = nn.Parameter(torch.zeros(size=(1, out_features), dtype=torch.float))
+        self.W = nn.Parameter(torch.zeros(size=(out_features,), dtype=torch.float))
         self.a = nn.Parameter(torch.zeros(size=(1, 2 * out_features), dtype=torch.float32))
-        self.bias = nn.Parameter(torch.zeros(size=(1, out_features), dtype=torch.float))
+        # self.bias = nn.Parameter(torch.zeros(size=(1, out_features), dtype=torch.float))
         nn.init.ones_(self.W.data)
         # nn.init.xavier_uniform_(self.W.data, gain=1.414)
-        nn.init.xavier_uniform_(self.a.data, gain=1.414)
-        nn.init.xavier_uniform_(self.bias.data, gain=1.414)
+        stdv = 1. / math.sqrt(in_features * 2)
+        nn.init.uniform_(self.a.data, -stdv, stdv)
+        # self.a.register_hook(lambda x:print('max', torch.max(x), 'min', torch.min(x)))
+        # print(self.a.data[0])
+        # nn.init.xavier_uniform_(self.a.data, gain=1.414)
+        # nn.init.xavier_uniform_(self.bias.data, gain=1.414)
         self.dropout = nn.Dropout(dropout)
         self.leakyrelu = nn.LeakyReLU(alpha)
         self.special_spmm = SpecialSpmm()
@@ -91,10 +98,10 @@ class SpGraphAttentionLayer(nn.Module):
         edge = adj.indices()
         # h = torch.mm(inputs, self.W)
         # h shape: [num_entity, out_dim]
-        h = inputs * self.W
+        h = torch.mul(inputs, self.W) # todo: dot product
         # h: N x out
         assert not torch.isnan(h).any()
-
+        # print(self.a.data[0])
         # Self-attention on the nodes - Shared attention mechanism
         edge_h = torch.cat((h[edge[0, :], :], h[edge[1, :], :]), dim=1).t()
         # h[edge[0, :], :] shape = [N, outdim] # cat后 [N, outdim*2]
@@ -126,11 +133,11 @@ class SpGraphAttentionLayer(nn.Module):
         assert not torch.isnan(h_prime).any()
 
         # add bias
-        h_prime = h_prime + self.bias
+        # h_prime = h_prime + self.bias
 
         if self.concat:
             # if this layer is not last layer,
-            output =  F.relu(h_prime)
+            output =  F.elu(h_prime)
         else:
             # if this layer is last layer,
             output =  h_prime
@@ -177,14 +184,14 @@ class DoubleEmbedding(nn.Module):
         self.embedding_tg = nn.Embedding(num_tg, embedding_dim, _weight=torch.zeros((num_tg, embedding_dim), dtype=torch.float))
         nn.init.xavier_uniform_(self.embedding_sr.weight.data)
         nn.init.xavier_uniform_(self.embedding_tg.weight.data)
-        # if type == 'entity':
-        #     nn.init.normal_(self.embedding_sr.weight.data, std=1.0 / math.sqrt(embedding_dim))
-        #     nn.init.normal_(self.embedding_tg.weight.data, std=1.0 / math.sqrt(embedding_dim))
-        # elif type=='relation':
-        #     nn.init.xavier_uniform_(self.embedding_sr.weight.data)
-        #     nn.init.xavier_uniform_(self.embedding_tg.weight.data)
-        # else:
-        #     raise NotImplementedError
+        if type == 'entity':
+            nn.init.normal_(self.embedding_sr.weight.data, std=1. / math.sqrt(num_sr))
+            nn.init.normal_(self.embedding_tg.weight.data, std=1. / math.sqrt(num_tg))
+        elif type=='relation':
+            nn.init.xavier_uniform_(self.embedding_sr.weight.data)
+            nn.init.xavier_uniform_(self.embedding_tg.weight.data)
+        else:
+            raise NotImplementedError
 
     def forward(self, sr_data, tg_data):
         return self.embedding_sr(sr_data), self.embedding_tg(tg_data)

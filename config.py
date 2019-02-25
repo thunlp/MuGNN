@@ -138,11 +138,16 @@ class Config(object):
             sr_data = sr_data.cuda()
             tg_data = tg_data.cuda()
         sim = self.net.predict(sr_data, tg_data)
-        top_lr, top_rl = get_hits(sim)
-        self.writer.add_scalars('data/Performance', {'Hits@1 sr': top_lr[0],
-                                                     'Hits@10 sr': top_lr[1],
-                                                     'Hits@1 tg': top_rl[0],
-                                                     'Hits@10 tg': top_rl[1]},
+        top_lr, top_rl, mr_lr, mr_rl, mrr_lr, mrr_rl = get_hits(sim)
+        self.writer.add_scalars('data/Hits@N', {'Hits@1 sr': top_lr[0],
+                                                'Hits@10 sr': top_lr[1],
+                                                'Hits@1 tg': top_rl[0],
+                                                'Hits@10 tg': top_rl[1]},
+                                self.now_epoch)
+        self.writer.add_scalars('data/Rank', {'MR sr': mr_lr,
+                                              'MRR sr': mrr_lr,
+                                              'MR tg': mr_rl,
+                                              'MRR tg': mrr_rl},
                                 self.now_epoch)
 
         if top_lr[0] + top_rl[0] > self.best_hits_1[1] + self.best_hits_1[2]:

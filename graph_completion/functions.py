@@ -1,6 +1,5 @@
 import numpy as np
 import multiprocessing
-from scipy import spatial as spatial
 
 from tools.print_time_info import print_time_info
 
@@ -37,7 +36,7 @@ def get_hits(sim, top_k=(1, 10, 50, 100)):
     for i in range(len(top_rl)):
         print_time_info('Hits@%d: %.2f%%' % (top_k[i], top_rl[i]))
     # return Hits@10
-    return top_lr, top_rl
+    return top_lr, top_rl, mr_lr, mr_rl, mrr_lr, mrr_rl
 
 
 def multiprocess_topk(sim, top_k=(1, 10, 50, 100)):

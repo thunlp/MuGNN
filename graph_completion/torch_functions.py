@@ -52,10 +52,10 @@ class SpecialLossTransE(nn.Module):
         distance = F.normalize(score, p=self.p, dim=-1) * self.re_scale
         pos_score = distance[:,0,:].sum(-1, keepdim=True)
         nega_score = distance[:,1,:].sum(-1, keepdim=True)
-        y = torch.FloatTensor([-1.0])
+        y = torch.ones_like(pos_score)
         if self.is_cuda:
             y = y.cuda()
-        loss = self.criterion(pos_score, nega_score, y)
+        loss = self.criterion(pos_score, nega_score, -y)
         return loss
 
 class SpecialLossAlign(nn.Module):

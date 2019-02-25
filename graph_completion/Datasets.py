@@ -140,19 +140,20 @@ class AliagnmentDataset(Dataset):
         return torch.tensor(sr), torch.tensor(tg)
 
     def update_negative_sample(self, sr_nega, tg_nega):
-        pos_sr = self.positive_data[0]
-        pos_tg = self.positive_data[1]
         nega_sr = []
         nega_tg = []
-        assert len(set(pos_sr)) == len(sr_nega)
-        assert len(set(pos_tg)) == len(tg_nega)
-        for sr, tg in zip(pos_sr, pos_tg):
-            assert len(set(sr_nega[sr])) == self.nega_sample_num
-            assert len(sr_nega[sr]) == self.nega_sample_num
-            assert len(set(tg_nega[tg])) == self.nega_sample_num
-            assert len(tg_nega[tg]) == self.nega_sample_num
+        for i, seed in enumerate(self.seeds):
+            sr, tg = seed
+            # assert sr == self.positive_data[0][i * self.nega_sample_num + 1]
+            # assert tg == self.positive_data[1][i * self.nega_sample_num + 1]
+            # assert len(set(sr_nega[sr])) == self.nega_sample_num
+            # assert len(sr_nega[sr]) == self.nega_sample_num
+            # assert len(set(tg_nega[tg])) == self.nega_sample_num
+            # assert len(tg_nega[tg]) == self.nega_sample_num
             nega_sr += sr_nega[sr]
             nega_tg += tg_nega[tg]
+        # print('The length of negative data:', len(nega_sr), len(nega_tg))
+        # print('The length of positive data:', len(pos_sr), len(pos_tg))
         self.negative_data = [nega_sr, nega_tg]
 
     def init(self):

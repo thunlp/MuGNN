@@ -27,7 +27,7 @@ class TransE(nn.Module):
 
 
 class GAT(nn.Module):
-    def __init__(self, dim_in, dim_out, nheads, layers, dropout_rate, alpha, sp, cuda):
+    def __init__(self, dim_in, dim_out, nheads, layers, dropout_rate, alpha, sp, w_adj, cuda):
         """Sparse version of GAT."""
         super(GAT, self).__init__()
         assert dim_out % nheads == 0
@@ -40,7 +40,7 @@ class GAT(nn.Module):
             if i == layers - 1:
                 concat = False
             self.multi_head_att_layers.append(
-                GraphMultiHeadAttLayer(dim_in, dim_out, nheads, dropout_rate, alpha, concat, sp, cuda))
+                GraphMultiHeadAttLayer(dim_in, dim_out, nheads, dropout_rate, alpha, concat, sp, w_adj, cuda))
 
     def forward(self, x, adj):
 

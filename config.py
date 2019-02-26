@@ -29,6 +29,7 @@ class Config(object):
 
         # model
         self.net = None
+        self.w_adj = False
         self.sparse = True
         self.optimizer = None
         self.nheads = 4
@@ -71,9 +72,8 @@ class Config(object):
         with torch.no_grad():
             triples_sr = TripleDataset(str2int4triples(self.cgc.triples_sr), self.nega_n_r, corruput=self.corrupt)
             triples_tg = TripleDataset(str2int4triples(self.cgc.triples_tg), self.nega_n_r, corruput=self.corrupt)
-            triple_sr_loader = EpochDataset(triples_sr, self.split_num).get_data_loader()
-            triple_tg_loader = EpochDataset(triples_tg, self.split_num).get_data_loader()
-
+            triple_sr_loader = EpochDataset(triples_sr, self.split_num)
+            triple_tg_loader = EpochDataset(triples_tg, self.split_num)
             ad = AliagnmentDataset(cgc.train_entity_seeds, self.nega_n_e, len(cgc.id2entity_sr), len(cgc.id2entity_tg),
                                    self.is_cuda, corruput=self.corrupt)
             sr_data, tg_data = EpochDataset(ad).get_data()
@@ -87,8 +87,8 @@ class Config(object):
         criterion_transe = SpecialLossTransE(self.transe_gamma, p=2, re_scale=self.beta, cuda=self.is_cuda)
         for epoch in range(self.num_epoch):
             self.net.train()
-            if (epoch + 1) % 10 == 0:
-                print_time_info('Epoch: %d started!' % (epoch + 1))
+            # if (epoch + 1) % 10 == 0:
+            #     print_time_info('Epoch: %d started!' % (epoch + 1))
             align_loss_acc = 0
             transe_loss_acc = 0
             for i, batch_data in enumerate(zip(triple_sr_loader, triple_tg_loader)):
@@ -109,7 +109,7 @@ class Config(object):
                 transe_loss_acc += float(transe_loss)
             align_loss_acc /= self.split_num
             transe_loss_acc /= self.split_num
-            print('\rEpoch: %d; align loss = %f; transe loss = %f.' % (epoch + 1, align_loss_acc, transe_loss_acc))
+            print_time_info('Epoch: %d; align loss = %f; transe loss = %f.' % (epoch + 1, align_loss_acc, transe_loss_acc))
             self.writer.add_scalars('data/Loss',
                                     {'Align Loss': align_loss_acc, 'TransE Loss': transe_loss_acc}, epoch)
             self.now_epoch += 1
@@ -133,8 +133,8 @@ class Config(object):
             # For Alignment
             sr_data, tg_data = EpochDataset(ad).get_data()
             # For TransE
-            triple_sr_loader = EpochDataset(triples_sr.init(), self.split_num).get_data_loader()
-            triple_tg_loader = EpochDataset(triples_tg.init(), self.split_num).get_data_loader()
+            triple_sr_loader = EpochDataset(triples_sr.init(), self.split_num)
+            triple_tg_loader = EpochDataset(triples_tg.init(), self.split_num)
             return sr_data, tg_data, triple_sr_loader, triple_tg_loader
 
     @timeit
@@ -201,7 +201,7 @@ class Config(object):
         self.is_cuda = is_cuda
 
     def set_net(self, net):
-        self.net = net(self.cgc, self.num_layer, self.embedding_dim, self.nheads, self.sparse, self.alpha,
+        self.net = net(self.cgc, self.num_layer, self.embedding_dim, self.nheads, self.sparse, self.alpha, self.w_adj,
                        self.dropout_rate, self.non_acylic, self.is_cuda)
 
     def set_graph_completion(self, graph_completion):
@@ -251,6 +251,9 @@ class Config(object):
 
     def set_update_cycle(self, update_cycle):
         self.update_cycle = update_cycle
+
+    def set_w_adj(self, w_adj):
+        self.w_adj = w_adj
 
     def loop(self, bin_dir):
         # todo: finish it

@@ -16,9 +16,17 @@ class EpochDataset(object):
         else:
             batch_size = data_num // batch_num + 1
         self.batch_size = batch_size
+        self.data = [data for data in self.get_data_loader()]
+        assert len(self.data) == len(self)
+
+    def __len__(self):
+        return self.batch_num
+
+    def __getitem__(self, idx):
+        return self.data[idx]
 
     def get_data_loader(self):
-        return DataLoader(self.dataset, batch_size=self.batch_size, shuffle=True, num_workers=2)
+        return DataLoader(self.dataset, batch_size=self.batch_size, shuffle=False, num_workers=2)
 
     def get_data(self):
         return next(iter(DataLoader(self.dataset, batch_size=len(self.dataset))))

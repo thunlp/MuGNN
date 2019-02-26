@@ -44,14 +44,10 @@ class GraphAttentionLayer(nn.Module):
 
 
 class GraphMultiHeadAttLayer(nn.Module):
-    def __init__(self, dim_in, dim_out_s, nheads, dropout, alpha, concat, sp, cuda):
+    def __init__(self, dim_in, dim_out_s, nheads, dropout, alpha, concat, sp, w_adj, cuda):
         super(GraphMultiHeadAttLayer, self).__init__()
-        if sp:
-            gat = SpGraphAttentionLayer
-        else:
-            gat = GraphAttentionLayer
         self.attentions = nn.ModuleList(
-            [gat(dim_in, dim_out_s, dropout, alpha, concat, cuda) for _ in range(nheads)])
+            [SpGraphAttentionLayer(dim_in, dim_out_s, dropout, alpha, concat, w_adj, cuda) for _ in range(nheads)])
 
     def forward(self, inputs, adj):
         # inputs shape = [num, dim]
@@ -66,9 +62,10 @@ class SpGraphAttentionLayer(nn.Module):
     Sparse version GAT layer, similar to https://arxiv.org/abs/1710.10903
     """
 
-    def __init__(self, in_features, out_features, dropout, alpha, concat=True, cuda=True, residual=False):
+    def __init__(self, in_features, out_features, dropout, alpha, concat=True, w_adj=True, cuda=True, residual=False):
         super(SpGraphAttentionLayer, self).__init__()
         assert in_features == out_features
+        self.w_adj = w_adj
         self.is_cuda = cuda
         self.concat = concat
         self.residual = residual
@@ -110,6 +107,12 @@ class SpGraphAttentionLayer(nn.Module):
 
         edge_e = torch.exp(self.leakyrelu(self.a.mm(edge_h).squeeze()))
 
+        # for the weighted adj
+        if self.w_adj:
+            assert edge_e.size() == adj.values().size()
+            edge_e = edge_e * adj.values()
+            assert edge_e.size() == adj.values().size()
+
         assert not torch.isnan(edge_e).any()
         # edge_e: E
         ones = torch.ones(size=(N, 1), dtype=torch.float32)
@@ -144,7 +147,6 @@ class SpGraphAttentionLayer(nn.Module):
 
         if self.residual:
             output = inputs + output
-            assert output.size() == inputs.size()
         return output
 
     def __repr__(self):

@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from .functions import str2int4triples, multi_process_get_nearest_neighbor
 from .models import GAT
 from .layers import DoubleEmbedding
-from .adjacency_matrix import SpTwinAdj
+from .adjacency_matrix import SpTwinAdj, SpTwinCAW
 from .CrossGraphCompletion import CrossGraphCompletion
 from .torch_functions import cosine_similarity_nbyn, torch_l2distance
 from tools.timeit import timeit
@@ -28,20 +28,18 @@ class AlignGraphNet(nn.Module):
 
 
 class GATNet(AlignGraphNet):
-    def __init__(self, cgc, num_layer, dim, nheads, sp, alpha=0.2, *args, **kwargs):
+    def __init__(self, cgc, num_layer, dim, nheads, sp, alpha=0.2, w_adj=False, *args, **kwargs):
         super(GATNet, self).__init__(*args, **kwargs)
         assert isinstance(cgc, CrossGraphCompletion)
         num_entity_sr = len(cgc.id2entity_sr)
         num_entity_tg = len(cgc.id2entity_tg)
-        sp_twin_adj = SpTwinAdj(cgc, self.non_acylic)
-        self.adj_sr = sp_twin_adj.sp_adj_sr
-        self.adj_tg = sp_twin_adj.sp_adj_tg
-        self.sp_gat = GAT(dim, dim, nheads, num_layer, self.dropout_rate, alpha, sp, self.is_cuda)
+        if not w_adj:
+            self.sp_twin_adj = SpTwinAdj(cgc, self.non_acylic)
+        else:
+            self.sp_twin_adj = SpTwinCAW(cgc, self.non_acylic)
+        self.sp_gat = GAT(dim, dim, nheads, num_layer, self.dropout_rate, alpha, sp, w_adj, self.is_cuda)
         self.entity_embedding = DoubleEmbedding(num_entity_sr, num_entity_tg, dim, type='entity')
-        self.relation_embedding = DoubleEmbedding(len(cgc.id2relation_sr), len(cgc.id2entity_tg), dim, type='relation')
-        if self.is_cuda:
-            self.adj_sr = self.adj_sr.cuda()
-            self.adj_tg = self.adj_tg.cuda()
+        self.relation_embedding = DoubleEmbedding(len(cgc.id2relation_sr), len(cgc.id2relation_tg), dim, type='relation')
 
     def trans_e(self, ent_embedding, rel_embedding, h_list, t_list, r_list):
         h = ent_embedding[h_list]
@@ -54,8 +52,9 @@ class GATNet(AlignGraphNet):
     def forward(self, sr_data, tg_data, h_list_sr, h_list_tg, t_list_sr, t_list_tg, r_list_sr, r_list_tg):
         graph_embedding_sr, graph_embedding_tg = self.entity_embedding.weight
         rel_embedding_sr, rel_embedding_tg = self.relation_embedding.weight
-        output_sr = self.sp_gat(graph_embedding_sr, self.adj_sr)
-        output_tg = self.sp_gat(graph_embedding_tg, self.adj_tg)
+        adj_sr, adj_tg = self.sp_twin_adj(rel_embedding_sr, rel_embedding_tg)
+        output_sr = self.sp_gat(graph_embedding_sr, adj_sr)
+        output_tg = self.sp_gat(graph_embedding_tg, adj_tg)
         sr_transe_score = self.trans_e(output_sr, rel_embedding_sr, h_list_sr, t_list_sr, r_list_sr)
         tg_transe_score = self.trans_e(output_tg, rel_embedding_tg, h_list_tg, t_list_tg, r_list_tg)
         transe_score = torch.cat((sr_transe_score, tg_transe_score), dim=0)
@@ -65,8 +64,10 @@ class GATNet(AlignGraphNet):
 
     def negative_sample(self, sr_data, tg_data):
         graph_embedding_sr, graph_embedding_tg = self.entity_embedding.weight
-        output_sr = self.sp_gat(graph_embedding_sr, self.adj_sr)
-        output_tg = self.sp_gat(graph_embedding_tg, self.adj_tg)
+        rel_embedding_sr, rel_embedding_tg = self.relation_embedding.weight
+        adj_sr, adj_tg = self.sp_twin_adj(rel_embedding_sr, rel_embedding_tg)
+        output_sr = self.sp_gat(graph_embedding_sr, adj_sr)
+        output_tg = self.sp_gat(graph_embedding_tg, adj_tg)
         sr_repre = output_sr[sr_data].detach()
         tg_repre = output_tg[tg_data].detach()
         sim_sr = torch_l2distance(sr_repre, sr_repre).cpu().numpy()
@@ -80,8 +81,10 @@ class GATNet(AlignGraphNet):
 
     def predict(self, sr_data, tg_data):
         graph_embedding_sr, graph_embedding_tg = self.entity_embedding.weight
-        graph_embedding_sr = self.sp_gat(graph_embedding_sr, self.adj_sr)
-        graph_embedding_tg = self.sp_gat(graph_embedding_tg, self.adj_tg)
+        rel_embedding_sr, rel_embedding_tg = self.relation_embedding.weight
+        adj_sr, adj_tg = self.sp_twin_adj(rel_embedding_sr, rel_embedding_tg)
+        graph_embedding_sr = self.sp_gat(graph_embedding_sr, adj_sr)
+        graph_embedding_tg = self.sp_gat(graph_embedding_tg, adj_tg)
         repre_e_sr, repre_e_tg = graph_embedding_sr[sr_data], graph_embedding_tg[tg_data]
         sim = torch_l2distance(repre_e_sr.detach(), repre_e_tg.detach()).cpu().numpy()
         return sim

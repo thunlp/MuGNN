@@ -12,6 +12,7 @@ def set_random_seed(seed_value=999):
     if torch.cuda.is_available(): torch.cuda.manual_seed_all(seed_value)
     random.seed(seed_value)
 
+
 class SpecialLoss(nn.Module):
     def __init__(self, margin, p=2, re_scale=1.0, reduction='mean', cuda=True):
         super(SpecialLoss, self).__init__()
@@ -27,9 +28,9 @@ class SpecialLoss(nn.Module):
         # distance = torch.abs(score).sum(dim=-1) * self.re_scale
         # score shape = [num, 2, dim]
         distance = torch.pow(score, 0.5).sum(-1)
-        pos_distance = distance[:,0,:]
-        neg_distance = distance[:,1,:]
-        y = torch.FloatTensor([-1,0])
+        pos_distance = distance[:, 0, :]
+        neg_distance = distance[:, 1, :]
+        y = torch.FloatTensor([-1, 0])
         if self.is_cuda:
             y = y.cuda()
         loss = self.criterion(pos_distance, neg_distance, y)
@@ -49,17 +50,19 @@ class SpecialLossTransE(nn.Module):
         score shape: [batch_size, 1 + nega_sample_num, embedding_dim]
         '''
         # distance = torch.abs(score).sum(dim=-1) * self.re_scale
-        # distance = torch.norm(score, p=self.p, dim=-1, keepdim=True) * self.re_scale
+        # distance = torch.norm(score, p=self.p, dim=-1, keepdim=True)
         # pos_score = distance[:, 0, :]
         # nega_score = distance[:, 1, :]
-        distance = F.normalize(score, p=self.p, dim=-1) * self.re_scale
-        pos_score = distance[:,0,:].sum(-1, keepdim=True)
-        nega_score = distance[:,1,:].sum(-1, keepdim=True)
+        distance = F.normalize(score, p=self.p, dim=-1)
+        pos_score = distance[:, 0, :].sum(-1, keepdim=True)
+        nega_score = distance[:, 1, :].sum(-1, keepdim=True)
         y = torch.FloatTensor([-1.0])
         if self.is_cuda:
             y = y.cuda()
         loss = self.criterion(pos_score, nega_score, y)
+        loss = loss * self.re_scale
         return loss
+
 
 class SpecialLossAlign(nn.Module):
     def __init__(self, margin, p=2, re_scale=1.0, reduction='mean', cuda=True):
@@ -74,13 +77,13 @@ class SpecialLossAlign(nn.Module):
         score shape: [batch_size, 2, embedding_dim]
         '''
         # distance = torch.abs(score).sum(dim=-1) * self.re_scale
-        sr_true = repre_sr[:,0,:]
-        sr_nega = repre_sr[:,1,:]
-        tg_true = repre_tg[:,0,:]
-        tg_nega = repre_tg[:,1,:]
-        loss = self.criterion(torch.cat((sr_true, tg_true), dim=0), torch.cat((tg_true, sr_true), dim=0), torch.cat((tg_nega, sr_nega), dim=0))
+        sr_true = repre_sr[:, 0, :]
+        sr_nega = repre_sr[:, 1, :]
+        tg_true = repre_tg[:, 0, :]
+        tg_nega = repre_tg[:, 1, :]
+        loss = self.criterion(torch.cat((sr_true, tg_true), dim=0), torch.cat((tg_true, sr_true), dim=0),
+                              torch.cat((tg_nega, sr_nega), dim=0))
         return loss
-
 
 
 class RelationWeighting(object):
@@ -103,17 +106,19 @@ class RelationWeighting(object):
         '''
         pad_len = self.pad_len
         reverse = self.reverse
-        if reverse:
-            a, b = b, a
-        if pad_len > 0:
-            a = F.pad(a, (0, 0, 0, pad_len))
-        sim = cosine_similarity_nbyn(a, b)
-        r_sim_sr, r_sim_tg = self._max_pool_solution(sim)
-        if pad_len > 0:
-            r_sim_sr = r_sim_sr[:-pad_len]
-        if reverse:
-            r_sim_sr, r_sim_tg = r_sim_tg, r_sim_sr
-        return r_sim_sr, r_sim_tg
+        with torch.no_grad():
+            if reverse:
+                a, b = b, a
+            if pad_len > 0:
+                a = F.pad(a, (0, 0, 0, pad_len))
+            # sim = cosine_similarity_nbyn(a, b)
+            sim = torch_l2distance(a, b)
+            r_sim_sr, r_sim_tg = self._max_pool_solution(sim)
+            if pad_len > 0:
+                r_sim_sr = r_sim_sr[:-pad_len]
+            if reverse:
+                r_sim_sr, r_sim_tg = r_sim_tg, r_sim_sr
+            return r_sim_sr, r_sim_tg
 
     def _max_pool_solution(self, sim):
         '''
@@ -145,9 +150,10 @@ def cosine_similarity_nbyn(a, b):
     b = b / (b.norm(dim=-1, keepdim=True) + 1e-8)
     return torch.mm(a, b.transpose(0, 1))
 
+
 def torch_l2distance(a, b):
-    x1 = torch.sum(a*a,dim=-1).view(-1,1)
-    x2 = torch.sum(b*b,dim=-1).view(-1,1)
+    x1 = torch.sum(a * a, dim=-1).view(-1, 1)
+    x2 = torch.sum(b * b, dim=-1).view(-1, 1)
     x3 = -2 * torch.matmul(a, b.t())
-    sim = x1 + x2.t() + x3 #.pow(0.5)
+    sim = x1 + x2.t() + x3  # .pow(0.5)
     return sim.pow(0.5)

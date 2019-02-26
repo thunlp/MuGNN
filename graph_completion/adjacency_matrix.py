@@ -120,81 +120,30 @@ def get_sparse_unit_matrix(size):
     return torch_trans2sp(poses, values, (size, size))
 
 
-class CrossAdjacencyMatrix(nn.Module):
-    def __init__(self, embedding_dim, cgc, cuda, non_acylic=False):
-        super(CrossAdjacencyMatrix, self).__init__()
-        assert isinstance(cgc, CrossGraphCompletion)
-        self.cgc = cgc
-        self.non_acylic = non_acylic
-        self.embedding_dim = embedding_dim
-        self.entity_num_sr = len(cgc.id2entity_sr)
-        self.entity_num_tg = len(cgc.id2entity_tg)
-        self.relation_weighting = RelationWeighting((len(cgc.id2relation_sr), len(cgc.id2relation_tg)), cuda)
-        self.init_constant_part()
-
-    def init_constant_part(self):
-        cgc = self.cgc
-        # for the transe
-        head_sr, tail_sr, relation_sr = torch.from_numpy(np.asarray(
-            list(zip(*str2int4triples(cgc.triples_sr))), dtype=np.int64))
-        head_tg, tail_tg, relation_tg = torch.from_numpy(np.asarray(
-            list(zip(*str2int4triples(cgc.triples_tg))), dtype=np.int64))
-        self.relation_sr = nn.Parameter(relation_sr, requires_grad=False)
-        self.relation_tg = nn.Parameter(relation_tg, requires_grad=False)
-        self.pos_sr = nn.Parameter(torch.cat((head_sr.view(1, -1), tail_sr.view(1, -1)), dim=0), requires_grad=False)
-        self.pos_tg = nn.Parameter(torch.cat((head_tg.view(1, -1), tail_tg.view(1, -1)), dim=0), requires_grad=False)
-
-        # part of the matrix
-        sp_rel_conf_sr, sp_rel_imp_sr, sp_triple_pca_sr = build_adms_rconf_imp_pca(cgc.triples_sr,
-                                                                                   cgc.new_triple_confs_sr,
-                                                                                   self.entity_num_sr,
-                                                                                   cgc.relation2conf_sr,
-                                                                                   cgc.relation2imp_sr,
-                                                                                   self.non_acylic)
-
-        sp_rel_conf_tg, sp_rel_imp_tg, sp_triple_pca_tg = build_adms_rconf_imp_pca(cgc.triples_tg,
-                                                                                   cgc.new_triple_confs_tg,
-                                                                                   self.entity_num_tg,
-                                                                                   cgc.relation2conf_tg,
-                                                                                   cgc.relation2imp_tg,
-                                                                                   self.non_acylic)
-        self.sp_rel_conf_sr = nn.Parameter(sp_rel_conf_sr, requires_grad=False)
-        self.sp_rel_conf_tg = nn.Parameter(sp_rel_conf_tg, requires_grad=False)
-        self.sp_rel_imp_sr = nn.Parameter(sp_rel_imp_sr, requires_grad=False)
-        self.sp_rel_imp_tg = nn.Parameter(sp_rel_imp_tg, requires_grad=False)
-        self.sp_triple_pca_sr = nn.Parameter(sp_triple_pca_sr, requires_grad=False)
-        self.sp_triple_pca_tg = nn.Parameter(sp_triple_pca_tg, requires_grad=False)
-
-        unit_matrix_sr = get_sparse_unit_matrix(self.entity_num_sr)
-        unit_matrix_tg = get_sparse_unit_matrix(self.entity_num_tg)
-        self.unit_matrix_sr = nn.Parameter(unit_matrix_sr, requires_grad=False)
-        self.unit_matrix_tg = nn.Parameter(unit_matrix_tg, requires_grad=False)
-
-    def forward(self, rel_sr_weight, rel_tg_weight, g_func=g_func_template):
-        relation_w_sr, relation_w_tg = self.relation_weighting(rel_sr_weight, rel_tg_weight)
-        sp_rel_att_sr, sp_rel_att_tg = self._forward_relation(relation_w_sr, relation_w_tg)
-        # sp_tv_sr, sp_tv_tg = self._forward_transe_tv()
-        adjacency_matrix_sr = g_func(self.sp_rel_conf_sr, self.sp_rel_imp_sr, self.sp_triple_pca_sr, sp_rel_att_sr)
-        adjacency_matrix_tg = g_func(self.sp_rel_conf_tg, self.sp_rel_imp_tg, self.sp_triple_pca_tg, sp_rel_att_tg)
-        # watch_sp((adjacency_matrix_sr + self.unit_matrix_sr).cpu().detach().to_dense().numpy(), 0)
-        adjacency_matrix_sr = normalize_adj_torch(adjacency_matrix_sr + self.unit_matrix_sr)
-        # watch_sp(adjacency_matrix_sr.cpu().detach().numpy(), 0)
-        adjacency_matrix_tg = normalize_adj_torch(adjacency_matrix_tg + self.unit_matrix_tg)
-        return adjacency_matrix_sr, adjacency_matrix_tg
-
-    def _forward_relation(self, relation_w_sr, relation_w_tg):
-        rel_att_sr = F.embedding(self.relation_sr, relation_w_sr)  # sparse support
-        rel_att_tg = F.embedding(self.relation_tg, relation_w_tg)
-        sp_rel_att_sr = torch_trans2sp(self.pos_sr, rel_att_sr, [self.entity_num_sr] * 2)
-        sp_rel_att_tg = torch_trans2sp(self.pos_tg, rel_att_tg, [self.entity_num_tg] * 2)
-        return sp_rel_att_sr, sp_rel_att_tg
-
-
 def torch_trans2sp(indices, values, size):
-    return torch.sparse.DoubleTensor(indices, values, size=torch.Size(size))
+    '''
+    2019-2-26 safely create sparse tensor, max method is implemented for duplicates
+    '''
+    is_cuda = values.is_cuda
+    assert indices.size()[1] == values.size()[0]
+    indices = indices.cpu().numpy()
+    values = values.cpu().numpy()
+    poses = {}
+    for i, indice in enumerate(zip(*indices)):
+        if indice not in poses:
+            poses[indice] = values[i]
+        else:
+            poses[indice] = max(values[i], poses[indice])
+    new_indices = torch.tensor(list(zip(*poses.keys())))
+    new_values = torch.tensor(list(poses.values()))
+    if is_cuda:
+        new_values = new_values.cuda()
+        new_indices = new_indices.cuda()
+    return torch.sparse.FloatTensor(new_indices, new_values, size=torch.Size(size))
 
 
-def build_adms_rconf_imp_pca(triples, new_triple_confs, num_entity, relation2conf, relation2imp, rule_scale=0.9, non_acylic=False):
+def build_adms_rconf_imp_pca(triples, new_triple_confs, num_entity, relation2conf, relation2imp, rule_scale=0.9,
+                             non_acylic=False):
     # sp_rel_conf_sr, sp_rel_imp_sr, sp_triple_pca_sr, sp_rel_att_sr
     # a * b * (0.5 * c + 0.5 * e)
     # print(num_entity)
@@ -242,6 +191,14 @@ def build_adms_rconf_imp_pca(triples, new_triple_confs, num_entity, relation2con
     return sp_matrix[0], sp_matrix[1], sp_matrix[2]
 
 
+def sp_clamp(sparse_tensor, min=None, max=None):
+    sparse_tensor = sparse_tensor.coalesce()
+    indices = sparse_tensor.indices()
+    values = sparse_tensor.values()
+    values = torch.clamp(values, min=min, max=max)
+    return torch.sparse_coo_tensor(indices, values)
+
+
 def watch_sp(sp, row_num):
     try:
         sp = sp.coo_matrix(sp)
@@ -257,10 +214,3 @@ def watch_sp(sp, row_num):
         for i, ele in enumerate(row):
             if ele != 0:
                 print('(', row_num, i, ')', float(ele))
-
-def sp_clamp(sparse_tensor, min=None, max=None):
-    sparse_tensor = sparse_tensor.coalesce()
-    indices = sparse_tensor.indices()
-    values = sparse_tensor.values()
-    values = torch.clamp(values, min=min, max=max)
-    return torch.sparse_coo_tensor(indices, values)

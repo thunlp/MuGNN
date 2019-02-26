@@ -322,6 +322,17 @@ class CrossGraphCompletion(object):
         print_time_info('tg r2imp num: ' + str(len(self.relation2imp_tg)) + ' average: ' + str(
             sum(self.relation2imp_tg.values()) / len(self.relation2imp_tg)), dash_top=True)
 
+    def check(self):
+        orig_triple_sr = {triple for triple in self.triples_sr if triple not in self.new_triple_confs_sr}
+        orig_triple_tg = {triple for triple in self.triples_tg if triple not in self.new_triple_confs_tg}
+        ori_pos_sr = {(h, t) for h, t, r in orig_triple_sr}
+        ori_pos_tg = {(h, t) for h, t, r in orig_triple_tg}
+        new_pos_sr = {(h, t) for h, t, r in self.new_triple_confs_sr}
+        new_pos_tg = {(h, t) for h, t, r in self.new_triple_confs_tg}
+        print('sr ori pos num:', len(ori_pos_sr), '; tg ori pos num:', len(ori_pos_tg))
+        print('sr new pos num:', len(new_pos_sr), '; tg new pos num:', len(new_pos_tg))
+        print('sr add pos num:', len(new_pos_sr.intersection(ori_pos_sr)), '; tg add pos num:', len(new_pos_tg.intersection(ori_pos_tg)))
+
     def triple_graph_load(self, triples_sr, triples_tg):
         self.triple_graph_sr.load(triples_sr)
         self.triple_graph_tg.load(triples_tg)

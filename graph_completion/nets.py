@@ -33,8 +33,7 @@ class GATNet(AlignGraphNet):
         assert isinstance(cgc, CrossGraphCompletion)
         num_entity_sr = len(cgc.id2entity_sr)
         num_entity_tg = len(cgc.id2entity_tg)
-        sp_twin_adj = SpTwinAdj(num_entity_sr, num_entity_tg, str2int4triples(cgc.triples_sr),
-                                str2int4triples(cgc.triples_tg), self.non_acylic)
+        sp_twin_adj = SpTwinAdj(cgc, self.non_acylic)
         self.adj_sr = sp_twin_adj.sp_adj_sr
         self.adj_tg = sp_twin_adj.sp_adj_tg
         self.sp_gat = GAT(dim, dim, nheads, num_layer, self.dropout_rate, alpha, sp, self.is_cuda)

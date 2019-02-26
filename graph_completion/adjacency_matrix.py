@@ -8,7 +8,9 @@ from graph_completion.torch_functions import RelationWeighting, normalize_adj_to
 
 
 class SpTwinAdj(object):
-    def __init__(self, num_sr, num_tg, triples_sr, triples_tg, non_acylic):
+    def __init__(self, cgc, non_acylic):
+        assert isinstance(cgc, CrossGraphCompletion)
+
         def _triple2sp_m(triples, size):
             heads, tails, relations = list(zip(*triples))
             pos = list(zip(heads, tails))
@@ -20,13 +22,37 @@ class SpTwinAdj(object):
             pos = torch.tensor([heads, tails], dtype=torch.int64)
             value = torch.ones((len(heads),), dtype=torch.int64)
             return torch.sparse_coo_tensor(pos, value, size=torch.Size((size, size)))
+        self.cgc = cgc
+        self.non_acylic = non_acylic
+        self.sp_adj_sr = _triple2sp_m(str2int4triples(cgc.triples_sr), len(cgc.id2entity_sr)).coalesce() #.detach() #.to_dense()
+        self.sp_adj_tg = _triple2sp_m(str2int4triples(cgc.triples_tg), len(cgc.id2entity_tg)).coalesce() #.detach() #.to_dense()
 
-        self.sp_adj_sr = _triple2sp_m(triples_sr, num_sr).coalesce() #.detach() #.to_dense()
-        self.sp_adj_tg = _triple2sp_m(triples_tg, num_tg).coalesce() #.detach() #.to_dense()
 
     @property
     def sp_adj(self):
         return self.sp_adj_sr, self.sp_adj_tg
+
+class SpTwinCAW(SpTwinAdj):
+    def __init__(self, cgc, non_acylic, cuda):
+        assert isinstance(cgc, CrossGraphCompletion)
+        super(SpTwinCAW, self).__init__(cgc, non_acylic)
+        self.relation_weighting = RelationWeighting((len(cgc.id2relation_sr), len(cgc.id2relation_tg)), cuda)
+        sp_rel_conf_sr, sp_rel_imp_sr, sp_triple_pca_sr = build_adms_rconf_imp_pca(cgc.triples_sr,
+                                                                                   cgc.new_triple_confs_sr,
+                                                                                   len(cgc.id2entity_sr),
+                                                                                   cgc.relation2conf_sr,
+                                                                                   cgc.relation2imp_sr,
+                                                                                   non_acylic)
+
+        sp_rel_conf_tg, sp_rel_imp_tg, sp_triple_pca_tg = build_adms_rconf_imp_pca(cgc.triples_tg,
+                                                                                   cgc.new_triple_confs_tg,
+                                                                                   len(cgc.id2entity_tg),
+                                                                                   cgc.relation2conf_tg,
+                                                                                   cgc.relation2imp_tg,
+                                                                                   non_acylic)
+
+
+
 
 def g_func_template(a, b, c, e):
     '''

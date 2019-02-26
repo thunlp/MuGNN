@@ -17,12 +17,13 @@ class Config(object):
     def __init__(self, directory):
         # training
         self.patience = 10
-        self.split_num = 2 # split triple dataset into parts
+        self.split_num = 2  # split triple dataset into parts
         self.min_epoch = 3000
         self.bad_result = 0
         self.now_epoch = 0
         self.best_hits_1 = (0, 0, 0)  # (epoch, sr, tg)
         self.num_epoch = 10000
+        self.update_cycle = 10
         self.directory = directory
         self.train_seeds_ratio = 0.3
 
@@ -88,32 +89,32 @@ class Config(object):
             self.net.train()
             if (epoch + 1) % 10 == 0:
                 print_time_info('Epoch: %d started!' % (epoch + 1))
+            align_loss_acc = 0
+            transe_loss_acc = 0
             for i, batch_data in enumerate(zip(triple_sr_loader, triple_tg_loader)):
                 optimizer.zero_grad()
-                triples_sr, triples_tg = batch_data
-                h_sr, t_sr, r_sr = triples_sr
-                h_tg, t_tg, r_tg = triples_tg
+                batch_triples_sr, batch_triples_tg = batch_data
+                h_sr, t_sr, r_sr = batch_triples_sr
+                h_tg, t_tg, r_tg = batch_triples_tg
                 if self.is_cuda:
                     h_sr, t_sr, r_sr = h_sr.cuda(), t_sr.cuda(), r_sr.cuda()
                     h_tg, t_tg, r_tg = h_tg.cuda(), t_tg.cuda(), r_tg.cuda()
-
                 repre_sr, repre_tg, transe_score = self.net(sr_data, tg_data, h_sr, h_tg, t_sr, t_tg, r_sr, r_tg)
-                if epoch % 2 == 0:
-                    align_loss = criterion_align(repre_sr, repre_tg)
-                    align_loss.backward()
-                else:
-                    transe_loss = criterion_transe(transe_score)
-                    transe_loss.backward()
+                align_loss = criterion_align(repre_sr, repre_tg)
+                transe_loss = criterion_transe(transe_score)
+                loss = sum([align_loss, transe_loss])
+                loss.backward()
                 optimizer.step()
-            if epoch % 2 == 0:
-                print('\rEpoch: %d; align loss = %f.' % (epoch + 1, float(align_loss)))
-                self.writer.add_scalars('data/Loss', {'Align Loss': align_loss.item()}, epoch)
-            else:
-                print('\rEpoch: %d; transe loss = %f.' % (epoch + 1, float(transe_loss)))
-                self.writer.add_scalars('data/Loss', {'TransE Loss': transe_loss.item()}, epoch)
+                align_loss_acc += float(align_loss)
+                transe_loss_acc += float(transe_loss)
+            align_loss_acc /= self.split_num
+            transe_loss_acc /= self.split_num
+            print('\rEpoch: %d; align loss = %f; transe loss = %f.' % (epoch + 1, align_loss_acc, transe_loss_acc))
+            self.writer.add_scalars('data/Loss',
+                                    {'Align Loss': align_loss_acc, 'TransE Loss': transe_loss_acc}, epoch)
             self.now_epoch += 1
-            self.evaluate()
-            if (epoch + 1) % 10 == 0:
+            if (epoch + 1) % self.update_cycle == 0:
+                self.evaluate()
                 sr_data, tg_data, triple_sr_loader, triple_tg_loader = self.negative_sampling(ad, triples_sr,
                                                                                               triples_tg)
                 if self.is_cuda:
@@ -247,6 +248,9 @@ class Config(object):
 
     def set_corrupt(self, corrupt):
         self.corrupt = corrupt
+
+    def set_update_cycle(self, update_cycle):
+        self.update_cycle = update_cycle
 
     def loop(self, bin_dir):
         # todo: finish it

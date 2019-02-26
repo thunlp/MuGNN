@@ -40,7 +40,7 @@ class SpecialLoss(nn.Module):
 class SpecialLossTransE(nn.Module):
     def __init__(self, margin, p=2, re_scale=1.0, reduction='mean', cuda=True):
         super(SpecialLossTransE, self).__init__()
-        self.p = p
+        self.p = 2
         self.re_scale = re_scale
         self.criterion = nn.MarginRankingLoss(margin, reduction=reduction)
         self.is_cuda = cuda
@@ -50,12 +50,14 @@ class SpecialLossTransE(nn.Module):
         score shape: [batch_size, 1 + nega_sample_num, embedding_dim]
         '''
         # distance = torch.abs(score).sum(dim=-1) * self.re_scale
-        # distance = torch.norm(score, p=self.p, dim=-1, keepdim=True)
-        # pos_score = distance[:, 0, :]
-        # nega_score = distance[:, 1, :]
-        distance = F.normalize(score, p=self.p, dim=-1)
-        pos_score = distance[:, 0, :].sum(-1, keepdim=True)
-        nega_score = distance[:, 1, :].sum(-1, keepdim=True)
+        if False:
+            distance = torch.norm(score, p=self.p, dim=-1, keepdim=True)
+            pos_score = distance[:, 0, :]
+            nega_score = distance[:, 1, :]
+        else:
+            distance = F.normalize(score, p=self.p, dim=-1)
+            pos_score = distance[:, 0, :].sum(-1, keepdim=True)
+            nega_score = distance[:, 1, :].sum(-1, keepdim=True)
         y = torch.FloatTensor([-1.0])
         if self.is_cuda:
             y = y.cuda()

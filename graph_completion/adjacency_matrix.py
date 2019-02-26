@@ -9,6 +9,8 @@ from graph_completion.torch_functions import RelationWeighting, normalize_adj_to
 
 def g_func_template(a, b, c, e):
     '''
+    # sp_rel_conf_sr, sp_rel_imp_sr, sp_triple_pca_sr, sp_rel_att_sr
+    # a * b * (0.5 * c + 0.5 * e)
     all input: sparse tensor shape = [num_entity, num_entity]
     :return: sparse tensor shape = [num_entity, num_entity]
     '''
@@ -54,10 +56,11 @@ class SpTwinAdj(object):
 
 
 class SpTwinCAW(SpTwinAdj):
-    def __init__(self, cgc, non_acylic, g_func=g_func_template, cuda=True):
+    def __init__(self, rule_scale, cgc, non_acylic, g_func=g_func_template, cuda=True):
         assert isinstance(cgc, CrossGraphCompletion)
-        super(SpTwinCAW, self).__init__(cgc, non_acylic, cuda)
         self.g_func = g_func
+        self.rule_scale = rule_scale
+        super(SpTwinCAW, self).__init__(cgc, non_acylic, cuda)
 
     def init(self):
         cgc = self.cgc
@@ -77,12 +80,14 @@ class SpTwinCAW(SpTwinAdj):
                                                                                                   self.entity_num_sr,
                                                                                                   cgc.relation2conf_sr,
                                                                                                   cgc.relation2imp_sr,
+                                                                                                  self.rule_scale,
                                                                                                   self.non_acylic)
         self.sp_rel_conf_tg, self.sp_rel_imp_tg, self.sp_triple_pca_tg = build_adms_rconf_imp_pca(cgc.triples_tg,
                                                                                                   cgc.new_triple_confs_tg,
                                                                                                   self.entity_num_tg,
                                                                                                   cgc.relation2conf_tg,
                                                                                                   cgc.relation2imp_tg,
+                                                                                                  self.rule_scale,
                                                                                                   self.non_acylic)
         if self.is_cuda:
             self.pos_sr = self.pos_sr.cuda()
@@ -189,9 +194,13 @@ def torch_trans2sp(indices, values, size):
     return torch.sparse.DoubleTensor(indices, values, size=torch.Size(size))
 
 
-def build_adms_rconf_imp_pca(triples, new_triple_confs, num_entity, relation2conf, relation2imp, non_acylic=False):
-    # the last dimension: (rel_conf, rel_imp, triple_pca)
+def build_adms_rconf_imp_pca(triples, new_triple_confs, num_entity, relation2conf, relation2imp, rule_scale=0.9, non_acylic=False):
+    # sp_rel_conf_sr, sp_rel_imp_sr, sp_triple_pca_sr, sp_rel_att_sr
+    # a * b * (0.5 * c + 0.5 * e)
     # print(num_entity)
+    new_triple_confs = {triple: conf * rule_scale for triple, conf in new_triple_confs.items()}
+    relation2conf = {relation: conf * rule_scale for relation, conf in relation2conf.items()}
+
     sp_matrix = {0: {}, 1: {}, 2: {}}
     for triple in triples:
         head, tail, relation = triple

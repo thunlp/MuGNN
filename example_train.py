@@ -30,11 +30,12 @@ config.set_shuffle(True)
 config.set_corrupt(False)
 config.set_update_cycle(5)
 config.set_w_adj(True)
+config.set_rule_scale(0.5)
 
 config.init(load=True)
-config.set_net(GATNet)
+config.set_net()
 config.print_parameter()
-config.init_log('test')
+config.init_log('RuleScale')
 config.train()
 
 # 1st faster evaluation

@@ -28,7 +28,7 @@ class AlignGraphNet(nn.Module):
 
 
 class GATNet(AlignGraphNet):
-    def __init__(self, cgc, num_layer, dim, nheads, sp, alpha=0.2, w_adj=False, *args, **kwargs):
+    def __init__(self, rule_scale, cgc, num_layer, dim, nheads, sp, alpha=0.2, w_adj=False, *args, **kwargs):
         super(GATNet, self).__init__(*args, **kwargs)
         assert isinstance(cgc, CrossGraphCompletion)
         num_entity_sr = len(cgc.id2entity_sr)
@@ -36,7 +36,7 @@ class GATNet(AlignGraphNet):
         if not w_adj:
             self.sp_twin_adj = SpTwinAdj(cgc, self.non_acylic)
         else:
-            self.sp_twin_adj = SpTwinCAW(cgc, self.non_acylic)
+            self.sp_twin_adj = SpTwinCAW(rule_scale, cgc, self.non_acylic)
         self.sp_gat = GAT(dim, dim, nheads, num_layer, self.dropout_rate, alpha, sp, w_adj, self.is_cuda)
         self.entity_embedding = DoubleEmbedding(num_entity_sr, num_entity_tg, dim, type='entity')
         self.relation_embedding = DoubleEmbedding(len(cgc.id2relation_sr), len(cgc.id2relation_tg), dim, type='relation')

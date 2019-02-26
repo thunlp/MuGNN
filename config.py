@@ -4,6 +4,7 @@ from tools.timeit import timeit
 from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
 from tools.print_time_info import print_time_info
+from graph_completion.nets import GATNet
 from graph_completion.functions import str2int4triples
 from graph_completion.torch_functions import SpecialLossTransE, SpecialLossAlign
 from graph_completion.Datasets import AliagnmentDataset, TripleDataset, EpochDataset
@@ -45,10 +46,12 @@ class Config(object):
         self.nega_n_e = 25  # number of negative samples for each positive one
         self.nega_n_r = 2
         self.corrupt = False
+
         # hyper parameter
         self.lr = 1e-3
         self.beta = 1.0  # ratio of transe loss
         self.alpha = 0.2  # alpha for the leaky relu
+        self.rule_scale = 0.9
         self.l2_penalty = 0.0001
         self.dropout_rate = 0.5
         self.entity_gamma = 3.0  # margin for entity loss
@@ -109,7 +112,8 @@ class Config(object):
                 transe_loss_acc += float(transe_loss)
             align_loss_acc /= self.split_num
             transe_loss_acc /= self.split_num
-            print_time_info('Epoch: %d; align loss = %f; transe loss = %f.' % (epoch + 1, align_loss_acc, transe_loss_acc))
+            print_time_info(
+                'Epoch: %d; align loss = %f; transe loss = %f.' % (epoch + 1, align_loss_acc, transe_loss_acc))
             self.writer.add_scalars('data/Loss',
                                     {'Align Loss': align_loss_acc, 'TransE Loss': transe_loss_acc}, epoch)
             self.now_epoch += 1
@@ -200,9 +204,9 @@ class Config(object):
     def set_cuda(self, is_cuda):
         self.is_cuda = is_cuda
 
-    def set_net(self, net):
-        self.net = net(self.cgc, self.num_layer, self.embedding_dim, self.nheads, self.sparse, self.alpha, self.w_adj,
-                       self.dropout_rate, self.non_acylic, self.is_cuda)
+    def set_net(self):
+        self.net = GATNet(self.rule_scale, self.cgc, self.num_layer, self.embedding_dim, self.nheads, self.sparse,
+                          self.alpha, self.w_adj, self.dropout_rate, self.non_acylic, self.is_cuda)
 
     def set_graph_completion(self, graph_completion):
         self.graph_completion = graph_completion
@@ -254,6 +258,9 @@ class Config(object):
 
     def set_w_adj(self, w_adj):
         self.w_adj = w_adj
+
+    def set_rule_scale(self, rule_scale):
+        self.rule_scale = rule_scale
 
     def loop(self, bin_dir):
         # todo: finish it

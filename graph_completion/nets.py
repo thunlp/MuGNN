@@ -45,10 +45,6 @@ class GATNet(AlignGraphNet):
 
     def trans_e(self, ent_embedding, rel_embedding, triples_data):
         h_list, t_list, r_list = triples_data
-        print(h_list[:20])
-        print(t_list[:20])
-        print(r_list[:20])
-        a = input('wait')
         h = ent_embedding[h_list]
         t = ent_embedding[t_list]
         r = rel_embedding[r_list]

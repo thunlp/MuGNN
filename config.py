@@ -18,6 +18,7 @@ class Config(object):
     def __init__(self, directory):
         # training
         self.patience = 10
+        self.pre_train = 10
         self.split_num = 1  # split triple dataset into parts
         self.min_epoch = 3000
         self.bad_result = 0
@@ -54,8 +55,8 @@ class Config(object):
         self.rule_scale = 0.9
         self.l2_penalty = 0.0001
         self.dropout_rate = 0.5
-        self.entity_gamma = 3.0  # margin for entity loss
-        self.transe_gamma = 3.0  # margin for relation loss
+        self.align_gamma = 3.0  # margin for entity loss
+        self.rule_gamma = 3.0  # margin for relation loss
         # cuda
         self.is_cuda = True
 
@@ -97,18 +98,22 @@ class Config(object):
             rules_data_tg = [data.cuda() for data in rules_data_tg]
 
         optimizer = self.optimizer(self.net.parameters(), lr=self.lr, weight_decay=self.l2_penalty)
-        criterion_align = SpecialLossAlign(self.entity_gamma, cuda=self.is_cuda)
+        criterion_align = SpecialLossAlign(self.align_gamma, cuda=self.is_cuda)
         # criterion_transe = SpecialLossTransE(self.transe_gamma, p=2, re_scale=self.beta, cuda=self.is_cuda)
-        criterion_rule = SpecialLossRule(self.transe_gamma, re_scale=self.beta, cuda=self.is_cuda)
+        criterion_trase = SpecialLossRule(self.rule_gamma, cuda=self.is_cuda)
+        criterion_rule = SpecialLossRule(self.rule_gamma, re_scale=self.beta, cuda=self.is_cuda)
         for epoch in range(self.num_epoch):
             self.net.train()
             optimizer.zero_grad()
             repre_sr, repre_tg, transe_tv, rule_tv = self.net(sr_data, tg_data, triples_data_sr, triples_data_tg,
                                                               rules_data_sr, rules_data_tg)
             align_loss = criterion_align(repre_sr, repre_tg)
-            transe_loss = criterion_rule(transe_tv)
+            transe_loss = criterion_trase(transe_tv)
             rule_loss = criterion_rule(rule_tv)
-            loss = sum([align_loss, transe_loss, rule_loss])
+            if epoch < self.pre_train:
+                loss = sum([transe_loss, rule_loss])
+            else:
+                loss = sum([align_loss, transe_loss, rule_loss])
             loss.backward()
             optimizer.step()
             print_time_info(
@@ -118,7 +123,8 @@ class Config(object):
                                     {'Align Loss': float(align_loss), 'TransE Loss': float(transe_loss),
                                      'Rule Loss': float(rule_loss)}, epoch)
             self.now_epoch += 1
-            self.evaluate()
+            if epoch > self.pre_train:
+                self.evaluate()
             if (epoch + 1) % self.update_cycle == 0:
                 sr_data, tg_data, triples_data_sr, triples_data_tg, rules_data_sr, rules_data_tg = self.negative_sampling(
                     ad, triples_sr, triples_tg, rules_sr, rules_tg)
@@ -136,9 +142,10 @@ class Config(object):
             if self.is_cuda:
                 sr_seeds = sr_seeds.cuda()
                 tg_seeds = tg_seeds.cuda()
-            # For Alignment
-            sr_nns, tg_nns = self.net.negative_sample(sr_seeds, tg_seeds)
-            ad.update_negative_sample(sr_nns, tg_nns)
+            if self.now_epoch > self.pre_train:
+                # For Alignment
+                sr_nns, tg_nns = self.net.negative_sample(sr_seeds, tg_seeds)
+                ad.update_negative_sample(sr_nns, tg_nns)
             sr_data, tg_data = ad.get_all()
             # For TransE
             triples_data_sr = triples_sr.init().get_all()
@@ -225,8 +232,11 @@ class Config(object):
     def set_dropout(self, dropout):
         self.dropout_rate = dropout
 
-    def set_gamma(self, gamma):
-        self.entity_gamma = gamma
+    def set_align_gamma(self, align_gamma):
+        self.align_gamma = align_gamma
+
+    def set_rule_gamma(self, rule_gamma):
+        self.rule_gamma = rule_gamma
 
     def set_dim(self, dim):
         self.embedding_dim = dim
@@ -269,6 +279,9 @@ class Config(object):
 
     def set_rule_scale(self, rule_scale):
         self.rule_scale = rule_scale
+
+    def set_pre_train(self, pre_train):
+        self.pre_train = pre_train
 
     def loop(self, bin_dir):
         # todo: finish it

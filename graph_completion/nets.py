@@ -52,7 +52,9 @@ class GATNet(AlignGraphNet):
         return score
 
     def truth_value(self, score):
-        score = torch.norm(score, p=1, dim=-1, keepdim=False)
+        # score = F.normalize(score, p=2, dim=-1)
+        score = torch.norm(score, p=1, dim=-1)
+        # score = score.sum(-1)
         return 1 - score / (3 * math.sqrt(self.dim))
 
     def rule(self, rules_data, transe_tv, ent_embedding, rel_embedding):
@@ -73,15 +75,13 @@ class GATNet(AlignGraphNet):
     def __forward_gat__(self, sr_data, tg_data):
         ent_embedding_sr, ent_embedding_tg = self.entity_embedding.weight
         rel_embedding_sr, rel_embedding_tg = self.relation_embedding.weight
+        # rel_embedding_sr = F.normalize(rel_embedding_sr, dim=-1, p=2)
+        # rel_embedding_tg = F.normalize(rel_embedding_tg, dim=-1, p=2)
         adj_sr, adj_tg = self.sp_twin_adj(rel_embedding_sr, rel_embedding_tg)
         graph_embedding_sr = self.sp_gat(ent_embedding_sr, adj_sr)
         graph_embedding_tg = self.sp_gat(ent_embedding_tg, adj_tg)
-        normed_graph_embedding_sr = F.normalize(graph_embedding_sr, p=2, dim=-1)
-        normed_graph_embedding_tg = F.normalize(graph_embedding_tg, p=2, dim=-1)
-        rel_embedding_sr = F.normalize(rel_embedding_sr, dim=-1, p=2)
-        rel_embedding_tg = F.normalize(rel_embedding_tg, dim=-1, p=2)
         return graph_embedding_sr[sr_data], graph_embedding_tg[
-            tg_data], normed_graph_embedding_sr, normed_graph_embedding_tg, rel_embedding_sr, rel_embedding_tg
+            tg_data], graph_embedding_sr, graph_embedding_tg, rel_embedding_sr, rel_embedding_tg
 
     def forward(self, sr_data, tg_data, triples_data_sr, triples_data_tg, rules_data_sr, rules_data_tg):
         sr_data_repre, tg_data_repre, graph_embedding_sr, graph_embedding_tg, rel_embedding_sr, rel_embedding_tg = self.__forward_gat__(

@@ -18,7 +18,7 @@ class Config(object):
     def __init__(self, directory):
         # training
         self.patience = 10
-        self.split_num = 2  # split triple dataset into parts
+        self.split_num = 1  # split triple dataset into parts
         self.min_epoch = 3000
         self.bad_result = 0
         self.now_epoch = 0
@@ -69,16 +69,14 @@ class Config(object):
             self.cgc = CrossGraphCompletion(directory, self.train_seeds_ratio, self.graph_completion)
             self.cgc.init()
             self.cgc.save(directory / 'running_temp')
-        # self.cgc.check()
-        # exit()
 
     def train(self):
         cgc = self.cgc
         with torch.no_grad():
             triples_sr = TripleDataset(str2int4triples(self.cgc.triples_sr), self.nega_n_r, corruput=self.corrupt)
             triples_tg = TripleDataset(str2int4triples(self.cgc.triples_tg), self.nega_n_r, corruput=self.corrupt)
-            triple_sr_loader = EpochDataset(triples_sr, self.split_num)
-            triple_tg_loader = EpochDataset(triples_tg, self.split_num)
+            h_sr, t_sr, r_sr = EpochDataset(triples_sr, self.split_num).get_data()
+            h_tg, t_tg, r_tg = EpochDataset(triples_tg, self.split_num).get_data()
             ad = AliagnmentDataset(cgc.train_entity_seeds, self.nega_n_e, len(cgc.id2entity_sr), len(cgc.id2entity_tg),
                                    self.is_cuda, corruput=self.corrupt)
             sr_data, tg_data = EpochDataset(ad).get_data()
@@ -86,46 +84,34 @@ class Config(object):
         if self.is_cuda:
             self.net.cuda()
             sr_data, tg_data = sr_data.cuda(), tg_data.cuda()
+            h_sr, t_sr, r_sr = h_sr.cuda(), t_sr.cuda(), r_sr.cuda()
+            h_tg, t_tg, r_tg = h_tg.cuda(), t_tg.cuda(), r_tg.cuda()
 
         optimizer = self.optimizer(self.net.parameters(), lr=self.lr, weight_decay=self.l2_penalty)
         criterion_align = SpecialLossAlign(self.entity_gamma, cuda=self.is_cuda)
         criterion_transe = SpecialLossTransE(self.transe_gamma, p=2, re_scale=self.beta, cuda=self.is_cuda)
         for epoch in range(self.num_epoch):
             self.net.train()
-            # if (epoch + 1) % 10 == 0:
-            #     print_time_info('Epoch: %d started!' % (epoch + 1))
-            align_loss_acc = 0
-            transe_loss_acc = 0
-            for i, batch_data in enumerate(zip(triple_sr_loader, triple_tg_loader)):
-                optimizer.zero_grad()
-                batch_triples_sr, batch_triples_tg = batch_data
-                h_sr, t_sr, r_sr = batch_triples_sr
-                h_tg, t_tg, r_tg = batch_triples_tg
-                if self.is_cuda:
-                    h_sr, t_sr, r_sr = h_sr.cuda(), t_sr.cuda(), r_sr.cuda()
-                    h_tg, t_tg, r_tg = h_tg.cuda(), t_tg.cuda(), r_tg.cuda()
-                repre_sr, repre_tg, transe_score = self.net(sr_data, tg_data, h_sr, h_tg, t_sr, t_tg, r_sr, r_tg)
-                align_loss = criterion_align(repre_sr, repre_tg)
-                transe_loss = criterion_transe(transe_score)
-                loss = sum([align_loss, transe_loss])
-                loss.backward()
-                optimizer.step()
-                align_loss_acc += float(align_loss)
-                transe_loss_acc += float(transe_loss)
-            align_loss_acc /= self.split_num
-            transe_loss_acc /= self.split_num
+            optimizer.zero_grad()
+            repre_sr, repre_tg, transe_score = self.net(sr_data, tg_data, h_sr, h_tg, t_sr, t_tg, r_sr, r_tg)
+            align_loss = criterion_align(repre_sr, repre_tg)
+            transe_loss = criterion_transe(transe_score)
+            loss = sum([align_loss, transe_loss])
+            loss.backward()
+            optimizer.step()
             print_time_info(
-                'Epoch: %d; align loss = %f; transe loss = %f.' % (epoch + 1, align_loss_acc, transe_loss_acc))
+                'Epoch: %d; align loss = %f; transe loss = %f.' % (epoch + 1, float(align_loss), float(transe_loss)))
             self.writer.add_scalars('data/Loss',
-                                    {'Align Loss': align_loss_acc, 'TransE Loss': transe_loss_acc}, epoch)
+                                    {'Align Loss': float(align_loss), 'TransE Loss': float(transe_loss)}, epoch)
             self.now_epoch += 1
             if (epoch + 1) % self.update_cycle == 0:
                 self.evaluate()
-                sr_data, tg_data, triple_sr_loader, triple_tg_loader = self.negative_sampling(ad, triples_sr,
-                                                                                              triples_tg)
+                sr_data, tg_data, h_sr, t_sr, r_sr, h_tg, t_tg, r_tg = self.negative_sampling(ad, triples_sr, triples_tg)
                 if self.is_cuda:
                     torch.cuda.empty_cache()
                     sr_data, tg_data = sr_data.cuda(), tg_data.cuda()
+                    h_sr, t_sr, r_sr = h_sr.cuda(), t_sr.cuda(), r_sr.cuda()
+                    h_tg, t_tg, r_tg = h_tg.cuda(), t_tg.cuda(), r_tg.cuda()
 
     @timeit
     def negative_sampling(self, ad, triples_sr, triples_tg):
@@ -139,9 +125,9 @@ class Config(object):
             # For Alignment
             sr_data, tg_data = EpochDataset(ad).get_data()
             # For TransE
-            triple_sr_loader = EpochDataset(triples_sr.init(), self.split_num)
-            triple_tg_loader = EpochDataset(triples_tg.init(), self.split_num)
-            return sr_data, tg_data, triple_sr_loader, triple_tg_loader
+            h_sr, t_sr, r_sr = EpochDataset(triples_sr.init(), self.split_num).get_data()
+            h_tg, t_tg, r_tg = EpochDataset(triples_tg.init(), self.split_num).get_data()
+            return sr_data, tg_data, h_sr, t_sr, r_sr, h_tg, t_tg, r_tg
 
     @timeit
     def evaluate(self):
@@ -202,6 +188,7 @@ class Config(object):
         with open(log_dir / 'parameters.txt', 'w') as f:
             print_time_info(comment, file=f)
             self.print_parameter(f)
+        print_time_info('Successfully initialized log in "%s" directory!' % log_dir)
 
     def set_cuda(self, is_cuda):
         self.is_cuda = is_cuda

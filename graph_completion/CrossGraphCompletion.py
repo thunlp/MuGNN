@@ -30,10 +30,6 @@ def _load_languge(directory, language):
     id2relation = {i: relation for relation, i in relation2id.items()}
     return triples, id2entity, id2relation, rules
 
-# train_entity_seeds = read_seeds(
-#         directory / 'JAPE' / ('0_' + str(int(10 * train_seeds_ratio))) / 'train_entity_seeds.txt')
-#     test_entity_seeds = read_seeds(
-#         directory / 'JAPE' / ('0_' + str(int(10 * train_seeds_ratio))) / 'test_entity_seeds.txt')
 
 def _load_seeds(directory, train_seeds_ratio):
     relation_seeds = read_seeds(directory / 'relation_seeds.txt')
@@ -114,23 +110,27 @@ def rule_based_graph_completion(triple_graph_sr, triple_graph_tg, rules_sr, rule
     def _rule_based_graph_completion(triple_graph, rules):
         triples = triple_graph.triples
         new_triple_confs = {}
+        new_triple_premises = {}
         for rule in rules:
-            new_triple_conf_candidates = triple_graph.inference_by_rule(rule)
-            for new_triple, conf in new_triple_conf_candidates:
+            new_triple_conf_premises_candidates = triple_graph.inference_by_rule(rule)
+            for new_triple, conf, premises in new_triple_conf_premises_candidates:
                 if not new_triple in triples:
                     if new_triple not in new_triple_confs:
                         new_triple_confs[new_triple] = conf
+                        new_triple_premises[new_triple] = premises
                     else:
                         ori_conf = new_triple_confs[new_triple]
-                        new_triple_confs[new_triple] = max(conf, ori_conf)
-        return new_triple_confs
+                        if ori_conf < conf:
+                            new_triple_confs[new_triple] = conf
+                            new_triple_premises[new_triple] = premises
+        return new_triple_confs, new_triple_premises
 
-    new_triple_confs_sr = _rule_based_graph_completion(
+    new_triple_confs_sr, new_triple_premises_sr = _rule_based_graph_completion(
         triple_graph_sr, rules_sr)
-    new_triple_confs_tg = _rule_based_graph_completion(
+    new_triple_confs_tg, new_triple_premises_tg = _rule_based_graph_completion(
         triple_graph_tg, rules_tg)
     print_time_info('Rule based graph completion finished!')
-    return new_triple_confs_sr, new_triple_confs_tg
+    return new_triple_confs_sr, new_triple_confs_tg, new_triple_premises_sr, new_triple_premises_tg
 
 
 def rule_transfer(rules_sr, rules_tg, relation_seeds):
@@ -173,50 +173,6 @@ def rule_transfer(rules_sr, rules_tg, relation_seeds):
     return new_rules_sr, new_rules_tg
 
 
-def completion_by_aligned_entities(triples_sr, triples_tg, entity_seeds, relation_seeds):
-    '''
-    auto graph completion with (e1, r1, e2) -> (e1', r1', e2'), in which (e1, r1, e2) is in KG but (e1', r1', e2') is not in KG'
-    triples_*: [(head, tail, relation)...]
-    *_seeds: [(sr_id, tg_id)...]
-    '''
-    if not isinstance(triples_sr, list):
-        print_time_info('sssssssssssss', dash_top=True)
-        raise ValueError()
-    if not isinstance(triples_tg, list):
-        print_time_info('sssssssssssss', dash_top=True)
-        raise ValueError()
-
-    def _completion_by_aligned_entities(from_triples, to_triples, e2e, r2r):
-        to_triples = set(to_triples)
-        new_triples = []
-        for head, tail, relation in from_triples:
-            if head in e2e and tail in e2e and relation in r2r:
-                to_triple_candidate = (e2e[head], e2e[tail], r2r[relation])
-                if to_triple_candidate not in to_triples:
-                    new_triples.append(to_triple_candidate)
-        return new_triples
-
-    e2e = dict(entity_seeds)
-    _check(entity_seeds, e2e, 1)
-    r2r = dict(relation_seeds)
-    _check(relation_seeds, r2r, 2)
-
-    new_triples_tg = _completion_by_aligned_entities(
-        triples_sr, triples_tg, e2e, r2r)
-
-    e2e = dict([(entity_tg, entity_sr)
-                for entity_sr, entity_tg in entity_seeds])
-    _check(entity_seeds, e2e, 3)
-    r2r = dict([(relation_tg, relation_sr)
-                for relation_sr, relation_tg in relation_seeds])
-    _check(relation_seeds, r2r, 4)
-    new_triples_sr = _completion_by_aligned_entities(
-        triples_tg, triples_sr, e2e, r2r)
-    new_triple_confs_sr = {triple: 1.0 for triple in new_triples_sr}
-    new_triple_confs_tg = {triple: 1.0 for triple in new_triples_tg}
-    return new_triple_confs_sr, new_triple_confs_tg
-
-
 class CrossGraphCompletion(object):
 
     def __init__(self, directory, train_seeds_ratio, graph_completion=True):
@@ -226,7 +182,6 @@ class CrossGraphCompletion(object):
         '''
         assert train_seeds_ratio in {0.1, 0.2, 0.3, 0.4, 0.5}, print_time_info(
             'Not a legal train seeds ratio: %f.' % train_seeds_ratio, dash_bot=True)
-
         self.directory = directory
         self.train_seeds_ratio = train_seeds_ratio
         self.graph_completion = graph_completion
@@ -239,6 +194,8 @@ class CrossGraphCompletion(object):
         self.triples_tg = []
         self.new_triple_confs_sr = {}
         self.new_triple_confs_tg = {}
+        self.new_triple_premises_sr = {}
+        self.new_triple_premises_tg = {}
         self.rules_sr = []
         self.rules_tg = []
         self.rules_trans2_sr = []
@@ -290,14 +247,15 @@ class CrossGraphCompletion(object):
         self.triple_graph_load(self.triples_sr, self.triples_tg)
 
         # rule_based_graph_completion
-        new_triple_confs_sr, new_triple_confs_tg = rule_based_graph_completion(
+        new_triple_confs_sr, new_triple_confs_tg, new_triple_premises_sr, new_triple_premises_tg = rule_based_graph_completion(
             self.triple_graph_sr, self.triple_graph_tg, self.rules_sr, self.rules_tg)
-        self.triples_sr += list(new_triple_confs_sr.keys())
-        self.triples_tg += list(new_triple_confs_tg.keys())
-        self.new_triple_confs_sr = dict_union(
-            self.new_triple_confs_sr, new_triple_confs_sr)
-        self.new_triple_confs_tg = dict_union(
-            self.new_triple_confs_tg, new_triple_confs_tg)
+        # self.triples_sr += list(new_triple_confs_sr.keys())
+        # self.triples_tg += list(new_triple_confs_tg.keys())
+        self.new_triple_confs_sr = dict_union(self.new_triple_confs_sr, new_triple_confs_sr)
+        self.new_triple_confs_tg = dict_union(self.new_triple_confs_tg, new_triple_confs_tg)
+        self.new_triple_premises_sr = dict_union(self.new_triple_premises_sr, new_triple_premises_sr)
+        self.new_triple_premises_tg = dict_union(self.new_triple_premises_tg, new_triple_premises_tg)
+
         bi_new_triple_confs = {
             'sr': new_triple_confs_sr, 'tg': new_triple_confs_tg}
         self._print_result_log(bi_new_triple_confs,
@@ -331,7 +289,8 @@ class CrossGraphCompletion(object):
         new_pos_tg = {(h, t) for h, t, r in self.new_triple_confs_tg}
         print('sr ori pos num:', len(ori_pos_sr), '; tg ori pos num:', len(ori_pos_tg))
         print('sr new pos num:', len(new_pos_sr), '; tg new pos num:', len(new_pos_tg))
-        print('sr add pos num:', len(new_pos_sr.intersection(ori_pos_sr)), '; tg add pos num:', len(new_pos_tg.intersection(ori_pos_tg)))
+        print('sr add pos num:', len(new_pos_sr.intersection(ori_pos_sr)), '; tg add pos num:',
+              len(new_pos_tg.intersection(ori_pos_tg)))
 
     def triple_graph_load(self, triples_sr, triples_tg):
         self.triple_graph_sr.load(triples_sr)

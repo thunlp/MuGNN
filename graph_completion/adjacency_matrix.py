@@ -26,11 +26,11 @@ class SpTwinAdj(object):
         self.non_acylic = non_acylic
         self.entity_num_sr = len(cgc.id2entity_sr)
         self.entity_num_tg = len(cgc.id2entity_tg)
+        self.triples_sr = cgc.triples_sr #+ list(cgc.new_triple_confs_sr.keys())
+        self.triples_tg = cgc.triples_tg #+ list(cgc.new_triple_confs_tg.keys())
         self.init()
 
     def init(self):
-        cgc = self.cgc
-
         def _triple2sp_m(triples, size):
             heads, tails, relations = list(zip(*triples))
             pos = list(zip(heads, tails))
@@ -43,9 +43,9 @@ class SpTwinAdj(object):
             value = torch.ones((len(heads),), dtype=torch.int64)
             return torch.sparse_coo_tensor(pos, value, size=torch.Size((size, size)))
 
-        self.sp_adj_sr = _triple2sp_m(str2int4triples(cgc.triples_sr),
+        self.sp_adj_sr = _triple2sp_m(str2int4triples(self.triples_sr),
                                       self.entity_num_sr).coalesce()  # .detach() #.to_dense()
-        self.sp_adj_tg = _triple2sp_m(str2int4triples(cgc.triples_tg),
+        self.sp_adj_tg = _triple2sp_m(str2int4triples(self.triples_tg),
                                       self.entity_num_tg).coalesce()  # .detach() #.to_dense()
         if self.is_cuda:
             self.sp_adj_sr = self.sp_adj_sr.cuda()
@@ -66,23 +66,23 @@ class SpTwinCAW(SpTwinAdj):
         cgc = self.cgc
         self.relation_weighting = RelationWeighting((len(cgc.id2relation_sr), len(cgc.id2relation_tg)))
         head_sr, tail_sr, relation_sr = torch.from_numpy(np.asarray(
-            list(zip(*str2int4triples(cgc.triples_sr))), dtype=np.int64))
+            list(zip(*str2int4triples(self.triples_sr))), dtype=np.int64))
         head_tg, tail_tg, relation_tg = torch.from_numpy(np.asarray(
-            list(zip(*str2int4triples(cgc.triples_tg))), dtype=np.int64))
+            list(zip(*str2int4triples(self.triples_tg))), dtype=np.int64))
         self.relation_sr = relation_sr
         self.relation_tg = relation_tg
         self.pos_sr = torch.cat((head_sr.view(1, -1), tail_sr.view(1, -1)), dim=0)
         self.pos_tg = torch.cat((head_tg.view(1, -1), tail_tg.view(1, -1)), dim=0)
         self.unit_matrix_sr = get_sparse_unit_matrix(self.entity_num_sr)
         self.unit_matrix_tg = get_sparse_unit_matrix(self.entity_num_tg)
-        self.sp_rel_conf_sr, self.sp_rel_imp_sr, self.sp_triple_pca_sr = build_adms_rconf_imp_pca(cgc.triples_sr,
+        self.sp_rel_conf_sr, self.sp_rel_imp_sr, self.sp_triple_pca_sr = build_adms_rconf_imp_pca(self.triples_sr,
                                                                                                   cgc.new_triple_confs_sr,
                                                                                                   self.entity_num_sr,
                                                                                                   cgc.relation2conf_sr,
                                                                                                   cgc.relation2imp_sr,
                                                                                                   self.rule_scale,
                                                                                                   self.non_acylic)
-        self.sp_rel_conf_tg, self.sp_rel_imp_tg, self.sp_triple_pca_tg = build_adms_rconf_imp_pca(cgc.triples_tg,
+        self.sp_rel_conf_tg, self.sp_rel_imp_tg, self.sp_triple_pca_tg = build_adms_rconf_imp_pca(self.triples_tg,
                                                                                                   cgc.new_triple_confs_tg,
                                                                                                   self.entity_num_tg,
                                                                                                   cgc.relation2conf_tg,

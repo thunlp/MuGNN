@@ -98,16 +98,16 @@ class Config(object):
 
         optimizer = self.optimizer(self.net.parameters(), lr=self.lr, weight_decay=self.l2_penalty)
         criterion_align = SpecialLossAlign(self.entity_gamma, cuda=self.is_cuda)
-        criterion_transe = SpecialLossTransE(self.transe_gamma, p=2, re_scale=self.beta, cuda=self.is_cuda)
+        # criterion_transe = SpecialLossTransE(self.transe_gamma, p=2, re_scale=self.beta, cuda=self.is_cuda)
         criterion_rule = SpecialLossRule(self.transe_gamma, re_scale=self.beta, cuda=self.is_cuda)
         for epoch in range(self.num_epoch):
             self.net.train()
             optimizer.zero_grad()
-            repre_sr, repre_tg, transe_score, rule_score = self.net(sr_data, tg_data, triples_data_sr, triples_data_tg,
-                                                                    rules_data_sr, rules_data_tg)
+            repre_sr, repre_tg, transe_tv, rule_tv = self.net(sr_data, tg_data, triples_data_sr, triples_data_tg,
+                                                              rules_data_sr, rules_data_tg)
             align_loss = criterion_align(repre_sr, repre_tg)
-            transe_loss = criterion_transe(transe_score)
-            rule_loss = criterion_rule(rule_score)
+            transe_loss = criterion_rule(transe_tv)
+            rule_loss = criterion_rule(rule_tv)
             loss = sum([align_loss, transe_loss, rule_loss])
             loss.backward()
             optimizer.step()
@@ -118,8 +118,8 @@ class Config(object):
                                     {'Align Loss': float(align_loss), 'TransE Loss': float(transe_loss),
                                      'Rule Loss': float(rule_loss)}, epoch)
             self.now_epoch += 1
+            self.evaluate()
             if (epoch + 1) % self.update_cycle == 0:
-                self.evaluate()
                 sr_data, tg_data, triples_data_sr, triples_data_tg, rules_data_sr, rules_data_tg = self.negative_sampling(
                     ad, triples_sr, triples_tg, rules_sr, rules_tg)
                 if self.is_cuda:

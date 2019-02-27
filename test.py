@@ -1,6 +1,8 @@
-class A(object):
-    pass
+import torch
 
-a = A()
 
-a.get_all()
+a = torch.tensor([i for i in range(10)], dtype=torch.float, requires_grad=True)
+
+print(a.requires_grad)
+a = a.detach()
+print(a.requires_grad)

@@ -35,7 +35,7 @@ config.set_rule_scale(0.5)
 config.init(load=True)
 config.set_net()
 config.print_parameter()
-config.init_log('output')
+config.init_log('sele')
 config.train()
 
 # 1st faster evaluation

@@ -192,6 +192,8 @@ class CrossGraphCompletion(object):
         self.relation_seeds = []
         self.triples_sr = []
         self.triples_tg = []
+        self.triple2id_sr = {}
+        self.triple2id_tg = {}
         self.new_triple_confs_sr = {}
         self.new_triple_confs_tg = {}
         self.new_triple_premises_sr = {}
@@ -226,6 +228,14 @@ class CrossGraphCompletion(object):
             directory, self.language_pair['sr'])
         self.triples_tg, self.id2entity_tg, self.id2relation_tg, self.rules_tg = _load_languge(
             directory, self.language_pair['tg'])
+        assert isinstance(self.triples_sr, list)
+        assert isinstance(self.triples_tg, list)
+        for i, triple in enumerate(self.triples_sr):
+            self.triple2id_sr[triple] = i
+        for i, triple in enumerate(self.triples_tg):
+            self.triple2id_tg[triple] = i
+        assert len(self.triple2id_sr) == len(self.triples_sr)
+        assert len(self.triple2id_tg) == len(self.triples_tg)
         if self.graph_completion:
             self.rule_based_graph_completion()
             self.init_triple_coefficient()
@@ -289,8 +299,8 @@ class CrossGraphCompletion(object):
         new_pos_tg = {(h, t) for h, t, r in self.new_triple_confs_tg}
         print('sr ori pos num:', len(ori_pos_sr), '; tg ori pos num:', len(ori_pos_tg))
         print('sr new pos num:', len(new_pos_sr), '; tg new pos num:', len(new_pos_tg))
-        print('sr add pos num:', len(new_pos_sr.intersection(ori_pos_sr)), '; tg add pos num:',
-              len(new_pos_tg.intersection(ori_pos_tg)))
+        print('sr add pos num:', len(new_pos_sr.difference(ori_pos_sr)), '; tg add pos num:',
+              len(new_pos_tg.difference(ori_pos_tg)))
 
     def triple_graph_load(self, triples_sr, triples_tg):
         self.triple_graph_sr.load(triples_sr)

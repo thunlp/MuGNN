@@ -29,7 +29,7 @@ class EpochDataset(object):
         return DataLoader(self.dataset, batch_size=self.batch_size, shuffle=False, num_workers=2)
 
     def get_data(self):
-        return next(iter(DataLoader(self.dataset, batch_size=len(self.dataset))))
+        return next(iter(DataLoader(self.dataset, batch_size=len(self.dataset), shuffle=False)))
 
 
 class TripleDataset(Dataset):

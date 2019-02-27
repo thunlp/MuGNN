@@ -69,6 +69,7 @@ class Config(object):
             self.cgc = CrossGraphCompletion(directory, self.train_seeds_ratio, self.graph_completion)
             self.cgc.init()
             self.cgc.save(directory / 'running_temp')
+        self.cgc.check()
 
     def train(self):
         cgc = self.cgc

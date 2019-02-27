@@ -17,8 +17,8 @@ class TripleGraph(object):
     def load(self, triples):
         data = self.prefix_load
         for head, tail, relation in triples:
-            data += ('<' + head + '> ' + 'relation:' +
-                     str(relation) + '<' + tail + '> .\n')
+            data += ('<' + str(head) + '> ' + 'relation:' +
+                     str(relation) + '<' + str(tail) + '> .\n')
         self.graph.parse(data=data, format='turtle')
         triples = set(triples)
         self.triples.update(triples)
@@ -47,7 +47,7 @@ class TripleGraph(object):
         premises, hypothesis, conf = rule
         inferred_relation = hypothesis[2]
         for head, tail, relation in premises:
-            query += '?' + head + ' relation:' + relation + ' ?' + tail + ' .\n'
+            query += '?' + str(head) + ' relation:' + str(relation) + ' ?' + str(tail) + ' .\n'
         # query = 'select distinct ?a ?b where {%s}' % query
         query = "select distinct * where {%s}" % query
         query_result = self.graph.query(self.prefix_query + query)
@@ -57,8 +57,8 @@ class TripleGraph(object):
         for binding in bindings:
             premise_instances = []
             for head, tail, relation in premises:
-                premise_instances.append((binding[head], binding[tail], relation))
-            a = binding['a']
-            b = binding['b']
+                premise_instances.append((int(binding[head]), int(binding[tail]), int(relation)))
+            a = int(binding['a'])
+            b = int(binding['b'])
             new_triple_confs_premises.append(((a, b, inferred_relation), conf, premise_instances))
         return new_triple_confs_premises

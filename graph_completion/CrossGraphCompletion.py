@@ -92,7 +92,7 @@ def get_relation2conf(rules):
 
 
 def get_relation2imp(triples, relation_num):
-    relation2imp = {str(i): {'head': set(), 'tail': set()} for i in range(relation_num)}
+    relation2imp = {i: {'head': set(), 'tail': set()} for i in range(relation_num)}
     for head, tail, relation in triples:
         relation2imp[relation]['head'].add(head)
         relation2imp[relation]['tail'].add(tail)

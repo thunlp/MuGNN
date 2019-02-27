@@ -1,27 +1,31 @@
+import math
 import torch
 import torch.nn as nn
-from graph_completion.layers import GraphConvolution, GraphMultiHeadAttLayer, DoubleEmbedding
+import torch.nn.functional as F
+from graph_completion.layers import GraphConvolution, GraphMultiHeadAttLayer
 
 
 class TransE(nn.Module):
     def __init__(self, num_ent, num_rel, dim):
         super(TransE, self).__init__()
-        self.ent_embeddings = nn.Embedding(num_ent, dim, _weight=torch.zeros((num_ent, dim), dtype=torch.float))
-        self.rel_embeddings = nn.Embedding(num_rel, dim, _weight=torch.zeros((num_rel, dim), dtype=torch.float))
-        nn.init.xavier_uniform_(self.entity_embedding.weight.data)
-        nn.init.xavier_uniform_(self.rel_embeddings.weight.data)
+        self.ent_embeddings = nn.Embedding(num_ent, dim)
+        self.rel_embeddings = nn.Embedding(num_rel, dim)
+        nn.init.normal_(self.ent_embeddings, std=1. / math.sqrt(num_ent))
+        nn.init.xavier_uniform_(self.rel_embeddings)
+
+    @property
+    def weight(self):
+        self.ent_embeddings.weight = F.normalize(self.ent_embeddings.weight, dim=-1, p=2)
+        self.rel_embeddings.weight = F.normalize(self.ent_embeddings.weight, dim=-1, p=2)
+        return self.ent_embeddings.weight, self.rel_embeddings.weight
 
     def _calc(self, h, t, r):
         return torch.norm(h + r - t, p=1, dim=-1)
 
-    def loss(self, p_score, n_score):
-        y = torch.Tensor([-1]).cuda()
-        return self.criterion(p_score, n_score, y)
-
-    def forward(self, h_list, t_list, r_list):
+    def forward(self, ent_embeddings, h_list, t_list, r_list):
         # shape = [num, 2*nega+1, embedding_dim]
-        h = self.ent_embeddings(h_list)
-        t = self.ent_embeddings(t_list)
+        h = ent_embeddings(h_list)
+        t = ent_embeddings(t_list)
         r = self.rel_embeddings(r_list)
         return h + r - t
 

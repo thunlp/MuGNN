@@ -36,6 +36,29 @@ class SpecialLoss(nn.Module):
         loss = self.criterion(pos_distance, neg_distance, y)
         return loss
 
+class SpecialLossRule(nn.Module):
+    def __init__(self, margin, re_scale=1.0, cuda=True):
+        super(SpecialLossRule, self).__init__()
+        self.p = 2
+        self.re_scale = re_scale
+        self.criterion = nn.MarginRankingLoss(margin)
+        self.is_cuda = cuda
+
+    def forward(self, score):
+        '''
+        score shape: [batch_size, 1 + nega_sample_num, embedding_dim]
+        '''
+        # distance = torch.abs(score).sum(dim=-1) * self.re_scale
+        pos_score = score[:, 0]
+        nega_score = score[:, 1]
+        y = torch.FloatTensor([1.0])
+        if self.is_cuda:
+            y = y.cuda()
+        loss = self.criterion(pos_score, nega_score, y)
+        loss = loss * self.re_scale
+        return loss
+
+
 
 class SpecialLossTransE(nn.Module):
     def __init__(self, margin, p=2, re_scale=1.0, reduction='mean', cuda=True):

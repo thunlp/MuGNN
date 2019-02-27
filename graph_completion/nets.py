@@ -1,4 +1,4 @@
-import torch
+import torch, math
 import torch.nn as nn
 import torch.nn.functional as F
 from .functions import str2int4triples, multi_process_get_nearest_neighbor
@@ -31,6 +31,7 @@ class GATNet(AlignGraphNet):
     def __init__(self, rule_scale, cgc, num_layer, dim, nheads, sp, alpha=0.2, w_adj=False, *args, **kwargs):
         super(GATNet, self).__init__(*args, **kwargs)
         assert isinstance(cgc, CrossGraphCompletion)
+        self.dim = dim
         num_entity_sr = len(cgc.id2entity_sr)
         num_entity_tg = len(cgc.id2entity_tg)
         if not w_adj:
@@ -39,35 +40,76 @@ class GATNet(AlignGraphNet):
             self.sp_twin_adj = SpTwinCAW(rule_scale, cgc, self.non_acylic)
         self.sp_gat = GAT(dim, dim, nheads, num_layer, self.dropout_rate, alpha, sp, w_adj, self.is_cuda)
         self.entity_embedding = DoubleEmbedding(num_entity_sr, num_entity_tg, dim, type='entity')
-        self.relation_embedding = DoubleEmbedding(len(cgc.id2relation_sr), len(cgc.id2relation_tg), dim, type='relation')
+        self.relation_embedding = DoubleEmbedding(len(cgc.id2relation_sr), len(cgc.id2relation_tg), dim,
+                                                  type='relation')
 
-    def trans_e(self, ent_embedding, rel_embedding, h_list, t_list, r_list):
+    def trans_e(self, ent_embedding, rel_embedding, triples_data):
+        h_list, t_list, r_list = triples_data
         h = ent_embedding[h_list]
         t = ent_embedding[t_list]
         r = rel_embedding[r_list]
         score = h + r - t
         return score
 
+    def truth_value(self, score):
+        score = F.normalize(score, p=2, dim=-1)
+        return 1 - score.sum(dim=-1, keepdim=True) / (3 * math.sqrt(self.dim))
 
-    def forward(self, sr_data, tg_data, h_list_sr, h_list_tg, t_list_sr, t_list_tg, r_list_sr, r_list_tg):
-        graph_embedding_sr, graph_embedding_tg = self.entity_embedding.weight
+    def rule(self, rules_data, trans_e_score, ent_embedding, rel_embedding):
+        # trans_e_score shape = [num, dim]
+        # r_h shape = [num, 1], r_r shape = [num, 2], premises shape = [num, 2]
+        r_h, r_t, r_r, premises = rules_data
+        # print('r_h size', r_h.size())
+        # print('r_t size', r_t.size())
+        # print('r_r size', r_r.size())
+        # print('premises size', premises.size())
+        # print('trans_e_score', trans_e_score.size())
+        trans_e_score = self.truth_value(trans_e_score)
+        # print('trans_e_score', trans_e_score.size())
+        pad_value = torch.tensor([[1.0]])
+        if self.is_cuda:
+            pad_value = pad_value.cuda()
+        trans_e_score = torch.cat((trans_e_score, pad_value), dim=0)  # for padding
+        # print('trans_e_score', trans_e_score.size())
+        # print('trans_e_score', trans_e_score.requires_grad)
+        # trans_e_score shape = [true triple num + 1,]
+        rule_score = self.trans_e(ent_embedding, rel_embedding, (r_h, r_t, r_r))
+        # print('rule_score', rule_score.size())
+        rule_score = self.truth_value(rule_score).squeeze(-1)
+        # print('rule_score', rule_score.size())
+        # print('rule_score', rule_score.requires_grad)
+        # rule_score shape = [num, 2]
+        f1_score = trans_e_score[premises[:, 0]]
+        # print('f1_score', f1_score.size())
+        f2_score = trans_e_score[premises[:, 1]]
+        # print('f2_score', f2_score.size())
+        rule_score = 1 + f1_score * f2_score * (rule_score - 1)
+        # print('rule_score', rule_score.size())
+        # print('rule_score', rule_score.requires_grad)
+        # assert rule_score.size()[1] == 2
+        return rule_score
+
+    def forward(self, sr_data, tg_data, triples_data_sr, triples_data_tg, rules_data_sr, rules_data_tg):
+        ent_embedding_sr, ent_embedding_tg = self.entity_embedding.weight
         rel_embedding_sr, rel_embedding_tg = self.relation_embedding.weight
         adj_sr, adj_tg = self.sp_twin_adj(rel_embedding_sr, rel_embedding_tg)
-        output_sr = self.sp_gat(graph_embedding_sr, adj_sr)
-        output_tg = self.sp_gat(graph_embedding_tg, adj_tg)
-        sr_transe_score = self.trans_e(output_sr, rel_embedding_sr, h_list_sr, t_list_sr, r_list_sr)
-        tg_transe_score = self.trans_e(output_tg, rel_embedding_tg, h_list_tg, t_list_tg, r_list_tg)
+        output_sr = self.sp_gat(ent_embedding_sr, adj_sr)
+        output_tg = self.sp_gat(ent_embedding_tg, adj_tg)
+        sr_transe_score = self.trans_e(output_sr, rel_embedding_sr, triples_data_sr)
+        tg_transe_score = self.trans_e(output_tg, rel_embedding_tg, triples_data_tg)
+        # print('sr_transe_score:', sr_transe_score.size())
+        sr_rule_score = self.rule(rules_data_sr, sr_transe_score[:,0,:], ent_embedding_sr, rel_embedding_sr)
+        tg_rule_score = self.rule(rules_data_tg, tg_transe_score[:,0,:], ent_embedding_tg, rel_embedding_tg)
         transe_score = torch.cat((sr_transe_score, tg_transe_score), dim=0)
-        # print(sr_transe_score.size())
-        return output_sr[sr_data], output_tg[tg_data], transe_score
-
+        rule_score = torch.cat((sr_rule_score, tg_rule_score), dim=0)
+        return output_sr[sr_data], output_tg[tg_data], transe_score, rule_score
 
     def negative_sample(self, sr_data, tg_data):
-        graph_embedding_sr, graph_embedding_tg = self.entity_embedding.weight
+        ent_embedding_sr, ent_embedding_tg = self.entity_embedding.weight
         rel_embedding_sr, rel_embedding_tg = self.relation_embedding.weight
         adj_sr, adj_tg = self.sp_twin_adj(rel_embedding_sr, rel_embedding_tg)
-        output_sr = self.sp_gat(graph_embedding_sr, adj_sr)
-        output_tg = self.sp_gat(graph_embedding_tg, adj_tg)
+        output_sr = self.sp_gat(ent_embedding_sr, adj_sr)
+        output_tg = self.sp_gat(ent_embedding_tg, adj_tg)
         sr_repre = output_sr[sr_data].detach()
         tg_repre = output_tg[tg_data].detach()
         sim_sr = torch_l2distance(sr_repre, sr_repre).cpu().numpy()
@@ -88,7 +130,6 @@ class GATNet(AlignGraphNet):
         repre_e_sr, repre_e_tg = graph_embedding_sr[sr_data], graph_embedding_tg[tg_data]
         sim = torch_l2distance(repre_e_sr.detach(), repre_e_tg.detach()).cpu().numpy()
         return sim
-
 
     def bootstrap(self, entity_seeds, relation_seeds):
         adjacency_matrix_sr, adjacency_matrix_tg = self.cam()

@@ -1,6 +1,6 @@
-a = set(i for i in range(30))
-a.add(100)
-print(a)
-b = set(i for i in range(20))
-b.add(400)
-print(b.difference(a))
+class A(object):
+    pass
+
+a = A()
+
+a.get_all()

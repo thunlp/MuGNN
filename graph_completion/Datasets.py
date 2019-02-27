@@ -29,7 +29,71 @@ class EpochDataset(object):
         return DataLoader(self.dataset, batch_size=self.batch_size, shuffle=False, num_workers=2)
 
     def get_data(self):
-        return next(iter(DataLoader(self.dataset, batch_size=len(self.dataset), shuffle=False)))
+        return next(iter(DataLoader(self.dataset, batch_size=len(self.dataset))))
+
+
+class RuleDataset(Dataset):
+    def __init__(self, new_triple2premises, triples, relations, nega_sample_num):
+        self.triples = set(triples)
+        assert len(self.triples) == len(triples)
+        self.premise_pad = len(self.triples)
+        print_time_info('premise pad number: %d' % self.premise_pad)
+        self.nega_sample_num = nega_sample_num
+        self.relations = relations
+        self.new_triple2premises = new_triple2premises
+        self.h = []
+        self.t = []
+        self.pos_r = []
+        self.neg_r = []
+        self.premises = []
+        self.init()
+
+    def init(self):
+        triples = self.triples
+        relations = self.relations
+        premise_pad = self.premise_pad
+        nega_sample_num = self.nega_sample_num
+        self.h = []
+        self.t = []
+        self.pos_r = []
+        self.neg_r = []
+        self.premises = []
+        for new_triple, premises in self.new_triple2premises.items():
+            h, t, r = new_triple
+            neg_rs = random.sample(relations, k=nega_sample_num)
+            neg_rs = [neg_r for neg_r in neg_rs if (h, t, neg_r) not in triples]
+            while len(neg_rs) < nega_sample_num:
+                neg_r = random.choice(relations)
+                if (h, t, neg_r) not in triples:
+                    neg_rs.append(neg_r)
+            self.neg_r += neg_rs
+            self.pos_r += [r] * nega_sample_num
+            self.h += [h] * nega_sample_num
+            self.t += [t] * nega_sample_num
+            if len(premises) == 1:
+                premises.append(premise_pad)
+            assert len(premises) == 2
+            premises = [premise * 2 * nega_sample_num for premise in premises]  # for rule & transe alignment
+            self.premises += [premises] * nega_sample_num  #
+        assert len(self.h) == len(self.t) == len(self.pos_r) == len(self.neg_r) == len(self.premises)
+        return self
+
+    def __len__(self):
+        return len(self.h)
+
+    def __getitem__(self, idx):
+        h = torch.tensor([self.h[idx]], dtype=torch.int64)
+        t = torch.tensor([self.t[idx]], dtype=torch.int64)
+        r = torch.tensor([self.pos_r[idx], self.neg_r[idx]], dtype=torch.int64)
+        premise = torch.tensor(self.premises[idx], dtype=torch.int64)
+        return h, t, r, premise
+
+    def get_all(self):
+        h_all = torch.tensor(self.h, dtype=torch.int64).view(-1, 1)
+        t_all = torch.tensor(self.t, dtype=torch.int64).view(-1, 1)
+        r_all = torch.tensor(list(zip(self.pos_r, self.neg_r)), dtype=torch.int64)
+        premise_all = torch.tensor(self.premises, dtype=torch.int64)
+        return h_all, t_all, r_all, premise_all
 
 
 class TripleDataset(Dataset):
@@ -89,11 +153,6 @@ class TripleDataset(Dataset):
             self.postive_data[0] += [h] * len(nega_h)
             self.postive_data[1] += [t] * len(nega_h)
             self.postive_data[2] += [r] * len(nega_h)
-
-        if self.corruput:
-            z = list(zip(*self.negative_data))
-            random.shuffle(z)
-            self.negative_data = list(zip(*z))
         return self
 
     def __len__(self):
@@ -110,6 +169,12 @@ class TripleDataset(Dataset):
         t_list = torch.tensor([pos_t, neg_t], dtype=torch.int64)
         r_list = torch.tensor([pos_r, neg_r], dtype=torch.int64)
         return h_list, t_list, r_list
+
+    def get_all(self):
+        h_all = torch.tensor(list(zip(self.postive_data[0], self.negative_data[0])), dtype=torch.int64)
+        t_all = torch.tensor(list(zip(self.postive_data[1], self.negative_data[1])), dtype=torch.int64)
+        r_all = torch.tensor(list(zip(self.postive_data[2], self.negative_data[2])), dtype=torch.int64)
+        return h_all, t_all, r_all
 
 
 class AliagnmentDataset(Dataset):
@@ -135,16 +200,8 @@ class AliagnmentDataset(Dataset):
         nega_tg = []
         for i, seed in enumerate(self.seeds):
             sr, tg = seed
-            # assert sr == self.positive_data[0][i * self.nega_sample_num + 1]
-            # assert tg == self.positive_data[1][i * self.nega_sample_num + 1]
-            # assert len(set(sr_nega[sr])) == self.nega_sample_num
-            # assert len(sr_nega[sr]) == self.nega_sample_num
-            # assert len(set(tg_nega[tg])) == self.nega_sample_num
-            # assert len(tg_nega[tg]) == self.nega_sample_num
             nega_sr += sr_nega[sr]
             nega_tg += tg_nega[tg]
-        # print('The length of negative data:', len(nega_sr), len(nega_tg))
-        # print('The length of positive data:', len(pos_sr), len(pos_tg))
         self.negative_data = [nega_sr, nega_tg]
 
     def init(self):
@@ -186,27 +243,10 @@ class AliagnmentDataset(Dataset):
         tg_data = torch.tensor([pos_tg, neg_tg], dtype=torch.int64)
         return sr_data, tg_data
 
-    # def __getitem__(self, idx):
-    #     nega_sample_num = self.nega_sample_num
-    #     sr, tg = self.seeds[idx]
-    #     # the first data is the positive one
-    #     nega_sr = []
-    #     nega_tg = []
-    #     for _ in range(nega_sample_num):
-    #         can_sr = random.randint(0, self.num_sr - 2)
-    #         can_tg = random.randint(0, self.num_tg - 2)
-    #         if can_sr >= sr:
-    #             can_sr += 1
-    #         if can_tg >= tg:
-    #             can_tg += 1
-    #         nega_sr.append(can_sr)
-    #         nega_tg.append(can_tg)
-    #     sr_data = [sr] + nega_sr + [sr] * nega_sample_num
-    #     tg_data = [tg] + [tg] * nega_sample_num + nega_tg
-    #     sr_data = torch.tensor(sr_data, dtype=torch.int64)
-    #     tg_data = torch.tensor(tg_data, dtype=torch.int64)
-    #     return sr_data, tg_data
-
+    def get_all(self):
+        sr_all = torch.tensor(list(zip(self.positive_data[0], self.negative_data[0])), dtype=torch.int64)
+        tg_all = torch.tensor(list(zip(self.positive_data[1], self.negative_data[1])), dtype=torch.int64)
+        return sr_all, tg_all
 
 if __name__ == '__main__':
     pass

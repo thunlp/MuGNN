@@ -100,7 +100,7 @@ def get_relation2imp(triples, relation_num):
     return relation2imp
 
 
-def rule_based_graph_completion(triple_graph_sr, triple_graph_tg, rules_sr, rules_tg):
+def rule_based_graph_completion(triple_graph_sr, triple_graph_tg, rules_sr, rules_tg, triple2id_sr, triple2id_tg):
     '''
     triples = [(head, tail, relation)]
     return new [((head, tail, relation), conf)...]
@@ -129,6 +129,8 @@ def rule_based_graph_completion(triple_graph_sr, triple_graph_tg, rules_sr, rule
         triple_graph_sr, rules_sr)
     new_triple_confs_tg, new_triple_premises_tg = _rule_based_graph_completion(
         triple_graph_tg, rules_tg)
+    new_triple_premises_sr = {triple:[triple2id_sr[premise] for premise in premises] for triple, premises in new_triple_premises_sr.items()}
+    new_triple_premises_tg = {triple: [triple2id_tg[premise] for premise in premises] for triple, premises in new_triple_premises_tg.items()}
     print_time_info('Rule based graph completion finished!')
     return new_triple_confs_sr, new_triple_confs_tg, new_triple_premises_sr, new_triple_premises_tg
 
@@ -258,9 +260,7 @@ class CrossGraphCompletion(object):
 
         # rule_based_graph_completion
         new_triple_confs_sr, new_triple_confs_tg, new_triple_premises_sr, new_triple_premises_tg = rule_based_graph_completion(
-            self.triple_graph_sr, self.triple_graph_tg, self.rules_sr, self.rules_tg)
-        # self.triples_sr += list(new_triple_confs_sr.keys())
-        # self.triples_tg += list(new_triple_confs_tg.keys())
+            self.triple_graph_sr, self.triple_graph_tg, self.rules_sr, self.rules_tg, self.triple2id_sr, self.triple2id_tg)
         self.new_triple_confs_sr = dict_union(self.new_triple_confs_sr, new_triple_confs_sr)
         self.new_triple_confs_tg = dict_union(self.new_triple_confs_tg, new_triple_confs_tg)
         self.new_triple_premises_sr = dict_union(self.new_triple_premises_sr, new_triple_premises_sr)

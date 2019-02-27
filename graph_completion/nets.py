@@ -35,9 +35,9 @@ class GATNet(AlignGraphNet):
         num_entity_sr = len(cgc.id2entity_sr)
         num_entity_tg = len(cgc.id2entity_tg)
         if not w_adj:
-            self.sp_twin_adj = SpTwinAdj(cgc, self.non_acylic)
+            self.sp_twin_adj = SpTwinAdj(cgc, self.non_acylic, cuda=self.is_cuda)
         else:
-            self.sp_twin_adj = SpTwinCAW(rule_scale, cgc, self.non_acylic)
+            self.sp_twin_adj = SpTwinCAW(rule_scale, cgc, self.non_acylic, cuda=self.is_cuda)
         self.sp_gat = GAT(dim, dim, nheads, num_layer, self.dropout_rate, alpha, sp, w_adj, self.is_cuda)
         self.entity_embedding = DoubleEmbedding(num_entity_sr, num_entity_tg, dim, type='entity')
         self.relation_embedding = DoubleEmbedding(len(cgc.id2relation_sr), len(cgc.id2relation_tg), dim,
@@ -45,6 +45,10 @@ class GATNet(AlignGraphNet):
 
     def trans_e(self, ent_embedding, rel_embedding, triples_data):
         h_list, t_list, r_list = triples_data
+        print(h_list[:20])
+        print(t_list[:20])
+        print(r_list[:20])
+        a = input('wait')
         h = ent_embedding[h_list]
         t = ent_embedding[t_list]
         r = rel_embedding[r_list]
@@ -59,34 +63,16 @@ class GATNet(AlignGraphNet):
         # trans_e_score shape = [num, dim]
         # r_h shape = [num, 1], r_r shape = [num, 2], premises shape = [num, 2]
         r_h, r_t, r_r, premises = rules_data
-        # print('r_h size', r_h.size())
-        # print('r_t size', r_t.size())
-        # print('r_r size', r_r.size())
-        # print('premises size', premises.size())
-        # print('trans_e_score', trans_e_score.size())
         trans_e_score = self.truth_value(trans_e_score)
-        # print('trans_e_score', trans_e_score.size())
         pad_value = torch.tensor([[1.0]])
         if self.is_cuda:
             pad_value = pad_value.cuda()
         trans_e_score = torch.cat((trans_e_score, pad_value), dim=0)  # for padding
-        # print('trans_e_score', trans_e_score.size())
-        # print('trans_e_score', trans_e_score.requires_grad)
-        # trans_e_score shape = [true triple num + 1,]
         rule_score = self.trans_e(ent_embedding, rel_embedding, (r_h, r_t, r_r))
-        # print('rule_score', rule_score.size())
         rule_score = self.truth_value(rule_score).squeeze(-1)
-        # print('rule_score', rule_score.size())
-        # print('rule_score', rule_score.requires_grad)
-        # rule_score shape = [num, 2]
         f1_score = trans_e_score[premises[:, 0]]
-        # print('f1_score', f1_score.size())
         f2_score = trans_e_score[premises[:, 1]]
-        # print('f2_score', f2_score.size())
         rule_score = 1 + f1_score * f2_score * (rule_score - 1)
-        # print('rule_score', rule_score.size())
-        # print('rule_score', rule_score.requires_grad)
-        # assert rule_score.size()[1] == 2
         return rule_score
 
     def forward(self, sr_data, tg_data, triples_data_sr, triples_data_tg, rules_data_sr, rules_data_tg):

@@ -95,7 +95,7 @@ class Config(object):
             triples_data_tg = [data.cuda() for data in triples_data_tg]
             rules_data_sr = [data.cuda() for data in rules_data_sr]
             rules_data_tg = [data.cuda() for data in rules_data_tg]
-        print_time_info("7")
+
         optimizer = self.optimizer(self.net.parameters(), lr=self.lr, weight_decay=self.l2_penalty)
         criterion_align = SpecialLossAlign(self.entity_gamma, cuda=self.is_cuda)
         criterion_transe = SpecialLossTransE(self.transe_gamma, p=2, re_scale=self.beta, cuda=self.is_cuda)
@@ -112,7 +112,7 @@ class Config(object):
             loss.backward()
             optimizer.step()
             print_time_info(
-                'Epoch: %d; align loss = %f; transe loss = %f; rule loss = %f.' % (
+                'Epoch: %d; align loss = %.4f; transe loss = %.4f; rule loss = %.4f.' % (
                     epoch + 1, float(align_loss), float(transe_loss), float(rule_loss)))
             self.writer.add_scalars('data/Loss',
                                     {'Align Loss': float(align_loss), 'TransE Loss': float(transe_loss),
@@ -136,9 +136,9 @@ class Config(object):
             if self.is_cuda:
                 sr_seeds = sr_seeds.cuda()
                 tg_seeds = tg_seeds.cuda()
+            # For Alignment
             sr_nns, tg_nns = self.net.negative_sample(sr_seeds, tg_seeds)
             ad.update_negative_sample(sr_nns, tg_nns)
-            # For Alignment
             sr_data, tg_data = ad.get_all()
             # For TransE
             triples_data_sr = triples_sr.init().get_all()

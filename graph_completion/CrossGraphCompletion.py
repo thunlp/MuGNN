@@ -291,6 +291,19 @@ class CrossGraphCompletion(object):
             sum(self.relation2imp_tg.values()) / len(self.relation2imp_tg)), dash_top=True)
 
     def check(self):
+        # keys = list(self.new_triple_premises_sr.keys())
+        # print(keys[0])
+        # while True:
+        #     a = input('Input the h, t, r of a new triple')
+        #     h, t, r, type = a.strip().split(',')
+        #     triple = (int(h), int(t), int(r))
+        #     try:
+        #         if type == 'sr':
+        #             print(self.new_triple_premises_sr[triple])
+        #         else:
+        #             print(self.new_triple_premises_tg[triple])
+        #     except Exception as e:
+        #         print(e)
         orig_triple_sr = {triple for triple in self.triples_sr if triple not in self.new_triple_confs_sr}
         orig_triple_tg = {triple for triple in self.triples_tg if triple not in self.new_triple_confs_tg}
         ori_pos_sr = {(h, t) for h, t, r in orig_triple_sr}
@@ -301,7 +314,7 @@ class CrossGraphCompletion(object):
         print('sr new pos num:', len(new_pos_sr), '; tg new pos num:', len(new_pos_tg))
         print('sr add pos num:', len(new_pos_sr.difference(ori_pos_sr)), '; tg add pos num:',
               len(new_pos_tg.difference(ori_pos_tg)))
-
+        # exit()
     def triple_graph_load(self, triples_sr, triples_tg):
         self.triple_graph_sr.load(triples_sr)
         self.triple_graph_tg.load(triples_tg)

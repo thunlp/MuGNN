@@ -73,14 +73,9 @@ class SpecialLossTransE(nn.Module):
         score shape: [batch_size, 1 + nega_sample_num, embedding_dim]
         '''
         # distance = torch.abs(score).sum(dim=-1) * self.re_scale
-        if False:
-            distance = torch.norm(score, p=self.p, dim=-1, keepdim=True)
-            pos_score = distance[:, 0, :]
-            nega_score = distance[:, 1, :]
-        else:
-            distance = F.normalize(score, p=self.p, dim=-1)
-            pos_score = distance[:, 0, :].sum(-1, keepdim=True)
-            nega_score = distance[:, 1, :].sum(-1, keepdim=True)
+        print(score.size())
+        pos_score = score[:, :1] #.sum(-1, keepdim=True)
+        nega_score = score[:, 1:] #.sum(-1, keepdim=True)
         y = torch.FloatTensor([-1.0])
         if self.is_cuda:
             y = y.cuda()

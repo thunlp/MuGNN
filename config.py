@@ -26,6 +26,7 @@ class Config(object):
         self.best_hits_1 = (0, 0, 0)  # (epoch, sr, tg)
         self.num_epoch = 10000
         self.update_cycle = 10
+        self.rule_infer = False
         self.directory = directory
         self.train_seeds_ratio = 0.3
 
@@ -101,7 +102,8 @@ class Config(object):
         criterion_align = SpecialLossAlign(self.align_gamma, cuda=self.is_cuda)
         # criterion_transe = SpecialLossTransE(self.transe_gamma, p=2, re_scale=self.beta, cuda=self.is_cuda)
         criterion_trase = SpecialLossRule(self.rule_gamma, cuda=self.is_cuda)
-        criterion_rule = SpecialLossRule(self.rule_gamma, re_scale=self.beta, cuda=self.is_cuda)
+        if self.rule_infer:
+            criterion_rule = SpecialLossRule(self.rule_gamma, re_scale=self.beta, cuda=self.is_cuda)
         for epoch in range(self.num_epoch):
             self.net.train()
             optimizer.zero_grad()
@@ -109,13 +111,15 @@ class Config(object):
                                                               rules_data_sr, rules_data_tg)
             align_loss = criterion_align(repre_sr, repre_tg)
             transe_loss = criterion_trase(transe_tv)
-            rule_loss = criterion_rule(rule_tv)
-            if epoch < self.pre_train:
-                loss = sum([transe_loss, rule_loss])
-            else:
+            if self.rule_infer:
+                rule_loss = criterion_rule(rule_tv)
                 loss = sum([align_loss, transe_loss, rule_loss])
+            else:
+                rule_loss = 0.0
+                loss = sum([align_loss, transe_loss])
             loss.backward()
             optimizer.step()
+            # self.net.normalize()
             print_time_info(
                 'Epoch: %d; align loss = %.4f; transe loss = %.4f; rule loss = %.4f.' % (
                     epoch + 1, float(align_loss), float(transe_loss), float(rule_loss)))
@@ -123,9 +127,9 @@ class Config(object):
                                     {'Align Loss': float(align_loss), 'TransE Loss': float(transe_loss),
                                      'Rule Loss': float(rule_loss)}, epoch)
             self.now_epoch += 1
-            if epoch > self.pre_train:
-                self.evaluate()
             if (epoch + 1) % self.update_cycle == 0:
+                if epoch > self.pre_train:
+                    self.evaluate()
                 sr_data, tg_data, triples_data_sr, triples_data_tg, rules_data_sr, rules_data_tg = self.negative_sampling(
                     ad, triples_sr, triples_tg, rules_sr, rules_tg)
                 if self.is_cuda:
@@ -137,6 +141,7 @@ class Config(object):
                     rules_data_tg = [data.cuda() for data in rules_data_tg]
     @timeit
     def negative_sampling(self, ad, triples_sr, triples_tg, rules_sr, rules_tg):
+        self.net.eval()
         with torch.no_grad():
             sr_seeds, tg_seeds = ad.get_seeds()
             if self.is_cuda:
@@ -221,7 +226,7 @@ class Config(object):
 
     def set_net(self):
         self.net = GATNet(self.rule_scale, self.cgc, self.num_layer, self.embedding_dim, self.nheads, self.sparse,
-                          self.alpha, self.w_adj, self.dropout_rate, self.non_acylic, self.is_cuda)
+                          self.alpha, self.rule_infer, self.w_adj, self.dropout_rate, self.non_acylic, self.is_cuda)
 
     def set_graph_completion(self, graph_completion):
         self.graph_completion = graph_completion
@@ -282,6 +287,9 @@ class Config(object):
 
     def set_pre_train(self, pre_train):
         self.pre_train = pre_train
+
+    def set_rule_infer(self, rule_infer):
+        self.rule_infer = rule_infer
 
     def loop(self, bin_dir):
         # todo: finish it

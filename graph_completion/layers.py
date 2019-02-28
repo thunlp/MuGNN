@@ -123,7 +123,7 @@ class SpGraphAttentionLayer(nn.Module):
 
         # e_rowsum: N x 1
 
-        edge_e = self.dropout(edge_e)
+        # edge_e = self.dropout(edge_e)
         # edge_e: E
         h_prime = self.special_spmm(edge, edge_e, torch.Size([N, N]), h)
 
@@ -184,8 +184,8 @@ class DoubleEmbedding(nn.Module):
         super(DoubleEmbedding, self).__init__()
         self.embedding_sr = nn.Embedding(num_sr, embedding_dim, _weight=torch.zeros((num_sr, embedding_dim), dtype=torch.float))
         self.embedding_tg = nn.Embedding(num_tg, embedding_dim, _weight=torch.zeros((num_tg, embedding_dim), dtype=torch.float))
-        nn.init.xavier_uniform_(self.embedding_sr.weight.data)
-        nn.init.xavier_uniform_(self.embedding_tg.weight.data)
+        # nn.init.xavier_uniform_(self.embedding_sr.weight.data)
+        # nn.init.xavier_uniform_(self.embedding_tg.weight.data)
         if type == 'entity':
             nn.init.normal_(self.embedding_sr.weight.data, std=1. / math.sqrt(num_sr))
             nn.init.normal_(self.embedding_tg.weight.data, std=1. / math.sqrt(num_tg))
@@ -194,6 +194,10 @@ class DoubleEmbedding(nn.Module):
             nn.init.xavier_uniform_(self.embedding_tg.weight.data)
         else:
             raise NotImplementedError
+
+    def normalize(self):
+        self.embedding_sr.weight.data = F.normalize(self.embedding_sr.weight, dim=-1, p=2)
+        self.embedding_tg.weight.data = F.normalize(self.embedding_tg.weight, dim=-1, p=2)
 
     def forward(self, sr_data, tg_data):
         return self.embedding_sr(sr_data), self.embedding_tg(tg_data)

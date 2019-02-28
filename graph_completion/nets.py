@@ -28,10 +28,11 @@ class AlignGraphNet(nn.Module):
 
 
 class GATNet(AlignGraphNet):
-    def __init__(self, rule_scale, cgc, num_layer, dim, nheads, sp, alpha=0.2, w_adj=False, *args, **kwargs):
+    def __init__(self, rule_scale, cgc, num_layer, dim, nheads, sp, alpha=0.2, rule_infer=False, w_adj=False, *args, **kwargs):
         super(GATNet, self).__init__(*args, **kwargs)
         assert isinstance(cgc, CrossGraphCompletion)
         self.dim = dim
+        self.rule_infer = rule_infer
         num_entity_sr = len(cgc.id2entity_sr)
         num_entity_tg = len(cgc.id2entity_tg)
         if not w_adj:
@@ -43,6 +44,10 @@ class GATNet(AlignGraphNet):
         self.relation_embedding = DoubleEmbedding(len(cgc.id2relation_sr), len(cgc.id2relation_tg), dim,
                                                   type='relation')
 
+    def normalize(self):
+        self.entity_embedding.normalize()
+        self.relation_embedding.normalize()
+
     def trans_e(self, ent_embedding, rel_embedding, triples_data):
         h_list, t_list, r_list = triples_data
         h = ent_embedding[h_list]
@@ -52,10 +57,8 @@ class GATNet(AlignGraphNet):
         return score
 
     def truth_value(self, score):
-        # score = F.normalize(score, p=2, dim=-1)
         score = torch.norm(score, p=1, dim=-1)
-        # score = score.sum(-1)
-        return 1 - score / (3 * math.sqrt(self.dim))
+        return 1 - score / 3 / math.sqrt(self.dim)#(3 * math.sqrt(self.dim))
 
     def rule(self, rules_data, transe_tv, ent_embedding, rel_embedding):
         # trans_e_score shape = [num, dim]
@@ -75,24 +78,30 @@ class GATNet(AlignGraphNet):
     def __forward_gat__(self, sr_data, tg_data):
         ent_embedding_sr, ent_embedding_tg = self.entity_embedding.weight
         rel_embedding_sr, rel_embedding_tg = self.relation_embedding.weight
-        # rel_embedding_sr = F.normalize(rel_embedding_sr, dim=-1, p=2)
-        # rel_embedding_tg = F.normalize(rel_embedding_tg, dim=-1, p=2)
         adj_sr, adj_tg = self.sp_twin_adj(rel_embedding_sr, rel_embedding_tg)
         graph_embedding_sr = self.sp_gat(ent_embedding_sr, adj_sr)
         graph_embedding_tg = self.sp_gat(ent_embedding_tg, adj_tg)
-        return graph_embedding_sr[sr_data], graph_embedding_tg[
-            tg_data], graph_embedding_sr, graph_embedding_tg, rel_embedding_sr, rel_embedding_tg
+        sr_data_repre = graph_embedding_sr[sr_data]
+        tg_data_repre = graph_embedding_tg[tg_data]
+        return sr_data_repre, tg_data_repre, graph_embedding_sr, graph_embedding_tg, rel_embedding_sr, rel_embedding_tg
 
     def forward(self, sr_data, tg_data, triples_data_sr, triples_data_tg, rules_data_sr, rules_data_tg):
         sr_data_repre, tg_data_repre, graph_embedding_sr, graph_embedding_tg, rel_embedding_sr, rel_embedding_tg = self.__forward_gat__(
             sr_data, tg_data)
+        graph_embedding_sr = F.normalize(graph_embedding_sr, dim=-1, p=2)
+        graph_embedding_tg = F.normalize(graph_embedding_tg, dim=-1, p=2)
+        rel_embedding_sr = F.normalize(rel_embedding_sr, dim=-1, p=2)
+        rel_embedding_tg = F.normalize(rel_embedding_tg, dim=-1, p=2)
         sr_transe_tv = self.truth_value(self.trans_e(graph_embedding_sr, rel_embedding_sr, triples_data_sr))
         tg_transe_tv = self.truth_value(self.trans_e(graph_embedding_tg, rel_embedding_tg, triples_data_tg))
-        sr_rule_tv = self.rule(rules_data_sr, sr_transe_tv[:, :1], graph_embedding_sr, rel_embedding_sr)
-        tg_rule_tv = self.rule(rules_data_tg, tg_transe_tv[:, 1:], graph_embedding_tg, rel_embedding_tg)
         transe_tv = torch.cat((sr_transe_tv, tg_transe_tv), dim=0)
-        rule_tv = torch.cat((sr_rule_tv, tg_rule_tv), dim=0)
-        return sr_data_repre, tg_data_repre, transe_tv, rule_tv
+        if self.rule_infer:
+            sr_rule_tv = self.rule(rules_data_sr, sr_transe_tv[:, :1], graph_embedding_sr, rel_embedding_sr)
+            tg_rule_tv = self.rule(rules_data_tg, tg_transe_tv[:, 1:], graph_embedding_tg, rel_embedding_tg)
+            rule_tv = torch.cat((sr_rule_tv, tg_rule_tv), dim=0)
+            return sr_data_repre, tg_data_repre, transe_tv, rule_tv
+        else:
+            return sr_data_repre, tg_data_repre, transe_tv, []
 
     def negative_sample(self, sr_data, tg_data):
         sr_data_repre, tg_data_repre, _, _, _, _ = self.__forward_gat__(sr_data, tg_data)

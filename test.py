@@ -1,8 +1,15 @@
-import torch
 
 
-a = torch.tensor([i for i in range(10)], dtype=torch.float, requires_grad=True)
+class a(object):
 
-print(a.requires_grad)
-a = a.detach()
-print(a.requires_grad)
+    def __init__(self):
+        self.box = [1,2,3,4,5]
+        self.box2 = [312, 123]
+
+
+def add(box):
+    box.box.append(100)
+
+aa = a()
+add(aa)
+print(aa.box)

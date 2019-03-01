@@ -11,14 +11,18 @@ from graph_completion.Datasets import AliagnmentDataset, TripleDataset, EpochDat
 from graph_completion.torch_functions import set_random_seed
 from graph_completion.functions import get_hits
 from graph_completion.CrossGraphCompletion import CrossGraphCompletion
+from graph_completion.bp_func import bootstrapping
 
 
 class Config(object):
 
     def __init__(self, directory):
+        # boot strap
+        self.aligned_entites = set()
+        self.aligned_relations = set()
+
         # train train
         self.align_epoch = 2
-
 
         # training
         self.patience = 10
@@ -84,15 +88,17 @@ class Config(object):
             triples_tg = TripleDataset(cgc.triples_tg, self.nega_n_r)
             triples_data_sr = triples_sr.get_all()
             triples_data_tg = triples_tg.get_all()
-            rules_sr = RuleDataset(cgc.new_triple_premises_sr, cgc.triples_sr, list(cgc.id2relation_sr.keys()),
+            rules_sr = RuleDataset(cgc, 'new_triple_premises_sr', cgc.triples_sr, list(cgc.id2relation_sr.keys()),
                                    self.nega_n_r)
-            rules_tg = RuleDataset(cgc.new_triple_premises_tg, cgc.triples_tg, list(cgc.id2relation_tg.keys()),
+            rules_tg = RuleDataset(cgc, 'new_triple_premises_tg', cgc.triples_tg, list(cgc.id2relation_tg.keys()),
                                    self.nega_n_r)
             rules_data_sr = rules_sr.get_all()
             rules_data_tg = rules_tg.get_all()
-            ad = AliagnmentDataset(cgc.train_entity_seeds, self.nega_n_e, len(cgc.id2entity_sr), len(cgc.id2entity_tg), self.is_cuda)
+            ad = AliagnmentDataset(cgc, 'entity_seeds', self.nega_n_e, len(cgc.id2entity_sr), len(cgc.id2entity_tg),
+                                   self.is_cuda)
             ad_data = ad.get_all()
-            ad_rel = AliagnmentDataset(cgc.relation_seeds, self.nega_n_r, len(cgc.id2relation_sr), len(cgc.id2relation_tg), self.is_cuda)
+            ad_rel = AliagnmentDataset(cgc, 'relation_seeds', self.nega_n_r, len(cgc.id2relation_sr),
+                                       len(cgc.id2relation_tg), self.is_cuda)
             ad_rel_data = ad_rel.get_all()
 
         if self.is_cuda:
@@ -112,8 +118,10 @@ class Config(object):
         for epoch in range(self.num_epoch):
             self.net.train()
             optimizer.zero_grad()
-            repre_sr, repre_tg, sr_rel_repre, tg_rel_repre, transe_tv, rule_tv = self.net(ad_data, ad_rel_data, triples_data_sr, triples_data_tg,
-                                                              rules_data_sr, rules_data_tg)
+            repre_sr, repre_tg, sr_rel_repre, tg_rel_repre, transe_tv, rule_tv = self.net(ad_data, ad_rel_data,
+                                                                                          triples_data_sr,
+                                                                                          triples_data_tg,
+                                                                                          rules_data_sr, rules_data_tg)
             align_loss = criterion_align(repre_sr, repre_tg)
             rel_align_loss = criterion_rel(sr_rel_repre, tg_rel_repre)
             transe_loss = criterion_transe(transe_tv)
@@ -129,9 +137,11 @@ class Config(object):
                     epoch + 1, float(align_loss), float(rel_align_loss), float(transe_loss), float(rule_loss)))
             self.writer.add_scalars('data/Loss',
                                     {'Align Loss': float(align_loss), 'TransE Loss': float(transe_loss),
-                                     'Rule Loss': float(rule_loss), 'Relation Align Loss': float(rel_align_loss)}, epoch)
+                                     'Rule Loss': float(rule_loss), 'Relation Align Loss': float(rel_align_loss)},
+                                    epoch)
             self.now_epoch += 1
             if (epoch + 1) % self.update_cycle == 0:
+                ents_sr, ents_tg, rels_sr, rels_tg = self.bootstrap()
                 self.evaluate()
                 ad_data, ad_rel_data, triples_data_sr, triples_data_tg, rules_data_sr, rules_data_tg = self.negative_sampling(
                     ad, ad_rel, triples_sr, triples_tg, rules_sr, rules_tg)
@@ -143,6 +153,30 @@ class Config(object):
                     triples_data_tg = [data.cuda() for data in triples_data_tg]
                     rules_data_sr = [data.cuda() for data in rules_data_sr]
                     rules_data_tg = [data.cuda() for data in rules_data_tg]
+
+    @timeit
+    def bootstrap(self):
+        sr_data, tg_data = list(zip(*self.cgc.test_entity_seeds))
+        sr_rel_data, tg_rel_data = list(zip(*self.cgc.relation_seeds_for_bootstrap))
+        ad_data = torch.tensor(sr_data, dtype=torch.int64), torch.tensor(tg_data, dtype=torch.int64)
+        ad_rel_data = torch.tensor(sr_rel_data, dtype=torch.int64), torch.tensor(tg_rel_data, dtype=torch.int64)
+        if self.is_cuda:
+            ad_data = [data.cuda() for data in ad_data]
+            ad_rel_data = [data.cuda() for data in ad_rel_data]
+        sim_entity, sim_rel = self.net.bootstrap(ad_data, ad_rel_data)
+
+        print_time_info('Bootstrap for entities started.')
+        self.aligned_entites, ent_seeds = bootstrapping(sr_data, tg_data, sim_entity, self.aligned_entites, 20)
+        import numpy as np
+        print('ent_seeds', np.asarray(ent_seeds).shape)
+        print_time_info(
+            'Bootstrap for relations started, as there are no test alignment for relation you can ignore the statistical report down below.')
+        self.aligned_relations, rel_seeds = bootstrapping(sr_rel_data, tg_rel_data, sim_rel,
+                                                                 self.aligned_relations, 2)
+        print('rel_seeds', np.asarray(rel_seeds).shape)
+        self.cgc.bootstrap(ent_seeds, rel_seeds)
+        return ent_seeds, rel_seeds
+
     @timeit
     def negative_sampling(self, ad, ad_rel, triples_sr, triples_tg, rules_sr, rules_tg):
         self.net.eval()
@@ -172,8 +206,6 @@ class Config(object):
     def evaluate(self):
         self.net.eval()
         sr_data, tg_data = list(zip(*self.cgc.test_entity_seeds))
-        sr_data = [int(ele) for ele in sr_data]
-        tg_data = [int(ele) for ele in tg_data]
         sr_data = torch.tensor(sr_data, dtype=torch.int64)
         tg_data = torch.tensor(tg_data, dtype=torch.int64)
         if self.is_cuda:

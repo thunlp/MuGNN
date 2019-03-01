@@ -1,7 +1,7 @@
 import torch, math
 import torch.nn as nn
 import torch.nn.functional as F
-
+from torch import sparse
 
 # [gat(dim_in, dim_out_s, dropout, alpha, concat, cuda) for _ in range(nheads)])
 
@@ -84,65 +84,38 @@ class SpGraphAttentionLayer(nn.Module):
 
 
     def forward(self, inputs, adj):
-        # input shape shape [num_entity, embedding_dim]
         N = inputs.size()[0]
-
-        # edge = adj.nonzero().t()
-        edge = adj.indices()
-        # h = torch.mm(inputs, self.W)
-        # h shape: [num_entity, out_dim]
-        h = torch.mul(inputs, self.W) # todo: dot product
-        # h: N x out
-        assert not torch.isnan(h).any()
-        # print(self.a.data[0])
-        # Self-attention on the nodes - Shared attention mechanism
-        edge_h = torch.cat((h[edge[0, :], :], h[edge[1, :], :]), dim=1).t()
-        # h[edge[0, :], :] shape = [N, outdim] # cat后 [N, outdim*2]
-        # edge_h shape [outdim *2, N]
-        # edge: 2*D x E
-
-        edge_e = torch.exp(self.leakyrelu(self.a.mm(edge_h).squeeze()))
-
-        # for the weighted adj
-        if self.w_adj:
-            assert edge_e.size() == adj.values().size()
-            edge_e = edge_e * adj.values()
-            assert edge_e.size() == adj.values().size()
-
-        assert not torch.isnan(edge_e).any()
-        # edge_e: E
         ones = torch.ones(size=(N, 1), dtype=torch.float32)
-
         if self.is_cuda:
             ones = ones.cuda()
-        e_rowsum = self.special_spmm(edge, edge_e, torch.Size([N, N]), ones)
 
-        # e_rowsum: N x 1
+        edge = adj.indices()
+        h = torch.mul(inputs, self.W)  # todo: dot product
 
-        # edge_e = self.dropout(edge_e)
-        # edge_e: E
-        h_prime = self.special_spmm(edge, edge_e, torch.Size([N, N]), h)
+        # for relation weighting
+        h_prime2 = sparse.mm(adj, h)
+        adj_row_sum = torch.mm(adj, ones)
+        h_prime2 = h_prime2.div(adj_row_sum)
+
+        assert not torch.isnan(h).any()
+        edge_h = torch.cat((h[edge[0, :], :], h[edge[1, :], :]), dim=1).t()
+        edge_e = torch.exp(self.leakyrelu(self.a.mm(edge_h).squeeze()))
+        assert not torch.isnan(edge_e).any()
+        e_rowsum = sparse.mm(torch.sparse_coo_tensor(edge, edge_e), ones)
+        h_prime = sparse.mm(torch.sparse_coo_tensor(edge, edge_e), h)
 
         assert not torch.isnan(h_prime).any()
-        # h_prime: N x out
-
         h_prime = h_prime.div(e_rowsum)
-
-        # h_prime: N x out
         assert not torch.isnan(h_prime).any()
-
-        # add bias
-        # h_prime = h_prime + self.bias
-
+        h_prime = (h_prime2 + h_prime) / 2
         if self.concat:
-            # if this layer is not last layer,
-            output =  F.elu(h_prime)
+            output = F.elu(h_prime)
         else:
-            # if this layer is last layer,
-            output =  h_prime
+            output = h_prime
 
         if self.residual:
             output = inputs + output
+            assert output.size() == inputs.size()
         return output
 
     def __repr__(self):

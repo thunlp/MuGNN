@@ -38,7 +38,7 @@ config.set_rule_infer(True)
 config.init(load=True)
 config.set_net()
 config.print_parameter()
-config.init_log('RelationW')
+config.init_log('Boot')
 config.train()
 
 # 1st faster evaluation

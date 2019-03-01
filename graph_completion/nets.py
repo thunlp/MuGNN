@@ -140,14 +140,15 @@ class GATNet(AlignGraphNet):
         sim = torch_l2distance(sr_data_repre, tg_data_repre).cpu().numpy()
         return sim
 
-    def bootstrap(self, entity_seeds, relation_seeds):
-        adjacency_matrix_sr, adjacency_matrix_tg = self.cam()
-        graph_embedding_sr, graph_embedding_tg = self.cam.entity_embedding_sr.weight, self.cam.entity_embedding_tg.weight
-        for gcn in self.gcn_list:
-            graph_embedding_sr = gcn(graph_embedding_sr, adjacency_matrix_sr)
-            graph_embedding_tg = gcn(graph_embedding_tg, adjacency_matrix_tg)
-        rel_embedding_sr, rel_embedding_tg = self.cam.relation_embedding_sr.weight, self.cam.relation_embedding_tg.weight
-        sim_graph_embedding = cosine_similarity_nbyn(graph_embedding_sr, graph_embedding_tg).cpu().detatch().numpy()
-        sim_rel_embedding = cosine_similarity_nbyn(rel_embedding_sr, rel_embedding_tg).cpu().detatch().numpy()
-        e_rows, e_cols = linear_sum_assignment(sim_graph_embedding)
-        r_rows, r_cols = linear_sum_assignment(sim_rel_embedding)
+    def bootstrap(self, ad_data, ad_rel_data):
+        sr_data_repre, tg_data_repre, _, _, rel_embedding_sr, rel_embedding_tg = self.__forward_gat__(ad_data)
+        assert sr_data_repre.size()[0] == tg_data_repre.size()[0]
+
+        sr_data_repre, tg_data_repre = sr_data_repre.detach(), tg_data_repre.detach()
+        sim_entity = torch_l2distance(sr_data_repre, tg_data_repre).cpu().numpy()
+
+        sr_rel_data, tg_rel_data = ad_rel_data
+        sr_rel_repre, tg_rel_repre = rel_embedding_sr[sr_rel_data].detach(), rel_embedding_tg[tg_rel_data].detach()
+        assert sr_rel_repre.size()[0] == tg_rel_repre.size()[0]
+        sim_rel = torch_l2distance(sr_rel_repre, tg_rel_repre).cpu().numpy()
+        return sim_entity, sim_rel

@@ -3,7 +3,7 @@ import torch
 from tools.print_time_info import print_time_info
 from tools.timeit import timeit
 from torch.utils.data import Dataset, DataLoader
-
+from graph_completion.CrossGraphCompletion import CrossGraphCompletion
 
 class EpochDataset(object):
     def __init__(self, dataset, batch_num=1):
@@ -33,20 +33,33 @@ class EpochDataset(object):
 
 
 class RuleDataset(Dataset):
-    def __init__(self, new_triple2premises, triples, relations, nega_sample_num):
+    def __init__(self, cgc, data_name, triples, relations, nega_sample_num):
         self.triples = set(triples)
         assert len(self.triples) == len(triples)
+        assert isinstance(cgc, CrossGraphCompletion)
+        self.cgc = cgc
+        self.data_name = data_name
         self.premise_pad = len(self.triples)
         print_time_info('premise pad number: %d' % self.premise_pad)
         self.nega_sample_num = nega_sample_num
         self.relations = relations
-        self.new_triple2premises = new_triple2premises
         self.h = []
         self.t = []
         self.pos_r = []
         self.neg_r = []
         self.premises = []
+
+        self.check_p = -100
         self.init()
+
+    @property
+    def new_triple_premises(self):
+        data = getattr(self.cgc, self.data_name)
+        if self.check_p < 0:
+            self.check_p = len(data)
+        else:
+            print('boot check in Rule dataset: ', self.check_p, len(data))
+        return data
 
     def init(self):
         triples = self.triples
@@ -58,7 +71,7 @@ class RuleDataset(Dataset):
         self.pos_r = []
         self.neg_r = []
         self.premises = []
-        for new_triple, premises in self.new_triple2premises.items():
+        for new_triple, premises in self.new_triple_premises.items():
             h, t, r = new_triple
             neg_rs = random.sample(relations, k=nega_sample_num)
             neg_rs = [neg_r for neg_r in neg_rs if (h, t, neg_r) not in triples]
@@ -179,15 +192,27 @@ class TripleDataset(Dataset):
 class AliagnmentDataset(Dataset):
     """Seed alignment dataset."""
 
-    def __init__(self, seeds, nega_sample_num, num_sr, num_tg, cuda):
+    def __init__(self, cgc, data_name, nega_sample_num, num_sr, num_tg, cuda):
+        assert isinstance(cgc, CrossGraphCompletion)
+        self.cgc = cgc
+        self.data_name = data_name
         self.cuda = cuda
         self.num_sr = num_sr
         self.num_tg = num_tg
         self.nega_sample_num = nega_sample_num
-        self.seeds = [[int(sr), int(tg)] for sr, tg in seeds]
         self.positive_data = [[], []]
         self.negative_data = [[], []]
+        self.check_p = -100
         self.init()
+
+    @property
+    def seeds(self):
+        seeds = [[int(sr), int(tg)] for sr, tg in getattr(self.cgc, self.data_name)]
+        if self.check_p < 0:
+            self.check_p = len(seeds)
+        else:
+            print('boot check in ALign dataset: ', self.check_p, len(seeds))
+        return seeds
 
     def get_seeds(self):
         sr, tg = list(zip(*self.seeds))

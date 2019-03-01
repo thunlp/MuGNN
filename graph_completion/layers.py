@@ -73,15 +73,11 @@ class SpGraphAttentionLayer(nn.Module):
         self.out_features = out_features
         self.W = nn.Parameter(torch.zeros(size=(out_features,), dtype=torch.float))
         self.a = nn.Parameter(torch.zeros(size=(1, 2 * out_features), dtype=torch.float32))
-        # self.bias = nn.Parameter(torch.zeros(size=(1, out_features), dtype=torch.float))
         nn.init.ones_(self.W.data)
-        # nn.init.xavier_uniform_(self.W.data, gain=1.414)
         stdv = 1. / math.sqrt(in_features * 2)
         nn.init.uniform_(self.a.data, -stdv, stdv)
-        # self.a.register_hook(lambda x:print('max', torch.max(x), 'min', torch.min(x)))
-        # print(self.a.data[0])
         # nn.init.xavier_uniform_(self.a.data, gain=1.414)
-        # nn.init.xavier_uniform_(self.bias.data, gain=1.414)
+
         self.dropout = nn.Dropout(dropout)
         self.leakyrelu = nn.LeakyReLU(alpha)
         self.special_spmm = SpecialSpmm()

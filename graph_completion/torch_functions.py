@@ -103,6 +103,7 @@ class SpecialLossAlign(nn.Module):
         tg_nega = repre_tg[:, 1, :]
         loss = self.criterion(torch.cat((sr_true, tg_true), dim=0), torch.cat((tg_true, sr_true), dim=0),
                               torch.cat((tg_nega, sr_nega), dim=0))
+        loss = loss * self.re_scale
         return loss
 
 

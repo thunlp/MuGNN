@@ -20,7 +20,7 @@ class AlignGraphNet(nn.Module):
         self.non_acylic = non_acylic
         self.dropout_rate = dropout_rate
 
-    def predict(self, sr_data, tg_data):
+    def predict(self, ad_data):
         raise NotImplementedError
 
     def bootstrap(self, *args):
@@ -28,7 +28,8 @@ class AlignGraphNet(nn.Module):
 
 
 class GATNet(AlignGraphNet):
-    def __init__(self, rule_scale, cgc, num_layer, dim, nheads, sp, alpha=0.2, rule_infer=False, w_adj=False, *args, **kwargs):
+    def __init__(self, rule_scale, cgc, num_layer, dim, nheads, sp, alpha=0.2, rule_infer=False, w_adj=False, *args,
+                 **kwargs):
         super(GATNet, self).__init__(*args, **kwargs)
         assert isinstance(cgc, CrossGraphCompletion)
         self.dim = dim
@@ -58,7 +59,7 @@ class GATNet(AlignGraphNet):
 
     def truth_value(self, score):
         score = torch.norm(score, p=1, dim=-1)
-        return 1 - score / 3 / math.sqrt(self.dim)#(3 * math.sqrt(self.dim))
+        return 1 - score / 3 / math.sqrt(self.dim)  # (3 * math.sqrt(self.dim))
 
     def rule(self, rules_data, transe_tv, ent_embedding, rel_embedding):
         # trans_e_score shape = [num, dim]
@@ -75,7 +76,8 @@ class GATNet(AlignGraphNet):
         rule_score = 1 + f1_score * f2_score * (rule_score - 1)
         return rule_score
 
-    def __forward_gat__(self, sr_data, tg_data):
+    def __forward_gat__(self, ad_data):
+        sr_data, tg_data = ad_data
         ent_embedding_sr, ent_embedding_tg = self.entity_embedding.weight
         rel_embedding_sr, rel_embedding_tg = self.relation_embedding.weight
         adj_sr, adj_tg = self.sp_twin_adj(rel_embedding_sr, rel_embedding_tg)
@@ -83,15 +85,21 @@ class GATNet(AlignGraphNet):
         graph_embedding_tg = self.sp_gat(ent_embedding_tg, adj_tg)
         sr_data_repre = graph_embedding_sr[sr_data]
         tg_data_repre = graph_embedding_tg[tg_data]
-        return sr_data_repre, tg_data_repre, graph_embedding_sr, graph_embedding_tg, rel_embedding_sr, rel_embedding_tg
-
-    def forward(self, sr_data, tg_data, triples_data_sr, triples_data_tg, rules_data_sr, rules_data_tg):
-        sr_data_repre, tg_data_repre, graph_embedding_sr, graph_embedding_tg, rel_embedding_sr, rel_embedding_tg = self.__forward_gat__(
-            sr_data, tg_data)
         graph_embedding_sr = F.normalize(graph_embedding_sr, dim=-1, p=2)
         graph_embedding_tg = F.normalize(graph_embedding_tg, dim=-1, p=2)
+        return sr_data_repre, tg_data_repre, graph_embedding_sr, graph_embedding_tg, rel_embedding_sr, rel_embedding_tg
+
+    def forward(self, ad_data, ad_rel_data, triples_data_sr, triples_data_tg, rules_data_sr, rules_data_tg):
+        sr_data_repre, tg_data_repre, graph_embedding_sr, graph_embedding_tg, rel_embedding_sr, rel_embedding_tg = self.__forward_gat__(
+            ad_data)
+
+        # for relation alignment
+        sr_rel_data, tg_rel_data = ad_rel_data
+        sr_rel_repre, tg_rel_repre = rel_embedding_sr[sr_rel_data], rel_embedding_tg[tg_rel_data]
+
         rel_embedding_sr = F.normalize(rel_embedding_sr, dim=-1, p=2)
         rel_embedding_tg = F.normalize(rel_embedding_tg, dim=-1, p=2)
+
         sr_transe_tv = self.truth_value(self.trans_e(graph_embedding_sr, rel_embedding_sr, triples_data_sr))
         tg_transe_tv = self.truth_value(self.trans_e(graph_embedding_tg, rel_embedding_tg, triples_data_tg))
         transe_tv = torch.cat((sr_transe_tv, tg_transe_tv), dim=0)
@@ -99,23 +107,35 @@ class GATNet(AlignGraphNet):
             sr_rule_tv = self.rule(rules_data_sr, sr_transe_tv[:, :1], graph_embedding_sr, rel_embedding_sr)
             tg_rule_tv = self.rule(rules_data_tg, tg_transe_tv[:, 1:], graph_embedding_tg, rel_embedding_tg)
             rule_tv = torch.cat((sr_rule_tv, tg_rule_tv), dim=0)
-            return sr_data_repre, tg_data_repre, transe_tv, rule_tv
+            return sr_data_repre, tg_data_repre, sr_rel_repre, tg_rel_repre, transe_tv, rule_tv
         else:
-            return sr_data_repre, tg_data_repre, transe_tv, []
+            return sr_data_repre, tg_data_repre, sr_rel_repre, tg_rel_repre, transe_tv, []
 
-    def negative_sample(self, sr_data, tg_data):
-        sr_data_repre, tg_data_repre, _, _, _, _ = self.__forward_gat__(sr_data, tg_data)
+    def negative_sample(self, ad_data, ad_rel_data):
+        sr_data_repre, tg_data_repre, _, _, rel_embedding_sr, rel_embedding_tg = self.__forward_gat__(ad_data)
+
+        # for entity alignment
         sr_data_repre, tg_data_repre = sr_data_repre.detach(), tg_data_repre.detach()
         sim_sr = torch_l2distance(sr_data_repre, sr_data_repre).cpu().numpy()
         sim_tg = torch_l2distance(tg_data_repre, tg_data_repre).cpu().numpy()
+        sr_data, tg_data = ad_data
         sr_nns = multi_process_get_nearest_neighbor(sim_sr, sr_data.cpu().numpy())
         tg_nns = multi_process_get_nearest_neighbor(sim_tg, tg_data.cpu().numpy())
+
+        # for relation alignment
+        sr_rel_data, tg_rel_data = ad_rel_data
+        sr_rel_repre, tg_rel_repre = rel_embedding_sr[sr_rel_data].detach(), rel_embedding_tg[tg_rel_data].detach()
+        rel_sim_sr = torch_l2distance(sr_rel_repre, sr_rel_repre).cpu().numpy()
+        rel_sim_tg = torch_l2distance(tg_rel_repre, tg_rel_repre).cpu().numpy()
+        sr_rel_nns = multi_process_get_nearest_neighbor(rel_sim_sr, sr_rel_data.cpu().numpy())
+        tg_rel_nns = multi_process_get_nearest_neighbor(rel_sim_tg, tg_rel_data.cpu().numpy())
+
         if self.is_cuda:
             torch.cuda.empty_cache()
-        return sr_nns, tg_nns
+        return sr_nns, tg_nns, sr_rel_nns, tg_rel_nns
 
-    def predict(self, sr_data, tg_data):
-        sr_data_repre, tg_data_repre, _, _, _, _ = self.__forward_gat__(sr_data, tg_data)
+    def predict(self, ad_data):
+        sr_data_repre, tg_data_repre, _, _, _, _ = self.__forward_gat__(ad_data)
         sr_data_repre, tg_data_repre = sr_data_repre.detach(), tg_data_repre.detach()
         sim = torch_l2distance(sr_data_repre, tg_data_repre).cpu().numpy()
         return sim

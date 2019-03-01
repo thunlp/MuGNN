@@ -97,8 +97,7 @@ class RuleDataset(Dataset):
 
 
 class TripleDataset(Dataset):
-    def __init__(self, triples, nega_sapmle_num, corruput=False):
-        self.corruput = corruput
+    def __init__(self, triples, nega_sapmle_num):
         self.triples = triples
         self.triple_set = set(triples)
         self.nega_sample_num = nega_sapmle_num
@@ -180,9 +179,8 @@ class TripleDataset(Dataset):
 class AliagnmentDataset(Dataset):
     """Seed alignment dataset."""
 
-    def __init__(self, seeds, nega_sample_num, num_sr, num_tg, cuda, corruput=False):
+    def __init__(self, seeds, nega_sample_num, num_sr, num_tg, cuda):
         self.cuda = cuda
-        self.corruput = corruput
         self.num_sr = num_sr
         self.num_tg = num_tg
         self.nega_sample_num = nega_sample_num
@@ -225,11 +223,6 @@ class AliagnmentDataset(Dataset):
         self.positive_data = [pos_sr, pos_tg]
         self.negative_data = [nega_sr, nega_tg]
 
-        if self.corruput:
-            z = list(zip(*self.negative_data))
-            random.shuffle(z)
-            self.negative_data = list(zip(*z))
-
     def __len__(self):
         return len(self.positive_data[0])
 
@@ -247,6 +240,7 @@ class AliagnmentDataset(Dataset):
         sr_all = torch.tensor(list(zip(self.positive_data[0], self.negative_data[0])), dtype=torch.int64)
         tg_all = torch.tensor(list(zip(self.positive_data[1], self.negative_data[1])), dtype=torch.int64)
         return sr_all, tg_all
+
 
 if __name__ == '__main__':
     pass

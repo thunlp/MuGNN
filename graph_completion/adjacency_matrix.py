@@ -15,8 +15,8 @@ def g_func_template(a, b, c, e):
     :return: sparse tensor shape = [num_entity, num_entity]
     '''
     # return a * b * (1.0*c + 0.0*e)
-    return a * b * (0.5 * c + 0.5 * e)
-
+    # return a * b * (0.5 * c + 0.5 * e)
+    return e
 
 class SpTwinAdj(object):
     def __init__(self, cgc, non_acylic, cuda=True):
@@ -26,8 +26,8 @@ class SpTwinAdj(object):
         self.non_acylic = non_acylic
         self.entity_num_sr = len(cgc.id2entity_sr)
         self.entity_num_tg = len(cgc.id2entity_tg)
-        self.triples_sr = cgc.triples_sr #+ list(cgc.new_triple_confs_sr.keys())
-        self.triples_tg = cgc.triples_tg #+ list(cgc.new_triple_confs_tg.keys())
+        self.triples_sr = cgc.triples_sr + list(cgc.new_triple_confs_sr.keys())
+        self.triples_tg = cgc.triples_tg + list(cgc.new_triple_confs_tg.keys())
         self.init()
 
     def init(self):

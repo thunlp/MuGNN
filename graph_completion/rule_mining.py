@@ -123,7 +123,7 @@ def rule_parser(file_path):
         atoms = []
         for atom in atom_regex.finditer(string):
             # (head, tail, relation)
-            atoms.append((atom.group(1), atom.group(3), atom.group(2)))
+            atoms.append((atom.group(1), atom.group(3), int(atom.group(2))))
         if not atoms:
             print('-------------------------')
             print_time_info(string)
@@ -142,7 +142,7 @@ def rule_parser(file_path):
             mapping[a] = chr(ord('a') + i)
         for i in range(len(premises)):
             head, tail, relation = premises[i]
-            premises[i] = (mapping[head], mapping[tail], relation)
+            premises[i] = (mapping[head], mapping[tail], int(relation))
         return premises
 
     with open(file_path, 'r', encoding='utf8') as f:

@@ -82,7 +82,33 @@ def format_dwy100k():
         _dump_seeds(sup_align, 'train_entity', local_bin)
         _dump_seeds(ref_align, 'test_entity', local_bin)
         _dump_seeds(rel_align, 'train_relation', local_bin)
+
+
+        all2id_sr = {}
+        for ent in ent2id_sr:
+            all2id_sr[ent] = len(all2id_sr)
+        for rel in rel2id_sr:
+            all2id_sr[rel] = len(all2id_sr)
+        all2id_tg = {}
+        for ent in ent2id_tg:
+            all2id_tg[ent] = len(all2id_tg)
+        for rel in rel2id_tg:
+            all2id_tg[rel] = len(all2id_tg)
+        amie_triples_sr = [(all2id_sr[h], all2id_sr[r], all2id_sr[t]) for h, t, r in triples_sr]
+        amie_triples_tg = [(all2id_tg[h], all2id_tg[r], all2id_tg[t]) for h, t, r in triples_tg]
+        amie_triples_sr = [["<" + str(item) + ">" for item in triple] for triple in amie_triples_sr]
+        amie_triples_tg = [["<" + str(item) + ">" for item in triple] for triple in amie_triples_tg]
+
+
         triples_sr = [(ent2id_sr[h], ent2id_sr[t], rel2id_sr[r]) for h, t, r in triples_sr]
         triples_tg = [(ent2id_tg[h], ent2id_tg[t], rel2id_tg[r]) for h, t, r in triples_tg]
         _dump_triples(triples_sr, 'triples_' + sr_name, local_bin)
         _dump_triples(triples_tg, 'triples_' + sr_name, local_bin)
+
+
+        AMIE_dir = local_bin / 'AMIE'
+        AMIE_dir.mkdir()
+        _dump_triples(amie_triples_sr, 'triples_' + sr_name, AMIE_dir)
+        _dump_triples(amie_triples_tg, 'triples_' + tg_name, AMIE_dir)
+        _dump_mapping(all2id_sr, 'all2id_' + sr_name, AMIE_dir)
+        _dump_mapping(all2id_tg, 'all2id_' + tg_name, AMIE_dir)

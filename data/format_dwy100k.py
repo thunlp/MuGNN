@@ -81,7 +81,7 @@ def format_dwy100k():
         rel_align = [(rel2id_sr[sr], rel2id_tg[tg]) for sr, tg in rel_align]
         _dump_seeds(sup_align, 'train_entity', local_bin)
         _dump_seeds(ref_align, 'test_entity', local_bin)
-        _dump_seeds(rel_align, 'train_relation', local_bin)
+        _dump_seeds(rel_align, 'relation', local_bin)
 
 
         all2id_sr = {}
@@ -103,11 +103,12 @@ def format_dwy100k():
         triples_sr = [(ent2id_sr[h], ent2id_sr[t], rel2id_sr[r]) for h, t, r in triples_sr]
         triples_tg = [(ent2id_tg[h], ent2id_tg[t], rel2id_tg[r]) for h, t, r in triples_tg]
         _dump_triples(triples_sr, 'triples_' + sr_name, local_bin)
-        _dump_triples(triples_tg, 'triples_' + sr_name, local_bin)
+        _dump_triples(triples_tg, 'triples_' + tg_name, local_bin)
 
 
         AMIE_dir = local_bin / 'AMIE'
-        AMIE_dir.mkdir()
+        if not AMIE_dir.exists():
+            AMIE_dir.mkdir()
         _dump_triples(amie_triples_sr, 'triples_' + sr_name, AMIE_dir)
         _dump_triples(amie_triples_tg, 'triples_' + tg_name, AMIE_dir)
         _dump_mapping(all2id_sr, 'all2id_' + sr_name, AMIE_dir)

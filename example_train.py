@@ -34,13 +34,15 @@ config.set_w_adj(False)
 config.set_rule_scale(1.0)
 config.set_pre_train(0)
 config.set_rule_infer(True)
+config.set_bootstrap(False)
 
-directory = bin_dir / 'DWY100k'
+
 # directory = bin_dir / 'DWY100k'
-config.init(directory, 'dbp_wd', load=False)
+directory = bin_dir / 'dbp15k'
+config.init(directory, 'fr_en', load=True)
 config.set_net()
 config.print_parameter()
-config.init_log('DBP-WD')
+config.init_log('test')
 config.train()
 
 # 1st faster evaluation

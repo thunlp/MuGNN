@@ -47,11 +47,16 @@ def _load_languge(directory, language):
 
 def _load_seeds(directory, train_seeds_ratio):
     relation_seeds = read_seeds(directory / 'relation_seeds.txt')
-    entity_seeds = read_seeds(directory / 'entity_seeds.txt')
-    random.shuffle(entity_seeds)
-    train_entity_seeds = entity_seeds[:int(len(entity_seeds) * train_seeds_ratio)]
-    assert len(train_entity_seeds) == 4500
-    test_entity_seeds = entity_seeds[int(len(entity_seeds) * train_seeds_ratio):]
+    try:
+        entity_seeds = read_seeds(directory / 'entity_seeds.txt')
+        random.shuffle(entity_seeds)
+        train_entity_seeds = entity_seeds[:int(len(entity_seeds) * train_seeds_ratio)]
+        test_entity_seeds = entity_seeds[int(len(entity_seeds) * train_seeds_ratio):]
+    except FileNotFoundError:
+        train_entity_seeds = read_seeds(directory / 'train_entity_seeds.txt')
+        test_entity_seeds = read_seeds(directory / 'test_entity_seeds.txt')
+        random.shuffle(train_entity_seeds)
+        random.shuffle(test_entity_seeds)
     return train_entity_seeds, test_entity_seeds, relation_seeds
 
 

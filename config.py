@@ -1,11 +1,8 @@
 import torch
-from torch import optim
 from tools.timeit import timeit
-from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
 from tools.print_time_info import print_time_info
 from graph_completion.nets import GATNet
-from graph_completion.functions import str2int4triples
 from graph_completion.torch_functions import SpecialLossTransE, SpecialLossAlign, SpecialLossRule, LimitBasedLoss
 from graph_completion.Datasets import AliagnmentDataset, TripleDataset, EpochDataset, RuleDataset
 from graph_completion.torch_functions import set_random_seed
@@ -18,6 +15,7 @@ class Config(object):
 
     def __init__(self):
         # boot strap
+        self.train_bootstrap = True
         self.ent_seeds = list()
         self.aligned_entites = set()
         self.aligned_relations = set()
@@ -29,11 +27,11 @@ class Config(object):
         self.patience = 10
         self.pre_train = 10
         self.split_num = 1  # split triple dataset into parts
-        self.min_epoch = 3000
+        # self.min_epoch = 3000
         self.bad_result = 0
         self.now_epoch = 0
         self.best_hits_1 = (0, 0, 0)  # (epoch, sr, tg)
-        self.num_epoch = 10000
+        self.num_epoch = 500
         self.update_cycle = 10
         self.rule_infer = False
         self.directory = ''
@@ -79,7 +77,13 @@ class Config(object):
             graph_pair = input('Please input the graph pair for training.\n\t')
         directory = directory / graph_pair
         if load:
-            self.cgc = CrossGraphCompletion.restore(directory / 'running_temp')
+            try:
+                self.cgc = CrossGraphCompletion.restore(directory / 'running_temp')
+            except FileNotFoundError:
+                print_time_info('CrossGraphCompletion cache file not found, start from the beginning.')
+                self.cgc = CrossGraphCompletion(directory, self.train_seeds_ratio, self.graph_completion)
+                self.cgc.init()
+                self.cgc.save(directory / 'running_temp')
         else:
             self.cgc = CrossGraphCompletion(directory, self.train_seeds_ratio, self.graph_completion)
             self.cgc.init()
@@ -117,7 +121,7 @@ class Config(object):
 
         optimizer = self.optimizer(self.net.parameters(), lr=self.lr, weight_decay=self.l2_penalty)
         criterion_align = SpecialLossAlign(self.align_gamma, cuda=self.is_cuda)
-        criterion_rel = SpecialLossAlign(self.rel_align_gamma, re_scale=0.1, cuda=self.is_cuda)
+        criterion_rel = SpecialLossAlign(self.rel_align_gamma, cuda=self.is_cuda)
         criterion_transe = SpecialLossRule(self.rule_gamma, cuda=self.is_cuda)
         criterion_rule = SpecialLossRule(self.rule_gamma, cuda=self.is_cuda)
         for epoch in range(self.num_epoch):
@@ -134,7 +138,6 @@ class Config(object):
             loss = sum([align_loss, rel_align_loss, transe_loss, rule_loss])
             loss.backward()
             optimizer.step()
-            # self.net.normalize()
             print_time_info(
                 'Epoch: %d; align loss = %.4f; relation align loss = %.4f; transe loss = %.4f; rule loss = %.4f.' % (
                     epoch + 1, float(align_loss), float(rel_align_loss), float(transe_loss), float(rule_loss)))
@@ -144,8 +147,8 @@ class Config(object):
                                     epoch)
             self.now_epoch += 1
             if (epoch + 1) % self.update_cycle == 0:
-                # if epoch > 20:
-                #     self.bootstrap()
+                if self.train_bootstrap:
+                    self.bootstrap()
                 self.evaluate()
                 ad_data, ad_rel_data, triples_data_sr, triples_data_tg, rules_data_sr, rules_data_tg = self.negative_sampling(
                     ad, ad_rel, triples_sr, triples_tg, rules_sr, rules_tg)
@@ -236,11 +239,11 @@ class Config(object):
             self.bad_result += 1
         print_time_info('Current best Hits@1 at the %dth epoch: (%.2f, %.2f)' % (self.best_hits_1))
 
-        if self.now_epoch < self.min_epoch:
-            return
-        if self.bad_result >= self.patience:
-            print_time_info('My patience is limited. It is time to stop!', dash_bot=True)
-            exit()
+        # if self.now_epoch < self.min_epoch:
+        #     return
+        # if self.bad_result >= self.patience:
+        #     print_time_info('My patience is limited. It is time to stop!', dash_bot=True)
+        #     exit()
 
     def print_parameter(self, file=None):
         parameters = self.__dict__
@@ -335,6 +338,9 @@ class Config(object):
 
     def set_rel_align_gamma(self, rel_align_gamma):
         self.rel_align_gamma = rel_align_gamma
+
+    def set_bootstrap(self, bootstrap):
+        self.train_bootstrap = bootstrap
 
     def loop(self, bin_dir):
         # todo: finish it

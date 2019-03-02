@@ -6,7 +6,7 @@ from tensorboardX import SummaryWriter
 from tools.print_time_info import print_time_info
 from graph_completion.nets import GATNet
 from graph_completion.functions import str2int4triples
-from graph_completion.torch_functions import SpecialLossTransE, SpecialLossAlign, SpecialLossRule
+from graph_completion.torch_functions import SpecialLossTransE, SpecialLossAlign, SpecialLossRule, LimitBasedLoss
 from graph_completion.Datasets import AliagnmentDataset, TripleDataset, EpochDataset, RuleDataset
 from graph_completion.torch_functions import set_random_seed
 from graph_completion.functions import get_hits
@@ -113,9 +113,9 @@ class Config(object):
 
         optimizer = self.optimizer(self.net.parameters(), lr=self.lr, weight_decay=self.l2_penalty)
         criterion_align = SpecialLossAlign(self.align_gamma, cuda=self.is_cuda)
-        criterion_rel = SpecialLossAlign(self.rel_align_gamma, re_scale=1.0, cuda=self.is_cuda)
-        criterion_transe = SpecialLossRule(self.rule_gamma, cuda=self.is_cuda)
-        criterion_rule = SpecialLossRule(self.rule_gamma, re_scale=self.beta, cuda=self.is_cuda)
+        criterion_rel = SpecialLossAlign(self.rel_align_gamma, re_scale=0.1, cuda=self.is_cuda)
+        criterion_transe = LimitBasedLoss()
+        criterion_rule = LimitBasedLoss()
         for epoch in range(self.num_epoch):
             self.net.train()
             optimizer.zero_grad()

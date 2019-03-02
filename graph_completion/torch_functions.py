@@ -58,7 +58,22 @@ class SpecialLossRule(nn.Module):
         loss = loss * self.re_scale
         return loss
 
+class LimitBasedLoss(nn.Module):
+    def __init__(self, gamma1=0.1, gamma2=0.8, micro=1.0):
+        super(LimitBasedLoss, self).__init__()
+        self.gamma1 = gamma1
+        self.gamma2 = gamma2
+        self.micro = micro
 
+    def forward(self, score):
+        # for my truth value transe
+        score = 1 - score
+
+        pos_score = score[:, 0]
+        nega_score = score[:, 1]
+        loss = torch.clamp(pos_score - self.gamma1, min=0) + self.micro * torch.clamp(self.gamma2 - nega_score, min=0)
+        loss = loss.mean()
+        return loss
 
 class SpecialLossTransE(nn.Module):
     def __init__(self, margin, p=2, re_scale=1.0, reduction='mean', cuda=True):

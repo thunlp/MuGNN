@@ -1,15 +1,11 @@
+import torch
+from torch import sparse
 
 
-class a(object):
+a = torch.tensor([[1,2,3], [0, 1, 2]])
+c = torch.tensor([0,1,0])
 
-    def __init__(self):
-        self.box = [1,2,3,4,5]
-        self.box2 = [312, 123]
+t = torch.sparse_coo_tensor(a, c).coalesce()
 
-
-def add(box):
-    box.box.append(100)
-
-aa = a()
-add(aa)
-print(aa.box)
+one = torch.ones_like(t)
+print(one + t)

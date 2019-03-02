@@ -101,6 +101,10 @@ class SpGraphAttentionLayer(nn.Module):
         edge_h = torch.cat((h[edge[0, :], :], h[edge[1, :], :]), dim=1).t()
         edge_e = torch.exp(self.leakyrelu(self.a.mm(edge_h).squeeze()))
         assert not torch.isnan(edge_e).any()
+
+        # for relation weighting
+        # edge_e = edge_e * adj.values()
+
         e_rowsum = sparse.mm(torch.sparse_coo_tensor(edge, edge_e), ones)
         h_prime = sparse.mm(torch.sparse_coo_tensor(edge, edge_e), h)
 

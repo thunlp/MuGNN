@@ -1,8 +1,8 @@
-import time
 from project_path import bin_dir
 from graph_completion import reader
 from data.format_dbp15k import format_dbp15k_full, format_dbp15k
 from graph_completion.rule_mining import mine_rule_with_amie, parse_and_dump_rules
+from data.format_dwy100k import format_dwy100k
 
 def mine_rule_for_dbp15k(path_name):
     from project_path import bin_dir
@@ -34,7 +34,8 @@ if __name__ == '__main__':
         'valid_ratio': 0.0,
         'test_ratio': 0.0,
     }
-
+    format_dwy100k()
+    exit()
     print(bin_dir.parent)
     exit()
     format_dbp15k(bin_dir, 'dbp15k', 'dbp15k')

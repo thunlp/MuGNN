@@ -1,14 +1,11 @@
 import torch, math
 import torch.nn as nn
 import torch.nn.functional as F
-from .functions import str2int4triples, multi_process_get_nearest_neighbor
+from .functions import multi_process_get_nearest_neighbor
 from .models import GAT
 from .layers import DoubleEmbedding
 from .adjacency_matrix import SpTwinAdj, SpTwinCAW
 from .CrossGraphCompletion import CrossGraphCompletion
-from .torch_functions import cosine_similarity_nbyn, torch_l2distance
-from tools.timeit import timeit
-from scipy.optimize import linear_sum_assignment
 
 __all__ = ['GATNet']
 

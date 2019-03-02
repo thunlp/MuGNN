@@ -16,7 +16,9 @@ def g_func_template(a, b, c, e):
     '''
     # return a * b * (1.0*c + 0.0*e)
     # return a * b * (0.5 * c + 0.5 * e)
-    return e
+    r = a * e
+    r = r.coalesce()
+    return torch.sparse_coo_tensor(r.indices(), r.values() + 1) / 2
 
 class SpTwinAdj(object):
     def __init__(self, cgc, non_acylic, cuda=True):

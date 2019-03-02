@@ -93,9 +93,9 @@ class SpGraphAttentionLayer(nn.Module):
         h = torch.mul(inputs, self.W)  # todo: dot product
 
         # for relation weighting
-        h_prime2 = sparse.mm(adj, h)
-        adj_row_sum = torch.mm(adj, ones)
-        h_prime2 = h_prime2.div(adj_row_sum)
+        # h_prime2 = sparse.mm(adj, h)
+        # adj_row_sum = torch.mm(adj, ones)
+        # h_prime2 = h_prime2.div(adj_row_sum)
 
         assert not torch.isnan(h).any()
         edge_h = torch.cat((h[edge[0, :], :], h[edge[1, :], :]), dim=1).t()
@@ -107,7 +107,7 @@ class SpGraphAttentionLayer(nn.Module):
         assert not torch.isnan(h_prime).any()
         h_prime = h_prime.div(e_rowsum)
         assert not torch.isnan(h_prime).any()
-        h_prime = (h_prime2 + h_prime) / 2
+        # h_prime = (h_prime2 + h_prime) / 2
         if self.concat:
             output = F.elu(h_prime)
         else:

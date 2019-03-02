@@ -3,13 +3,12 @@ import igraph as ig
 import gc, time, itertools
 
 
-class P(object):
-    lambda_3 = 0.7
 
-
-def bootstrapping(ref_ent_sr, ref_ent_tg, ref_sim_mat, labeled_alignment, top_k):
+def bootstrapping(ref_ent_sr, ref_ent_tg, ref_sim_mat, labeled_alignment, top_k, lambda_3):
     # ref_sim_mat shape = [test_num, test_num]
-    th = P.lambda_3
+    if lambda_3 < 0.7:
+        print('relation similar matrix', ref_sim_mat[0,:20])
+    th = lambda_3
     n = ref_sim_mat.shape[0]
     curr_labeled_alignment = find_potential_alignment(ref_sim_mat, th, top_k, n)
     if curr_labeled_alignment is not None:
@@ -47,6 +46,7 @@ def find_potential_alignment(sim_mat, sim_th, k, total_n):
 def generate_alignment(sim_mat, sim_th, k, all_n):
     potential_aligned_pairs = filter_mat(sim_mat, sim_th)
     if len(potential_aligned_pairs) == 0:
+        print('Not even one --------------------------------')
         return None
     check_alignment(potential_aligned_pairs, all_n, context="after sim filtered")
     neighbors = search_nearest_k(sim_mat, k)
@@ -85,7 +85,10 @@ def check_alignment(aligned_pairs, all_n, context="", is_cal=True):
         recall = round(num / all_n, 6)
         if recall > 1.0:
             recall = round(num / all_n, 6)
-        f1 = round(2 * precision * recall / (precision + recall), 6)
+        if precision + recall != 0.0:
+            f1 = round(2 * precision * recall / (precision + recall), 6)
+        else:
+            f1 = 0
         print("precision={}, recall={}, f1={}".format(precision, recall, f1))
 
 

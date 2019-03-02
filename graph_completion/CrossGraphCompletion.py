@@ -252,11 +252,9 @@ class CrossGraphCompletion(object):
 
     def __getattribute__(self, name):
         if name in {'new_triple_confs_sr', 'new_triple_confs_tg', 'new_triple_premises_sr', 'new_triple_premises_tg'}:
-            print('I am called', name)
             attr = object.__getattribute__(self, '_' + name)
             return dict_union(attr, object.__getattribute__(self, 'bp_' + name))
         if name in {'entity_seeds', 'relation_seeds'}:
-            print('I am called', name)
             attr = object.__getattribute__(self, '_' + name)
             return attr + object.__getattribute__(self, 'bp_' + name)
         attr = object.__getattribute__(self, name)

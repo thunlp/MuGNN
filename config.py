@@ -18,6 +18,7 @@ class Config(object):
 
     def __init__(self, directory):
         # boot strap
+        self.ent_seeds = list()
         self.aligned_entites = set()
         self.aligned_relations = set()
 
@@ -140,8 +141,10 @@ class Config(object):
                                      'Rule Loss': float(rule_loss), 'Relation Align Loss': float(rel_align_loss)},
                                     epoch)
             self.now_epoch += 1
+            # if (epoch + 1) % 1 == 0:
             if (epoch + 1) % self.update_cycle == 0:
-                ents_sr, ents_tg, rels_sr, rels_tg = self.bootstrap()
+                # if epoch > 20:
+                #     self.bootstrap()
                 self.evaluate()
                 ad_data, ad_rel_data, triples_data_sr, triples_data_tg, rules_data_sr, rules_data_tg = self.negative_sampling(
                     ad, ad_rel, triples_sr, triples_tg, rules_sr, rules_tg)
@@ -157,7 +160,7 @@ class Config(object):
     @timeit
     def bootstrap(self):
         sr_data, tg_data = list(zip(*self.cgc.test_entity_seeds))
-        sr_rel_data, tg_rel_data = list(zip(*self.cgc.relation_seeds_for_bootstrap))
+        sr_rel_data, tg_rel_data = list(zip(*self.cgc.test_relaiton_seeds))
         ad_data = torch.tensor(sr_data, dtype=torch.int64), torch.tensor(tg_data, dtype=torch.int64)
         ad_rel_data = torch.tensor(sr_rel_data, dtype=torch.int64), torch.tensor(tg_rel_data, dtype=torch.int64)
         if self.is_cuda:
@@ -166,16 +169,15 @@ class Config(object):
         sim_entity, sim_rel = self.net.bootstrap(ad_data, ad_rel_data)
 
         print_time_info('Bootstrap for entities started.')
-        self.aligned_entites, ent_seeds = bootstrapping(sr_data, tg_data, sim_entity, self.aligned_entites, 20)
-        import numpy as np
-        print('ent_seeds', np.asarray(ent_seeds).shape)
+        self.aligned_entites, ent_seeds = bootstrapping(sr_data, tg_data, sim_entity, self.aligned_entites, 20,
+                                                             0.70)
+        print_time_info('Bootstrapped Entity Number: ' + str(len(ent_seeds)))
         print_time_info(
             'Bootstrap for relations started, as there are no test alignment for relation you can ignore the statistical report down below.')
         self.aligned_relations, rel_seeds = bootstrapping(sr_rel_data, tg_rel_data, sim_rel,
-                                                                 self.aligned_relations, 2)
-        print('rel_seeds', np.asarray(rel_seeds).shape)
+                                                          self.aligned_relations, 4, 0.25)
+        print_time_info('Bootstrapped Relation Number: ' + str(len(rel_seeds)))
         self.cgc.bootstrap(ent_seeds, rel_seeds)
-        return ent_seeds, rel_seeds
 
     @timeit
     def negative_sampling(self, ad, ad_rel, triples_sr, triples_tg, rules_sr, rules_tg):
@@ -212,6 +214,8 @@ class Config(object):
             sr_data = sr_data.cuda()
             tg_data = tg_data.cuda()
         sim = self.net.predict((sr_data, tg_data))
+        for x, y in self.aligned_entites:
+            sim[x, y] -= 1.0
         top_lr, top_rl, mr_lr, mr_rl, mrr_lr, mrr_rl = get_hits(sim)
         self.writer.add_scalars('data/Hits@N', {'Hits@1 sr': top_lr[0],
                                                 'Hits@10 sr': top_lr[1],

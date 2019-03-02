@@ -202,16 +202,11 @@ class AliagnmentDataset(Dataset):
         self.nega_sample_num = nega_sample_num
         self.positive_data = [[], []]
         self.negative_data = [[], []]
-        self.check_p = -100
         self.init()
 
     @property
     def seeds(self):
         seeds = [[int(sr), int(tg)] for sr, tg in getattr(self.cgc, self.data_name)]
-        if self.check_p < 0:
-            self.check_p = len(seeds)
-        else:
-            print('boot check in ALign dataset: ', self.check_p, len(seeds))
         return seeds
 
     def get_seeds(self):

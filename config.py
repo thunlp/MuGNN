@@ -16,7 +16,7 @@ from graph_completion.bp_func import bootstrapping
 
 class Config(object):
 
-    def __init__(self, directory):
+    def __init__(self):
         # boot strap
         self.ent_seeds = list()
         self.aligned_entites = set()
@@ -36,7 +36,7 @@ class Config(object):
         self.num_epoch = 10000
         self.update_cycle = 10
         self.rule_infer = False
-        self.directory = directory
+        self.directory = ''
         self.train_seeds_ratio = 0.3
 
         # model
@@ -70,10 +70,14 @@ class Config(object):
         # cuda
         self.is_cuda = True
 
-    def init(self, load=True):
+    def init(self, directory, graph_pair, load=True):
         set_random_seed()
-        language_pair_dirs = list(self.directory.glob('*_en'))
-        directory = language_pair_dirs[0]
+        self.directory = directory
+        language_pair_dirs = [path.name for path in self.directory.glob('*')]
+        print(language_pair_dirs)
+        while not graph_pair in language_pair_dirs:
+            graph_pair = input('Please input the graph pair for training.\n\t')
+        directory = directory / graph_pair
         if load:
             self.cgc = CrossGraphCompletion.restore(directory / 'running_temp')
         else:
@@ -114,8 +118,8 @@ class Config(object):
         optimizer = self.optimizer(self.net.parameters(), lr=self.lr, weight_decay=self.l2_penalty)
         criterion_align = SpecialLossAlign(self.align_gamma, cuda=self.is_cuda)
         criterion_rel = SpecialLossAlign(self.rel_align_gamma, re_scale=0.1, cuda=self.is_cuda)
-        criterion_transe = LimitBasedLoss()
-        criterion_rule = LimitBasedLoss()
+        criterion_transe = SpecialLossRule(self.rule_gamma, cuda=self.is_cuda)
+        criterion_rule = SpecialLossRule(self.rule_gamma, cuda=self.is_cuda)
         for epoch in range(self.num_epoch):
             self.net.train()
             optimizer.zero_grad()
@@ -139,7 +143,6 @@ class Config(object):
                                      'Rule Loss': float(rule_loss), 'Relation Align Loss': float(rel_align_loss)},
                                     epoch)
             self.now_epoch += 1
-            # if (epoch + 1) % 1 == 0:
             if (epoch + 1) % self.update_cycle == 0:
                 # if epoch > 20:
                 #     self.bootstrap()

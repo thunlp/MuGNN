@@ -6,8 +6,8 @@ from torch.optim import Adagrad, SGD, Adam
 
 # CUDA_LAUNCH_BLOCKING=1
 
-directory = bin_dir / 'dbp15k'
-config = Config(directory)
+
+config = Config()
 try:
     os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]
 except IndexError:
@@ -35,10 +35,12 @@ config.set_rule_scale(1.0)
 config.set_pre_train(0)
 config.set_rule_infer(True)
 
-config.init(load=True)
+directory = bin_dir / 'DWY100k'
+# directory = bin_dir / 'DWY100k'
+config.init(directory, 'dbp_wd', load=False)
 config.set_net()
 config.print_parameter()
-config.init_log('CosineBestLimLossMicro')
+config.init_log('DBP-WD')
 config.train()
 
 # 1st faster evaluation

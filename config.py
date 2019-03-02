@@ -127,12 +127,10 @@ class Config(object):
             rel_align_loss = criterion_rel(sr_rel_repre, tg_rel_repre)
             transe_loss = criterion_transe(transe_tv)
             rule_loss = criterion_rule(rule_tv)
-            # if epoch % 3 == 0:
-            #     loss = align_loss
-            # else:
             loss = sum([align_loss, rel_align_loss, transe_loss, rule_loss])
             loss.backward()
             optimizer.step()
+            # self.net.normalize()
             print_time_info(
                 'Epoch: %d; align loss = %.4f; relation align loss = %.4f; transe loss = %.4f; rule loss = %.4f.' % (
                     epoch + 1, float(align_loss), float(rel_align_loss), float(transe_loss), float(rule_loss)))

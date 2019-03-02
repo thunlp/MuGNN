@@ -5,6 +5,7 @@ from tools.timeit import timeit
 from torch.utils.data import Dataset, DataLoader
 from graph_completion.CrossGraphCompletion import CrossGraphCompletion
 
+
 class EpochDataset(object):
     def __init__(self, dataset, batch_num=1):
         assert isinstance(dataset, Dataset)
@@ -109,6 +110,30 @@ class RuleDataset(Dataset):
         return h_all, t_all, r_all, premise_all
 
 
+class BatchRuleDataset(RuleDataset):
+    def __init__(self, batch_num, cgc, data_name, triples, relations, nega_sample_num):
+        super(BatchRuleDataset, self).__init__(cgc, data_name, triples, relations, nega_sample_num)
+        self.batch_num = batch_num
+        if len(self.h) % batch_num == 0:
+            self.batch_size = len(self.h) // batch_num
+        else:
+            self.batch_size = len(self.h) // batch_num + 1
+        assert self.batch_num * self.batch_size >= len(self.h)
+        assert (self.batch_num - 1) * self.batch_size < len(self.h)
+
+    def __len__(self):
+        return self.batch_num
+
+    def __getitem__(self, idx):
+        start = idx * self.batch_size
+        end = start + self.batch_size
+        h = torch.tensor(self.h[start:end], dtype=torch.int64).view(-1, 1)
+        t = torch.tensor(self.t[start:end], dtype=torch.int64).view(-1, 1)
+        r = torch.tensor(list(zip(self.pos_r[start:end], self.neg_r[start:end])), dtype=torch.int64)
+        premise = torch.tensor(self.premises[start:end], dtype=torch.int64)
+        return h, t, r, premise
+
+
 class TripleDataset(Dataset):
     def __init__(self, triples, nega_sapmle_num):
         self.triples = triples
@@ -187,6 +212,32 @@ class TripleDataset(Dataset):
         t_all = torch.tensor(list(zip(self.postive_data[1], self.negative_data[1])), dtype=torch.int64)
         r_all = torch.tensor(list(zip(self.postive_data[2], self.negative_data[2])), dtype=torch.int64)
         return h_all, t_all, r_all
+
+
+class BatchTripleDataset(TripleDataset):
+    def __init__(self, batch_num, triples, nega_sapmle_num):
+        super(BatchTripleDataset, self).__init__(triples, nega_sapmle_num)
+        self.batch_num = batch_num
+        if len(self.postive_data[0]) % batch_num == 0:
+            self.batch_size = len(self.postive_data[0]) // batch_num
+        else:
+            self.batch_size = len(self.postive_data[0]) // batch_num + 1
+        assert self.batch_num * self.batch_size >= len(self.postive_data[0])
+        assert (self.batch_num - 1) * self.batch_size < len(self.postive_data[0])
+
+    def __len__(self):
+        return self.batch_num
+
+    def __getitem__(self, idx):
+        start = idx * self.batch_size
+        end = start + self.batch_size
+        h = torch.tensor(list(zip(self.postive_data[0][start:end], self.negative_data[0][start:end])),
+                         dtype=torch.int64)
+        t = torch.tensor(list(zip(self.postive_data[1][start:end], self.negative_data[1][start:end])),
+                         dtype=torch.int64)
+        r = torch.tensor(list(zip(self.postive_data[2][start:end], self.negative_data[2][start:end])),
+                         dtype=torch.int64)
+        return h, t, r
 
 
 class AliagnmentDataset(Dataset):

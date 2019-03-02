@@ -35,14 +35,14 @@ config.set_rule_scale(1.0)
 config.set_pre_train(0)
 config.set_rule_infer(True)
 config.set_bootstrap(False)
-
+config.set_train_big(True)
 
 # directory = bin_dir / 'DWY100k'
 directory = bin_dir / 'dbp15k'
 config.init(directory, 'fr_en', load=True)
 config.set_net()
 config.print_parameter()
-config.init_log('test')
+config.init_log('dbp_yg')
 config.train()
 
 # 1st faster evaluation

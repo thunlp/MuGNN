@@ -1,10 +1,11 @@
 import torch
 from tools.timeit import timeit
+from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
 from tools.print_time_info import print_time_info
 from graph_completion.nets import GATNet
 from graph_completion.torch_functions import SpecialLossTransE, SpecialLossAlign, SpecialLossRule, LimitBasedLoss
-from graph_completion.Datasets import AliagnmentDataset, TripleDataset, EpochDataset, RuleDataset
+from graph_completion.Datasets import AliagnmentDataset, TripleDataset, EpochDataset, RuleDataset, BatchTripleDataset, BatchRuleDataset
 from graph_completion.torch_functions import set_random_seed
 from graph_completion.functions import get_hits
 from graph_completion.CrossGraphCompletion import CrossGraphCompletion
@@ -22,7 +23,7 @@ class Config(object):
 
         # train train
         self.align_epoch = 2
-
+        self.train_big = False
         # training
         self.patience = 10
         self.pre_train = 10
@@ -71,6 +72,7 @@ class Config(object):
     def init(self, directory, graph_pair, load=True):
         set_random_seed()
         self.directory = directory
+        self.graph_pair = graph_pair
         language_pair_dirs = [path.name for path in self.directory.glob('*')]
         print(language_pair_dirs)
         while not graph_pair in language_pair_dirs:
@@ -91,6 +93,12 @@ class Config(object):
         self.cgc.check()
 
     def train(self):
+        if self.train_big:
+            self.train_epoch()
+        else:
+            self.train_batch()
+
+    def train_epoch(self):
         cgc = self.cgc
         with torch.no_grad():
             triples_sr = TripleDataset(cgc.triples_sr, self.nega_n_r)
@@ -161,6 +169,99 @@ class Config(object):
                     rules_data_sr = [data.cuda() for data in rules_data_sr]
                     rules_data_tg = [data.cuda() for data in rules_data_tg]
 
+    def train_batch(self):
+        cgc = self.cgc
+        split_num = 4
+        with torch.no_grad():
+            triples_sr = BatchTripleDataset(split_num, cgc.triples_sr, self.nega_n_r)
+            triples_tg = BatchTripleDataset(split_num, cgc.triples_tg, self.nega_n_r)
+
+            rules_sr = BatchRuleDataset(split_num, cgc, 'new_triple_premises_sr', cgc.triples_sr, list(cgc.id2relation_sr.keys()),
+                                   self.nega_n_r)
+            rules_tg = BatchRuleDataset(split_num, cgc, 'new_triple_premises_tg', cgc.triples_tg, list(cgc.id2relation_tg.keys()),
+                                   self.nega_n_r)
+
+
+            assert len(triples_sr) == len(triples_tg) == len(rules_sr) == len(rules_tg) == split_num
+
+            ad = AliagnmentDataset(cgc, 'entity_seeds', self.nega_n_e, len(cgc.id2entity_sr), len(cgc.id2entity_tg),
+                                   self.is_cuda)
+            ad_data = ad.get_all()
+            ad_rel = AliagnmentDataset(cgc, 'relation_seeds', self.nega_n_r, len(cgc.id2relation_sr),
+                                       len(cgc.id2relation_tg), self.is_cuda)
+            ad_rel_data = ad_rel.get_all()
+
+        if self.is_cuda:
+            self.net.cuda()
+            ad_data = [data.cuda() for data in ad_data]
+            ad_rel_data = [data.cuda() for data in ad_rel_data]
+
+
+        optimizer = self.optimizer(self.net.parameters(), lr=self.lr, weight_decay=self.l2_penalty)
+        criterion_align = SpecialLossAlign(self.align_gamma, cuda=self.is_cuda)
+        criterion_rel = SpecialLossAlign(self.rel_align_gamma, cuda=self.is_cuda)
+        criterion_transe = SpecialLossRule(self.rule_gamma, cuda=self.is_cuda)
+        criterion_rule = SpecialLossRule(self.rule_gamma, cuda=self.is_cuda)
+        for epoch in range(self.num_epoch):
+            self.net.train()
+            align_loss = 0.0
+            rel_align_loss = 0.0
+            transe_loss = 0.0
+            rule_loss = 0.0
+            for i in range(split_num):
+                optimizer.zero_grad()
+                triples_data_sr = triples_sr[i]
+                triples_data_tg = triples_tg[i]
+                rules_data_sr = rules_sr[i]
+                rules_data_tg = rules_tg[i]
+                if self.is_cuda:
+                    triples_data_sr = [data.cuda() for data in triples_data_sr]
+                    triples_data_tg = [data.cuda() for data in triples_data_tg]
+                    rules_data_sr = [data.cuda() for data in rules_data_sr]
+                    rules_data_tg = [data.cuda() for data in rules_data_tg]
+
+                repre_sr, repre_tg, sr_rel_repre, tg_rel_repre, transe_tv, rule_tv = self.net(ad_data, ad_rel_data,
+                                                                                              triples_data_sr,
+                                                                                              triples_data_tg,
+                                                                                              rules_data_sr, rules_data_tg)
+                b_align_loss = criterion_align(repre_sr, repre_tg)
+                b_rel_align_loss = criterion_rel(sr_rel_repre, tg_rel_repre)
+                b_transe_loss = criterion_transe(transe_tv)
+                b_rule_loss = criterion_rule(rule_tv)
+
+                align_loss += float(b_align_loss)
+                rel_align_loss += float(b_rel_align_loss)
+                transe_loss += float(b_transe_loss)
+                rule_loss += float(b_rule_loss)
+
+                loss = sum([b_align_loss, b_rel_align_loss, b_transe_loss, b_rule_loss])
+                loss.backward()
+                optimizer.step()
+
+            align_loss /= split_num
+            rel_align_loss /= split_num
+            transe_loss /= split_num
+            rule_loss /= split_num
+
+            print_time_info(
+                'Epoch: %d; align loss = %.4f; relation align loss = %.4f; transe loss = %.4f; rule loss = %.4f.' % (
+                    epoch + 1, float(align_loss), float(rel_align_loss), float(transe_loss), float(rule_loss)))
+            self.writer.add_scalars('data/Loss',
+                                    {'Align Loss': float(align_loss), 'TransE Loss': float(transe_loss),
+                                     'Rule Loss': float(rule_loss), 'Relation Align Loss': float(rel_align_loss)},
+                                    epoch)
+            self.now_epoch += 1
+            if (epoch + 1) % self.update_cycle == 0:
+                if self.train_bootstrap:
+                    self.bootstrap()
+                self.evaluate()
+                ad_data, ad_rel_data, triples_sr, triples_tg, rules_sr, rules_tg = self.negative_sampling(
+                    ad, ad_rel, triples_sr, triples_tg, rules_sr, rules_tg)
+                if self.is_cuda:
+                    torch.cuda.empty_cache()
+                    ad_data = [data.cuda() for data in ad_data]
+                    ad_rel_data = [data.cuda() for data in ad_rel_data]
+
     @timeit
     def bootstrap(self):
         sr_data, tg_data = list(zip(*self.cgc.test_entity_seeds))
@@ -174,7 +275,7 @@ class Config(object):
 
         print_time_info('Bootstrap for entities started.')
         self.aligned_entites, ent_seeds = bootstrapping(sr_data, tg_data, sim_entity, self.aligned_entites, 20,
-                                                             0.70)
+                                                        0.70)
         print_time_info('Bootstrapped Entity Number: ' + str(len(ent_seeds)))
         print_time_info(
             'Bootstrap for relations started, as there are no test alignment for relation you can ignore the statistical report down below.')
@@ -193,19 +294,30 @@ class Config(object):
                 ad_seeds = [seeds.cuda() for seeds in ad_seeds]
                 ad_rel_seeds = [seeds.cuda() for seeds in ad_rel_seeds]
 
+            sample_relation = True
+            if self.graph_pair == 'dbp_yg':
+                sample_relation = False
+
             # For Alignment
-            sr_nns, tg_nns, sr_rel_nns, tg_rel_nns = self.net.negative_sample(ad_seeds, ad_rel_seeds)
+            sr_nns, tg_nns, sr_rel_nns, tg_rel_nns = self.net.negative_sample(ad_seeds, ad_rel_seeds, sample_relation)
             ad.update_negative_sample(sr_nns, tg_nns)
-            ad_rel.update_negative_sample(sr_rel_nns, tg_rel_nns)
+            if sample_relation:
+                ad_rel.update_negative_sample(sr_rel_nns, tg_rel_nns)
+            else:
+                ad_rel.init()
 
             ad_data = ad.get_all()
             ad_rel_data = ad_rel.get_all()
+            triples_sr.init(), triples_tg.init(), rules_sr.init(), rules_tg.init()
+            if self.train_big:
+                return ad_data, ad_rel_data, triples_sr, triples_tg, rules_sr, rules_tg
+
             # For TransE
-            triples_data_sr = triples_sr.init().get_all()
-            triples_data_tg = triples_tg.init().get_all()
+            triples_data_sr = triples_sr.get_all()
+            triples_data_tg = triples_tg.get_all()
             # For rules
-            rules_data_sr = rules_sr.init().get_all()
-            rules_data_tg = rules_tg.init().get_all()
+            rules_data_sr = rules_sr.get_all()
+            rules_data_tg = rules_tg.get_all()
             return ad_data, ad_rel_data, triples_data_sr, triples_data_tg, rules_data_sr, rules_data_tg
 
     @timeit
@@ -341,6 +453,9 @@ class Config(object):
 
     def set_bootstrap(self, bootstrap):
         self.train_bootstrap = bootstrap
+
+    def set_train_big(self, train_big):
+        self.train_big = train_big
 
     def loop(self, bin_dir):
         # todo: finish it

@@ -107,7 +107,7 @@ class GATNet(AlignGraphNet):
         else:
             return sr_data_repre, tg_data_repre, sr_rel_repre, tg_rel_repre, transe_tv, []
 
-    def negative_sample(self, ad_data, ad_rel_data):
+    def negative_sample(self, ad_data, ad_rel_data, sample_relation=True):
         sr_data_repre, tg_data_repre, _, _, rel_embedding_sr, rel_embedding_tg = self.__forward_gat__(ad_data)
 
         # for entity alignment
@@ -120,6 +120,9 @@ class GATNet(AlignGraphNet):
         sr_nns = multi_process_get_nearest_neighbor(sim_sr, sr_data.cpu().numpy())
         tg_nns = multi_process_get_nearest_neighbor(sim_tg, tg_data.cpu().numpy())
 
+        if not sample_relation:
+            return sr_nns, tg_nns, None, None
+
         # for relation alignment
         sr_rel_data, tg_rel_data = ad_rel_data
         sr_rel_repre, tg_rel_repre = rel_embedding_sr[sr_rel_data].detach(), rel_embedding_tg[tg_rel_data].detach()
@@ -129,9 +132,6 @@ class GATNet(AlignGraphNet):
         rel_sim_tg = - torch.mm(tg_rel_repre, tg_rel_repre.t()).cpu().numpy()
         sr_rel_nns = multi_process_get_nearest_neighbor(rel_sim_sr, sr_rel_data.cpu().numpy())
         tg_rel_nns = multi_process_get_nearest_neighbor(rel_sim_tg, tg_rel_data.cpu().numpy())
-
-        if self.is_cuda:
-            torch.cuda.empty_cache()
         return sr_nns, tg_nns, sr_rel_nns, tg_rel_nns
 
     def predict(self, ad_data):

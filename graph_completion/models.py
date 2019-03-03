@@ -2,7 +2,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from graph_completion.layers import GraphConvolution, GraphMultiHeadAttLayer
+from graph_completion.layers import GraphConvolution, GraphMultiHeadAttLayer, RelAttGCN
 
 
 class TransE(nn.Module):
@@ -47,12 +47,34 @@ class GAT(nn.Module):
                 GraphMultiHeadAttLayer(dim_in, dim_out, nheads, dropout_rate, alpha, concat, sp, w_adj, cuda))
 
     def forward(self, x, adj):
-
         for att_layer in self.multi_head_att_layers:
             x = self.dropout(x)
             x = att_layer(x, adj)
         return x
 
+
+class GATmGCN(GAT):
+    def __init__(self, dim_in, dim_out, nheads, layers, dropout_rate, alpha, sp, w_adj, cuda):
+        super(GATmGCN, self).__init__(dim_in, dim_out, nheads, layers, dropout_rate, alpha, sp, w_adj, cuda)
+        self.relation_attention_gcns = nn.ModuleList()
+        self.layers = layers
+        for i in range(layers):
+            self.relation_attention_gcns.append(RelAttGCN(dim_in, dim_out, cuda))
+        self.pool = nn.MaxPool1d(2)
+
+
+    def forward(self, x, adj):
+        x1 = x
+        x2 = x
+        for i in range(self.layers):
+            x1 = self.dropout(x1)
+            x2 = self.dropout(x2)
+            x1 = self.multi_head_att_layers[i](x1, adj)
+            x2 = self.relation_attention_gcns[i](x2, adj)
+        x = torch.cat((x1.unsqueeze(-1), x2.unsqueeze(-1)), dim=-1)
+        x = self.pool(x).squeeze(-1)
+        # x = (x1 + x2) / 2
+        return x
 
 class GCN(nn.Module):
     def __init__(self, dim, num_layer, dropout_rate=0.5, bias=False):

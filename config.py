@@ -132,6 +132,8 @@ class Config(object):
         criterion_rel = SpecialLossAlign(self.rel_align_gamma, cuda=self.is_cuda)
         criterion_transe = SpecialLossRule(self.rule_gamma, cuda=self.is_cuda)
         criterion_rule = SpecialLossRule(self.rule_gamma, cuda=self.is_cuda)
+
+
         for epoch in range(self.num_epoch):
             self.net.train()
             optimizer.zero_grad()
@@ -309,7 +311,8 @@ class Config(object):
             ad_data = ad.get_all()
             ad_rel_data = ad_rel.get_all()
             triples_sr.init(), triples_tg.init(), rules_sr.init(), rules_tg.init()
-            if self.train_big:
+
+            if not self.train_big:
                 return ad_data, ad_rel_data, triples_sr, triples_tg, rules_sr, rules_tg
 
             # For TransE

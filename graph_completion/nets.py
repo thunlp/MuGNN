@@ -2,9 +2,9 @@ import torch, math
 import torch.nn as nn
 import torch.nn.functional as F
 from .functions import multi_process_get_nearest_neighbor
-from .models import GAT
+from .models import GAT, GATmGCN
 from .layers import DoubleEmbedding
-from .adjacency_matrix import SpTwinAdj, SpTwinCAW
+from .adjacency_matrix import SpTwinAdj, SpTwinCAW, SpRelWeiADJ
 from .CrossGraphCompletion import CrossGraphCompletion
 
 __all__ = ['GATNet']
@@ -25,7 +25,7 @@ class AlignGraphNet(nn.Module):
 
 
 class GATNet(AlignGraphNet):
-    def __init__(self, rule_scale, cgc, num_layer, dim, nheads, sp, alpha=0.2, rule_infer=False, w_adj=False, *args,
+    def __init__(self, rule_scale, cgc, num_layer, dim, nheads, sp, alpha=0.2, rule_infer=False, w_adj='', *args,
                  **kwargs):
         super(GATNet, self).__init__(*args, **kwargs)
         assert isinstance(cgc, CrossGraphCompletion)
@@ -33,11 +33,16 @@ class GATNet(AlignGraphNet):
         self.rule_infer = rule_infer
         num_entity_sr = len(cgc.id2entity_sr)
         num_entity_tg = len(cgc.id2entity_tg)
-        if not w_adj:
+        if w_adj == 'adj':
             self.sp_twin_adj = SpTwinAdj(cgc, self.non_acylic, cuda=self.is_cuda)
-        else:
+        elif w_adj == 'rel_adj':
+            self.sp_twin_adj = SpRelWeiADJ(cgc, self.non_acylic, cuda=self.is_cuda)
+        elif w_adj == 'caw':
             self.sp_twin_adj = SpTwinCAW(rule_scale, cgc, self.non_acylic, cuda=self.is_cuda)
-        self.sp_gat = GAT(dim, dim, nheads, num_layer, self.dropout_rate, alpha, sp, w_adj, self.is_cuda)
+        else:
+            raise NotImplementedError
+        # self.sp_gat = GAT(dim, dim, nheads, num_layer, self.dropout_rate, alpha, sp, w_adj, self.is_cuda)
+        self.sp_gat = GATmGCN(dim, dim, nheads, num_layer, self.dropout_rate, alpha, sp, w_adj, self.is_cuda)
         self.entity_embedding = DoubleEmbedding(num_entity_sr, num_entity_tg, dim, type='entity')
         self.relation_embedding = DoubleEmbedding(len(cgc.id2relation_sr), len(cgc.id2relation_tg), dim,
                                                   type='relation')

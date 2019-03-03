@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from graph_completion.CrossGraphCompletion import CrossGraphCompletion
 from graph_completion.functions import str2int4triples
-from graph_completion.torch_functions import RelationWeighting, normalize_adj_torch
+from graph_completion.torch_functions import RelationWeighting, normalize_adj_torch, cosine_similarity_nbyn
 
 
 def g_func_template(a, b, c, e):
@@ -20,6 +20,7 @@ def g_func_template(a, b, c, e):
     r = r.coalesce()
     return torch.sparse_coo_tensor(r.indices(), r.values() + 1) / 2
 
+
 class SpTwinAdj(object):
     def __init__(self, cgc, non_acylic, cuda=True):
         assert isinstance(cgc, CrossGraphCompletion)
@@ -28,8 +29,8 @@ class SpTwinAdj(object):
         self.non_acylic = non_acylic
         self.entity_num_sr = len(cgc.id2entity_sr)
         self.entity_num_tg = len(cgc.id2entity_tg)
-        self.triples_sr = cgc.triples_sr #+ list(cgc.new_triple_confs_sr.keys())
-        self.triples_tg = cgc.triples_tg #+ list(cgc.new_triple_confs_tg.keys())
+        self.triples_sr = cgc.triples_sr  # + list(cgc.new_triple_confs_sr.keys())
+        self.triples_tg = cgc.triples_tg  # + list(cgc.new_triple_confs_tg.keys())
         self.init()
 
     def init(self):
@@ -55,6 +56,82 @@ class SpTwinAdj(object):
 
     def __call__(self, *args):
         return self.sp_adj_sr, self.sp_adj_tg
+
+
+class SpRelWeiADJ(nn.Module):
+    def __init__(self, cgc, non_acylic, cuda=True):
+        super(SpRelWeiADJ, self).__init__()
+        assert isinstance(cgc, CrossGraphCompletion)
+        self.cgc = cgc
+        self.is_cuda = cuda
+        self.non_acylic = non_acylic
+        self.entity_num_sr = len(cgc.id2entity_sr)
+        self.entity_num_tg = len(cgc.id2entity_tg)
+        self.triples_sr = cgc.triples_sr  # + list(cgc.new_triple_confs_sr.keys())
+        self.triples_tg = cgc.triples_tg  # + list(cgc.new_triple_confs_tg.keys())
+        self.reverse = False
+        self.shape = (len(cgc.id2relation_sr), len(cgc.id2relation_tg))
+        if self.shape[0] > self.shape[1]:
+            self.reverse = True
+            self.shape = (self.shape[1], self.shape[0])
+        self.pad_len = self.shape[1] - self.shape[0]
+
+        self.init()
+
+    def init(self):
+        def _triple2non_acylic(triples, size):
+            pos2r = {(h,t): r for h, t, r in triples}
+            for h, t, r in triples:
+                pos2r[(t, h)] = r
+            for i in range(size):
+                if (i, i) in pos2r:
+                    pos2r.pop((i, i))
+            heads, tails = torch.from_numpy(np.asarray(list(zip(*list(pos2r.keys()))), dtype=np.int64))
+            relations = torch.tensor(list(pos2r.values()), dtype=torch.int64)
+            return heads, tails, relations
+
+        head_sr, tail_sr, relation_sr = _triple2non_acylic(self.triples_sr, self.entity_num_sr)
+        head_tg, tail_tg, relation_tg = _triple2non_acylic(self.triples_tg, self.entity_num_tg)
+        self.relation_sr = relation_sr
+        self.relation_tg = relation_tg
+        self.pos_sr = torch.cat((head_sr.view(1, -1), tail_sr.view(1, -1)), dim=0)
+        self.pos_tg = torch.cat((head_tg.view(1, -1), tail_tg.view(1, -1)), dim=0)
+        self.unit_matrix_sr = get_sparse_unit_matrix(self.entity_num_sr)
+        self.unit_matrix_tg = get_sparse_unit_matrix(self.entity_num_tg)
+        if self.is_cuda:
+            self.unit_matrix_sr = self.unit_matrix_sr.cuda()
+            self.unit_matrix_tg = self.unit_matrix_tg.cuda()
+
+    def forward(self, rel_embedding_sr, rel_embedding_tg):
+        rel_att_sr, rel_att_tg = self._max_pool_attetion_solution(rel_embedding_sr, rel_embedding_tg)
+        rel_att_sr = rel_att_sr[self.relation_sr]  # sparse support
+        rel_att_tg = rel_att_tg[self.relation_tg]
+        sp_rel_att_sr = torch.sparse_coo_tensor(self.pos_sr, rel_att_sr, size=(self.entity_num_sr, self.entity_num_sr))
+        sp_rel_att_tg = torch.sparse_coo_tensor(self.pos_tg, rel_att_tg, size=(self.entity_num_tg, self.entity_num_tg))
+        sp_rel_att_sr = sp_clamp(sp_rel_att_sr + self.unit_matrix_sr, max=1.0).coalesce()
+        sp_rel_att_tg = sp_clamp(sp_rel_att_tg + self.unit_matrix_tg, max=1.0).coalesce()
+        return sp_rel_att_sr, sp_rel_att_tg
+
+    def _max_pool_attetion_solution(self, a, b):
+        '''
+        sim: shape = [num_relation_sr, num_relation_sr]
+        '''
+        pad_len = self.pad_len
+        reverse = self.reverse
+        if reverse:
+            a, b = b, a
+        if pad_len > 0:
+            a = F.pad(a, (0, 0, 0, pad_len))
+        sim = cosine_similarity_nbyn(a, b)
+        dim = self.shape[1]
+        sim = sim.expand(1, 1, dim, dim)
+        a = F.max_pool2d(sim, (1, dim)).view(-1)
+        b = F.max_pool2d(sim, (dim, 1)).view(-1)
+        if pad_len > 0:
+            a = a[:-pad_len]
+        if reverse:
+            a, b = b, a
+        return a, b
 
 
 class SpTwinCAW(SpTwinAdj):

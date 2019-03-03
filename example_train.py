@@ -30,7 +30,7 @@ config.set_beta(0.5)
 config.set_sparse(True)
 config.set_shuffle(True)
 config.set_update_cycle(5)
-config.set_w_adj(False)
+config.set_w_adj('rel_adj')
 config.set_rule_scale(1.0)
 config.set_pre_train(0)
 config.set_rule_infer(True)
@@ -39,13 +39,15 @@ config.set_train_big(True)
 
 # directory = bin_dir / 'DWY100k'
 directory = bin_dir / 'dbp15k'
-config.init(directory, 'fr_en', load=True)
+config.init(directory, 'ja_en', load=True)
 config.set_net()
 config.print_parameter()
-config.init_log('dbp_yg')
+config.init_log('JA-EN:max')
 config.train()
 
 # 1st faster evaluation
 # 2nd faster data load
 # 3rd each negative sample have a positive sample
 # 4th nearest neighbor sample
+
+# relation attention options: 'adj', 'rel_adj', 'caw'

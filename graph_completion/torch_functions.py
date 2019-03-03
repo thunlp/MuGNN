@@ -88,7 +88,6 @@ class SpecialLossTransE(nn.Module):
         score shape: [batch_size, 1 + nega_sample_num, embedding_dim]
         '''
         # distance = torch.abs(score).sum(dim=-1) * self.re_scale
-        print(score.size())
         pos_score = score[:, :1] #.sum(-1, keepdim=True)
         nega_score = score[:, 1:] #.sum(-1, keepdim=True)
         y = torch.FloatTensor([-1.0])
@@ -142,19 +141,18 @@ class RelationWeighting(object):
         '''
         pad_len = self.pad_len
         reverse = self.reverse
-        with torch.no_grad():
-            if reverse:
-                a, b = b, a
-            if pad_len > 0:
-                a = F.pad(a, (0, 0, 0, pad_len))
-            # sim = cosine_similarity_nbyn(a, b)
-            sim = torch_l2distance(a, b)
-            r_sim_sr, r_sim_tg = self._max_pool_solution(sim)
-            if pad_len > 0:
-                r_sim_sr = r_sim_sr[:-pad_len]
-            if reverse:
-                r_sim_sr, r_sim_tg = r_sim_tg, r_sim_sr
-            return r_sim_sr, r_sim_tg
+        if reverse:
+            a, b = b, a
+        if pad_len > 0:
+            a = F.pad(a, (0, 0, 0, pad_len))
+        sim = cosine_similarity_nbyn(a, b)
+        # sim = torch_l2distance(a, b)
+        r_sim_sr, r_sim_tg = self._max_pool_solution(sim)
+        if pad_len > 0:
+            r_sim_sr = r_sim_sr[:-pad_len]
+        if reverse:
+            r_sim_sr, r_sim_tg = r_sim_tg, r_sim_sr
+        return r_sim_sr, r_sim_tg
 
     def _max_pool_solution(self, sim):
         '''
@@ -182,9 +180,9 @@ def cosine_similarity_nbyn(a, b):
     b shape: [num_item_2, embedding_dim]
     return sim_matrix: [num_item_1, num_item_2]
     '''
-    a = a / (a.norm(dim=-1, keepdim=True) + 1e-8)
-    b = b / (b.norm(dim=-1, keepdim=True) + 1e-8)
-    return torch.mm(a, b.transpose(0, 1))
+    a = a / torch.clamp(a.norm(dim=-1, keepdim=True), min=1e-8)
+    b = b / torch.clamp(b.norm(dim=-1, keepdim=True), min=1e-8)
+    return torch.mm(a, b.t())
 
 
 def torch_l2distance(a, b):

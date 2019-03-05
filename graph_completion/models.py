@@ -71,9 +71,9 @@ class GATmGCN(GAT):
             x2 = self.dropout(x2)
             x1 = self.multi_head_att_layers[i](x1, adj)
             x2 = self.relation_attention_gcns[i](x2, adj)
-        x = torch.cat((x1.unsqueeze(-1), x2.unsqueeze(-1)), dim=-1)
-        x = self.pool(x).squeeze(-1)
-        # x = (x1 + x2) / 2
+        # x = torch.cat((x1.unsqueeze(-1), x2.unsqueeze(-1)), dim=-1)
+        # x = self.pool(x).squeeze(-1)
+        x = (x1 + x2) / 2
         return x
 
 class GCN(nn.Module):

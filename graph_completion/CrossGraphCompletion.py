@@ -78,7 +78,8 @@ def print_rule(rule, id2relation):
 def _print_new_rules(bi_new_rules, id2relation_sr, id2relation_tg):
     for language, rules in bi_new_rules.items():
         print_time_info(language, dash_top=True)
-        for rule in random.choices(rules, k=10):
+        for rule in rules[:20]:
+        # for rule in random.choices(rules, k=20):
             if language == 'sr':
                 print_rule(rule, id2relation_sr)
             else:
@@ -131,17 +132,22 @@ def _rule_based_graph_completion(triple_graph_sr, triple_graph_tg, rules_sr, rul
         new_triple_confs = {}
         new_triple_premises = {}
         for rule in rules:
+            # print('The rule is', rule)
             new_triple_conf_premises_candidates = triple_graph.inference_by_rule(rule)
+            # i = 0
             for new_triple, conf, premises in new_triple_conf_premises_candidates:
                 if not new_triple in triples:
                     if new_triple not in new_triple_confs:
                         new_triple_confs[new_triple] = conf
                         new_triple_premises[new_triple] = premises
+                        # i += 1
                     else:
                         ori_conf = new_triple_confs[new_triple]
                         if ori_conf < conf:
                             new_triple_confs[new_triple] = conf
                             new_triple_premises[new_triple] = premises
+                            # i += 1
+            # print(i, '-----------')
         return new_triple_confs, new_triple_premises
 
     new_triple_confs_sr, new_triple_premises_sr = __rule_based_graph_completion(
@@ -198,7 +204,7 @@ def rule_transfer(rules_sr, rules_tg, relation_seeds):
 
 class CrossGraphCompletion(object):
 
-    def __init__(self, directory, train_seeds_ratio, graph_completion=True):
+    def __init__(self, directory, train_seeds_ratio, rule_transfer=True, graph_completion=True):
         '''
         we followed the experiment setting of JAPE
         the folder under the directory JAPE/0_x contains the entity alignment dataset for train and test.
@@ -206,6 +212,7 @@ class CrossGraphCompletion(object):
         assert train_seeds_ratio in {0.1, 0.2, 0.3, 0.4, 0.5}, print_time_info(
             'Not a legal train seeds ratio: %f.' % train_seeds_ratio, dash_bot=True)
         self.directory = directory
+        self.rule_transfer = rule_transfer
         self.train_seeds_ratio = train_seeds_ratio
         self.graph_completion = graph_completion
         language_sr, language_tg = directory.name.split('_')
@@ -321,16 +328,17 @@ class CrossGraphCompletion(object):
 
     def rule_based_graph_completion(self):
         # rule transfer
-        new_rules_sr, new_rules_tg = rule_transfer(
-            self.rules_sr, self.rules_tg, self._relation_seeds)
-        self.rules_sr += new_rules_sr
-        self.rules_tg += new_rules_tg
-        self.rules_trans2_sr += new_rules_sr
-        self.rules_trans2_tg += new_rules_tg
-        bi_new_rules = {'sr': new_rules_sr, 'tg': new_rules_tg}
-        self._print_result_log(bi_new_rules, 'rule_transfer', 'rule')
-        # _print_new_rules(bi_new_rules, self.id2relation_sr,
-        #                  self.id2relation_tg)
+        if self.rule_transfer:
+            new_rules_sr, new_rules_tg = rule_transfer(
+                self.rules_sr, self.rules_tg, self._relation_seeds)
+            self.rules_sr += new_rules_sr
+            self.rules_tg += new_rules_tg
+            self.rules_trans2_sr += new_rules_sr
+            self.rules_trans2_tg += new_rules_tg
+            bi_new_rules = {'sr': new_rules_sr, 'tg': new_rules_tg}
+            self._print_result_log(bi_new_rules, 'rule_transfer', 'rule')
+            _print_new_rules(bi_new_rules, self.id2relation_sr,
+                             self.id2relation_tg)
 
         # load triple into TripleGraph
         self.triple_graph_load(self.triples_sr, self.triples_tg)

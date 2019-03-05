@@ -5,7 +5,8 @@ from tensorboardX import SummaryWriter
 from tools.print_time_info import print_time_info
 from graph_completion.nets import GATNet
 from graph_completion.torch_functions import SpecialLossTransE, SpecialLossAlign, SpecialLossRule, LimitBasedLoss
-from graph_completion.Datasets import AliagnmentDataset, TripleDataset, EpochDataset, RuleDataset, BatchTripleDataset, BatchRuleDataset
+from graph_completion.Datasets import AliagnmentDataset, TripleDataset, EpochDataset, RuleDataset, BatchTripleDataset, \
+    BatchRuleDataset
 from graph_completion.torch_functions import set_random_seed
 from graph_completion.functions import get_hits
 from graph_completion.CrossGraphCompletion import CrossGraphCompletion
@@ -35,6 +36,7 @@ class Config(object):
         self.num_epoch = 500
         self.update_cycle = 10
         self.rule_infer = False
+        self.rule_transfer = True
         self.directory = ''
         self.train_seeds_ratio = 0.3
 
@@ -83,14 +85,15 @@ class Config(object):
                 self.cgc = CrossGraphCompletion.restore(directory / 'running_temp')
             except FileNotFoundError:
                 print_time_info('CrossGraphCompletion cache file not found, start from the beginning.')
-                self.cgc = CrossGraphCompletion(directory, self.train_seeds_ratio, self.graph_completion)
+                self.cgc = CrossGraphCompletion(directory, self.train_seeds_ratio, self.rule_transfer, self.graph_completion)
                 self.cgc.init()
                 self.cgc.save(directory / 'running_temp')
         else:
-            self.cgc = CrossGraphCompletion(directory, self.train_seeds_ratio, self.graph_completion)
+            self.cgc = CrossGraphCompletion(directory, self.train_seeds_ratio, self.rule_transfer, self.graph_completion)
             self.cgc.init()
             self.cgc.save(directory / 'running_temp')
         self.cgc.check()
+        # exit()
 
     def train(self):
         if self.train_big:
@@ -133,7 +136,6 @@ class Config(object):
         criterion_transe = SpecialLossRule(self.rule_gamma, cuda=self.is_cuda)
         criterion_rule = SpecialLossRule(self.rule_gamma, cuda=self.is_cuda)
 
-
         for epoch in range(self.num_epoch):
             self.net.train()
             optimizer.zero_grad()
@@ -141,11 +143,17 @@ class Config(object):
                                                                                           triples_data_sr,
                                                                                           triples_data_tg,
                                                                                           rules_data_sr, rules_data_tg)
+
             align_loss = criterion_align(repre_sr, repre_tg)
             rel_align_loss = criterion_rel(sr_rel_repre, tg_rel_repre)
             transe_loss = criterion_transe(transe_tv)
-            rule_loss = criterion_rule(rule_tv)
-            loss = sum([align_loss, rel_align_loss, transe_loss, rule_loss])
+            if self.rule_infer:
+                rule_loss = criterion_rule(rule_tv)
+                # loss = sum([align_loss, rel_align_loss, transe_loss, rule_loss])
+                loss = sum([align_loss, transe_loss, rule_loss])
+            else:
+                rule_loss = 0.0
+                loss = sum([align_loss, rel_align_loss, transe_loss])
             loss.backward()
             optimizer.step()
             print_time_info(
@@ -178,11 +186,12 @@ class Config(object):
             triples_sr = BatchTripleDataset(split_num, cgc.triples_sr, self.nega_n_r)
             triples_tg = BatchTripleDataset(split_num, cgc.triples_tg, self.nega_n_r)
 
-            rules_sr = BatchRuleDataset(split_num, cgc, 'new_triple_premises_sr', cgc.triples_sr, list(cgc.id2relation_sr.keys()),
-                                   self.nega_n_r)
-            rules_tg = BatchRuleDataset(split_num, cgc, 'new_triple_premises_tg', cgc.triples_tg, list(cgc.id2relation_tg.keys()),
-                                   self.nega_n_r)
-
+            rules_sr = BatchRuleDataset(split_num, cgc, 'new_triple_premises_sr', cgc.triples_sr,
+                                        list(cgc.id2relation_sr.keys()),
+                                        self.nega_n_r)
+            rules_tg = BatchRuleDataset(split_num, cgc, 'new_triple_premises_tg', cgc.triples_tg,
+                                        list(cgc.id2relation_tg.keys()),
+                                        self.nega_n_r)
 
             assert len(triples_sr) == len(triples_tg) == len(rules_sr) == len(rules_tg) == split_num
 
@@ -197,7 +206,6 @@ class Config(object):
             self.net.cuda()
             ad_data = [data.cuda() for data in ad_data]
             ad_rel_data = [data.cuda() for data in ad_rel_data]
-
 
         optimizer = self.optimizer(self.net.parameters(), lr=self.lr, weight_decay=self.l2_penalty)
         criterion_align = SpecialLossAlign(self.align_gamma, cuda=self.is_cuda)
@@ -225,7 +233,8 @@ class Config(object):
                 repre_sr, repre_tg, sr_rel_repre, tg_rel_repre, transe_tv, rule_tv = self.net(ad_data, ad_rel_data,
                                                                                               triples_data_sr,
                                                                                               triples_data_tg,
-                                                                                              rules_data_sr, rules_data_tg)
+                                                                                              rules_data_sr,
+                                                                                              rules_data_tg)
                 b_align_loss = criterion_align(repre_sr, repre_tg)
                 b_rel_align_loss = criterion_rel(sr_rel_repre, tg_rel_repre)
                 b_transe_loss = criterion_transe(transe_tv)
@@ -354,12 +363,6 @@ class Config(object):
             self.bad_result += 1
         print_time_info('Current best Hits@1 at the %dth epoch: (%.2f, %.2f)' % (self.best_hits_1))
 
-        # if self.now_epoch < self.min_epoch:
-        #     return
-        # if self.bad_result >= self.patience:
-        #     print_time_info('My patience is limited. It is time to stop!', dash_bot=True)
-        #     exit()
-
     def print_parameter(self, file=None):
         parameters = self.__dict__
         print_time_info('Parameter setttings:', dash_top=True, file=file)
@@ -460,12 +463,8 @@ class Config(object):
     def set_train_big(self, train_big):
         self.train_big = train_big
 
-    def loop(self, bin_dir):
-        # todo: finish it
-        train_seeds_ratio = 0.3
-        directory = bin_dir / 'dbp15k'
-        language_pair_dirs = list(directory.glob('*_en'))
-        for local_directory in language_pair_dirs:
-            cgc = CrossGraphCompletion(local_directory, train_seeds_ratio)
-            cgc.init()
-            cgc.save(local_directory / 'running_temp')
+    def set_train_seed_ratio(self, seed_ratio):
+        self.train_seeds_ratio = seed_ratio
+
+    def set_rule_transfer(self, rule_transfer):
+        self.rule_transfer = rule_transfer

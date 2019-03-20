@@ -133,7 +133,7 @@ class Config(object):
             transe_loss = criterion_transe(transe_tv)
             if self.rule_infer:
                 rule_loss = criterion_rule(rule_tv)
-                loss = sum([align_loss, transe_loss, rule_loss])
+                loss = sum([align_loss, transe_loss, rel_align_loss, rule_loss])
             else:
                 rule_loss = 0.0
                 loss = sum([align_loss, rel_align_loss, transe_loss])

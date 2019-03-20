@@ -13,7 +13,7 @@ This is the code of the Multi-Channel Graph Neural Network for Entity Alignment 
 
 ## Datasets
 
-Folder ./bin contains DBP15k and DWY100k datasets.
+Folder ./bin contains [DBP15k](https://github.com/nju-websoft/JAPE) and [DWY100k](https://github.com/nju-websoft/BootEA) datasets.
 
 ### Directory structure
 

@@ -1,6 +1,6 @@
 # Multi-Channel Graph Neural Network for Entity Alignment
 
-This is the code of the Multi-Channel Graph Neural Network for Entity Alignment in XXX. The details of this model could be found at [paper link](www.google.com)
+This is the code of the Multi-Channel Graph Neural Network for Entity Alignment in XXX. The details of this model could be found at [paper link](www.google.com).
 
 ## Dependencies
 
@@ -51,21 +51,20 @@ Folder ./bin contains DBP15k and DWY100k datasets.
 
 ### Data format
 
-* entity2id_kgx.txt: all entities from kgx with the corresponding ids. Format: ***entity_name*** + \t + ***id*** + \n
-* relation2id_kgx.txt: all relations from kgx with the corresponding ids. Format: ***relation_name*** + \t + ***id*** + \n
-* triples_kgx.txt: all triples from kgx. Format: ***entity1*** + \t + ***entity2*** + \t + ***relation*** + \n
-* entity_seeds.txt: all entity seed alignments. Format: ***entity1*** (from kg1) + \t + ***entity2*** (from kg2) + \n
-* train_entity_seeds.txt: entity seed alignments for training. Format: ***entity1*** (from kg1) + \t + ***entity2*** (from kg2) + \n
-* test_entity_seeds.txt: entity seed alignments for test. Format: ***entity1*** (from kg1) + \t + ***entity2*** (from kg2) + \n
-* relation_seeds.txt: all relation seed alignments. Format: ***relation1*** (from kg1) + \t + ***relation2*** (from kg2) + \n
-* all2id_kgx.txt: all entities and relations from kgx with the corresponding ids. Format: ***entity/relation*** + \t + id + \n
+* entity2id_kgx.txt: all entities from kgx with the corresponding ids. Format: ***entity_name*** + \t + ***id*** + \n;
+* relation2id_kgx.txt: all relations from kgx with the corresponding ids. Format: ***relation_name*** + \t + ***id*** + \n;
+* triples_kgx.txt: all triples from kgx. Format: ***entity1*** + \t + ***entity2*** + \t + ***relation*** + \n;
+* entity_seeds.txt: all entity seed alignments. Format: ***entity1*** (from kg1) + \t + ***entity2*** (from kg2) + \n;
+* train_entity_seeds.txt: entity seed alignments for training. Format: ***entity1*** (from kg1) + \t + ***entity2*** (from kg2) + \n;
+* test_entity_seeds.txt: entity seed alignments for test. Format: ***entity1*** (from kg1) + \t + ***entity2*** (from kg2) + \n;
+* relation_seeds.txt: all relation seed alignments. Format: ***relation1*** (from kg1) + \t + ***relation2*** (from kg2) + \n;
+* all2id_kgx.txt: all entities and relations from kgx with the corresponding ids. Format: ***entity/relation*** + \t + id + \n.
 
 ### Note
 
-* The difference between arrangements of DBP15k and DWY100k is that DWY100k has split the train and test set of entity alignments but DBP15k has not.
-
-* Folder AMIE contains data arranged in the structure which is designed to be compatible with [AMIE+](https://www.mpi-inf.mpg.de/departments/databases-and-information-systems/research/yago-naga/amie/)
-* triples_kgx.txt in folder AMIE is encoded with all2id_kgx.txt
+* The difference between arrangements of DBP15k and DWY100k is that DWY100k has split the train and test set of entity alignments but DBP15k has not;
+* Folder AMIE contains data arranged in the structure which is designed to be compatible with [AMIE+](https://www.mpi-inf.mpg.de/departments/databases-and-information-systems/research/yago-naga/amie/);
+* triples_kgx.txt in folder AMIE is encoded with all2id_kgx.txt.
 
 ## Code
 
@@ -81,10 +80,10 @@ To run a demo, simply execute the following script:
 
 ### Customized running
 
-To run the code on your own dataset
+To run the code on your own dataset:
 
-1. Format your data as described in [Datasets](#Datasets)
-2. Execute rule mining with AMIE+
+1. Format your data as described in [Datasets](#Datasets);
+2. Execute rule mining with AMIE+;
 
       ```bash
       >> python format_data.py [PATH_TO_YOUR_DATASET]
@@ -94,7 +93,7 @@ To run the code on your own dataset
 
       *Note: AMIE+ runs as an independent JAVA program. So you will need to wait until AMIE+ ended, and then input "amie ended" at the prompt to inform the python program to execute the next step.*
 
-3. Customize your running
+3. Customize your running;
 
    * Customization with config.py
 
@@ -103,7 +102,7 @@ To run the code on your own dataset
       config = Config()
       ```
 
-   * Set the hyper-parameters
+   * Set the hyper-parameters;
 
          ```python
          config.set_cuda(True) # set train on cpu or gpu
@@ -117,7 +116,7 @@ To run the code on your own dataset
          config.set_update_cycle(5) # set negative sampling frequency
          ```
 
-   * Set your dataset path
+   * Set your dataset path;
 
          ```python
          config.init(YOUR_DATASET_PATH)
@@ -125,7 +124,7 @@ To run the code on your own dataset
          config.init('./bin/DBP15k/fr_en')
          ```
 
-   * Set log path
+   * Set log path;
 
          ```python
          config.init_log(LOG_FILE_PATH)
@@ -133,7 +132,7 @@ To run the code on your own dataset
          config.init_log('./log/test')
          ```
 
-   * Train
+   * Train;
 
          ```python
          config.train()

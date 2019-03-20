@@ -1,5 +1,5 @@
 import torch
-from nets import GATNet
+from graph_completion.nets import GATNet
 from pathlib import Path
 from tensorboardX import SummaryWriter
 from utils.tools import print_time_info, timeit

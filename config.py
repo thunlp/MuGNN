@@ -20,9 +20,6 @@ class Config(object):
         self.aligned_entites = set()
         self.aligned_relations = set()
 
-        # train train
-        self.align_epoch = 2
-
         # training
         self.patience = 10
         self.pre_train = 10
@@ -335,3 +332,6 @@ class Config(object):
 
     def set_rule_transfer(self, rule_transfer):
         self.rule_transfer = rule_transfer
+
+    def set_rel_align_gamma(self, rel_align_gamma):
+        self.rel_align_gamma = rel_align_gamma

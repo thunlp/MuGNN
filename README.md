@@ -107,7 +107,8 @@ To run the code on your own dataset:
       ```python
       config.set_cuda(True) # set train on cpu or gpu
       config.set_dim(128) # set dimension number of embeddings and weight matrices
-      config.set_align_gamma(1.0) # set gamma_1 and gamma_2
+      config.set_align_gamma(1.0) # set gamma_1
+      config.set_rel_align_gamma(1.0) # set gamma_2
       config.set_rule_gamma(0.12) # set gamma_r
       config.set_num_layer(2) # set layer number of MuGNN
       config.set_dropout(0.2) # set dropout rate

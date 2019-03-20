@@ -1,6 +1,6 @@
 # Multi-Channel Graph Neural Network for Entity Alignment
 
-This is the code of the *"Multi-Channel Graph Neural Network for Entity Alignment"* in XXX. The details of this model could be found at [paper link](www.google.com).
+This is the code of *"Multi-Channel Graph Neural Network for Entity Alignment"* in XXX. The details of this model could be found at [paper link](www.google.com).
 
 ## Dependencies
 
@@ -93,7 +93,7 @@ To run the code on your own dataset:
 
       *Note: AMIE+ runs as an independent JAVA program. So you will need to wait until AMIE+ ended, and then input "amie ended" at the prompt to inform the python program to execute the next step.*
 
-3. Customize your running;
+3. Customize your running
 
    * Customization with config.py
 
@@ -102,7 +102,7 @@ To run the code on your own dataset:
       config = Config()
       ```
 
-   * Set the hyper-parameters;
+   * Set the hyper-parameters
 
       ```python
       config.set_cuda(True) # set train on cpu or gpu
@@ -116,7 +116,7 @@ To run the code on your own dataset:
       config.set_update_cycle(5) # set negative sampling frequency
       ```
 
-   * Set your dataset path;
+   * Set your dataset path
 
       ```python
       config.init(YOUR_DATASET_PATH)
@@ -124,7 +124,7 @@ To run the code on your own dataset:
       config.init('./bin/DBP15k/fr_en')
       ```
 
-   * Set log path;
+   * Set log path
 
       ```python
       config.init_log(LOG_FILE_PATH)
@@ -132,13 +132,13 @@ To run the code on your own dataset:
       config.init_log('./log/test')
       ```
 
-   * Train;
+   * Train
 
       ```python
       config.train()
       ```
 
-If you have any difficulties and questions while running the code, feel free to create an issue or contact us directly at achark@outlook.com.
+If you have any difficulties and questions regarding running the code, feel free to create an issue or contact us directly at achark@outlook.com.
 
 ## Reference
 

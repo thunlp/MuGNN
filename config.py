@@ -8,7 +8,6 @@ from utils.Datasets import AliagnmentDataset, TripleDataset, RuleDataset
 from utils.functions import set_random_seed
 from utils.functions import get_hits
 from graph_completion.cross_graph_completion import CrossGraphCompletion
-from utils.bp_func import bootstrapping
 
 
 class Config(object):
@@ -162,28 +161,6 @@ class Config(object):
                     triples_data_tg = [data.cuda() for data in triples_data_tg]
                     rules_data_sr = [data.cuda() for data in rules_data_sr]
                     rules_data_tg = [data.cuda() for data in rules_data_tg]
-
-    @timeit
-    def bootstrap(self):
-        sr_data, tg_data = list(zip(*self.cgc.test_entity_seeds))
-        sr_rel_data, tg_rel_data = list(zip(*self.cgc.test_relaiton_seeds))
-        ad_data = torch.tensor(sr_data, dtype=torch.int64), torch.tensor(tg_data, dtype=torch.int64)
-        ad_rel_data = torch.tensor(sr_rel_data, dtype=torch.int64), torch.tensor(tg_rel_data, dtype=torch.int64)
-        if self.is_cuda:
-            ad_data = [data.cuda() for data in ad_data]
-            ad_rel_data = [data.cuda() for data in ad_rel_data]
-        sim_entity, sim_rel = self.net.bootstrap(ad_data, ad_rel_data)
-
-        print_time_info('Bootstrap for entities started.')
-        self.aligned_entites, ent_seeds = bootstrapping(sr_data, tg_data, sim_entity, self.aligned_entites, 20,
-                                                        0.70)
-        print_time_info('Bootstrapped Entity Number: ' + str(len(ent_seeds)))
-        print_time_info(
-            'Bootstrap for relations started, as there are no test alignment for relation you can ignore the statistical report down below.')
-        self.aligned_relations, rel_seeds = bootstrapping(sr_rel_data, tg_rel_data, sim_rel,
-                                                          self.aligned_relations, 4, 0.25)
-        print_time_info('Bootstrapped Relation Number: ' + str(len(rel_seeds)))
-        self.cgc.bootstrap(ent_seeds, rel_seeds)
 
     @timeit
     def negative_sampling(self, ad, ad_rel, triples_sr, triples_tg, rules_sr, rules_tg):

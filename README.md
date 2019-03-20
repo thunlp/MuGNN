@@ -1,6 +1,6 @@
 # Multi-Channel Graph Neural Network for Entity Alignment
 
-This is the code of the Multi-Channel Graph Neural Network for Entity Alignment in XXX. The details of this model could be found at [paper link](www.google.com).
+This is the code of the *"Multi-Channel Graph Neural Network for Entity Alignment"* in XXX. The details of this model could be found at [paper link](www.google.com).
 
 ## Dependencies
 
@@ -138,4 +138,8 @@ To run the code on your own dataset:
       config.train()
       ```
 
+If you have any difficulties and questions while running the code, feel free to create an issue or contact us directly at achark@outlook.com.
+
 ## Reference
+
+If you use code, please cite our [paper](www.google.com):

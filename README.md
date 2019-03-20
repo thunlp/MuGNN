@@ -61,8 +61,7 @@ DBP15k和DWY100k数据整理的区别在于，DWY100k预先分好了实体对齐
 
 假如你需要在自己的数据集上跑我们的代码，you might want to把自己的数据整理为相似的格式，以下是对各个文件内容的说明：
 
-* entity2id_kgx.txt: all entities from kgx with the corresponding ids. 
-  Format: **entity_name** + \t + **entity_id** + \n
+* entity2id_kgx.txt: all entities from kgx with the corresponding ids. Format: ***entity_name*** + \t + ***entity_id*** + \n
 * relation2id_kgx.txt: all relations from kgx with the corresponding ids. One relation per line, \t separated.
 * triples
 

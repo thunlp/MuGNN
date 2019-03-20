@@ -153,4 +153,4 @@ result_max_normed
 
 #
 bin
-log
+log/*

@@ -1,5 +1,6 @@
 import torch
 from nets import GATNet
+from pathlib import Path
 from tensorboardX import SummaryWriter
 from utils.tools import print_time_info, timeit
 from models.torch_functions import SpecialLossAlign, SpecialLossRule
@@ -32,21 +33,20 @@ class Config(object):
         self.best_hits_1 = (0, 0, 0)  # (epoch, sr, tg)
         self.num_epoch = 500
         self.update_cycle = 10
-        self.rule_infer = False
+        self.rule_infer = True
         self.rule_transfer = True
-        self.directory = ''
         self.train_seeds_ratio = 0.3
 
         # model
+        self.w_adj = ''
         self.net = None
-        self.w_adj = False
         self.sparse = True
         self.optimizer = None
-        self.nheads = 4
+        self.nheads = 1
         self.num_layer = 2
         self.non_acylic = True
         self.embedding_dim = 300
-        self.graph_completion = False
+        self.graph_completion = True
 
         # dataset
         self.shuffle = True
@@ -68,15 +68,10 @@ class Config(object):
         # cuda
         self.is_cuda = True
 
-    def init(self, directory, graph_pair, load=True):
+    def init(self, directory, load=False):
         set_random_seed()
-        self.directory = directory
-        self.graph_pair = graph_pair
-        language_pair_dirs = [path.name for path in self.directory.glob('*')]
-        print(language_pair_dirs)
-        while not graph_pair in language_pair_dirs:
-            graph_pair = input('Please input the graph pair for training.\n\t')
-        directory = directory / graph_pair
+        directory = Path(directory)
+        self.graph_pair = directory.name
         if load:
             try:
                 self.cgc = CrossGraphCompletion.restore(directory / 'running_temp')
@@ -264,15 +259,13 @@ class Config(object):
                 print('\t%s:' % key, value, file=file)
         print('---------------------------------------', file=file)
 
-    def init_log(self, comment):
-        from project_path import project_dir
-        log_dir = project_dir / 'log'  #
-        if not log_dir.exists():
-            log_dir.mkdir()
-        log_dir = log_dir / comment
+    def init_log(self, log_dir):
+        log_dir = Path(log_dir)
         if log_dir.exists():
             raise FileExistsError('The directory already exists!')
-        log_dir.mkdir()
+        else:
+            log_dir.mkdir()
+        comment = log_dir.name
         self.writer = SummaryWriter(str(log_dir))
         with open(log_dir / 'parameters.txt', 'w') as f:
             print_time_info(comment, file=f)

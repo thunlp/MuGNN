@@ -44,7 +44,7 @@ class GraphAttentionLayer(nn.Module):
 
 
 class GraphMultiHeadAttLayer(nn.Module):
-    def __init__(self, dim_in, dim_out_s, nheads, dropout, alpha, concat, sp, w_adj, cuda):
+    def __init__(self, dim_in, dim_out_s, nheads, dropout, alpha, concat, w_adj, cuda):
         super(GraphMultiHeadAttLayer, self).__init__()
         self.attentions = nn.ModuleList(
             [SpGraphAttentionLayer(dim_in, dim_out_s, dropout, alpha, concat, w_adj, cuda) for _ in range(nheads)])

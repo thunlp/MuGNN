@@ -4,7 +4,7 @@ import random
 from .kg_path import kg_data_dir
 from .n2n import n2n
 from pathlib import Path
-from tools.print_time_info import print_time_info
+from utils.tools import print_time_info
 
 '''
 root\
@@ -421,8 +421,7 @@ def _dump_att(file, file_name, bin_dir, write_num=True):
 
 def _cope_JAPE(language_pair, local_bin_dir, mapping_sr, mapping_tg):
     from project_path import bin_dir
-    from graph_completion.reader import read_mapping, read_seeds
-    from graph_completion.functions import str2int4triples
+    from utils.reader import read_mapping, read_seeds
     dbp15k_dir = bin_dir / 'dbp15k' / language_pair
     sr, tg = language_pair.split('_')
     ori_mapping_sr = read_mapping(dbp15k_dir / ('entity2id_' + sr + '.txt'))

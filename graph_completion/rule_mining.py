@@ -1,8 +1,8 @@
 import re
 import json
-from tools.print_time_info import print_time_info
+from utils.tools import print_time_info
 
-# usage of AMIE+ executable file
+# Help of the AMIE+ executable file
 '''
 usage: java -jar amie_plus.jar [OPTIONS] <TSV FILES>
 

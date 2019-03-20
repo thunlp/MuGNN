@@ -1,7 +1,7 @@
 import random, pickle
-from graph_completion.TripleGraph import TripleGraph
-from .reader import read_mapping, read_triples, read_seeds, read_rules
-from tools.print_time_info import print_time_info
+from utils.tools import print_time_info
+from graph_completion.triple_graph import TripleGraph
+from utils.reader import read_mapping, read_triples, read_seeds, read_rules
 
 
 def construct_entity_pair_for_bootstrap(sr_rel, tg_rel, rel_seeds):

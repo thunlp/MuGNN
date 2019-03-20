@@ -2,7 +2,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from graph_completion.layers import GraphConvolution, GraphMultiHeadAttLayer, RelAttGCN
+from .layers import GraphConvolution, GraphMultiHeadAttLayer, RelAttGCN
 
 
 class TransE(nn.Module):
@@ -31,7 +31,7 @@ class TransE(nn.Module):
 
 
 class GAT(nn.Module):
-    def __init__(self, dim_in, dim_out, nheads, layers, dropout_rate, alpha, sp, w_adj, cuda):
+    def __init__(self, dim_in, dim_out, nheads, layers, dropout_rate, alpha, w_adj, cuda):
         """Sparse version of GAT."""
         super(GAT, self).__init__()
         assert dim_out % nheads == 0
@@ -44,7 +44,7 @@ class GAT(nn.Module):
             if i == layers - 1:
                 concat = False
             self.multi_head_att_layers.append(
-                GraphMultiHeadAttLayer(dim_in, dim_out, nheads, dropout_rate, alpha, concat, sp, w_adj, cuda))
+                GraphMultiHeadAttLayer(dim_in, dim_out, nheads, dropout_rate, alpha, concat, w_adj, cuda))
 
     def forward(self, x, adj):
         for att_layer in self.multi_head_att_layers:
@@ -54,8 +54,8 @@ class GAT(nn.Module):
 
 
 class GATmGCN(GAT):
-    def __init__(self, dim_in, dim_out, nheads, layers, dropout_rate, alpha, sp, w_adj, cuda):
-        super(GATmGCN, self).__init__(dim_in, dim_out, nheads, layers, dropout_rate, alpha, sp, w_adj, cuda)
+    def __init__(self, dim_in, dim_out, nheads, layers, dropout_rate, alpha, w_adj, cuda):
+        super(GATmGCN, self).__init__(dim_in, dim_out, nheads, layers, dropout_rate, alpha, w_adj, cuda)
         self.relation_attention_gcns = nn.ModuleList()
         self.layers = layers
         for i in range(layers):

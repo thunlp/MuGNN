@@ -1,9 +1,8 @@
 import random
 import torch
-from tools.print_time_info import print_time_info
-from tools.timeit import timeit
+from utils.tools import print_time_info
 from torch.utils.data import Dataset, DataLoader
-from graph_completion.CrossGraphCompletion import CrossGraphCompletion
+from graph_completion.cross_graph_completion import CrossGraphCompletion
 
 
 class EpochDataset(object):

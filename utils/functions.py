@@ -1,7 +1,15 @@
+import torch, random
 import numpy as np
 import multiprocessing
 
-from tools.print_time_info import print_time_info
+from utils.tools import print_time_info
+
+
+def set_random_seed(seed_value=999):
+    torch.manual_seed(seed_value)  # cpu  vars
+    np.random.seed(seed_value)  # cpu vars
+    if torch.cuda.is_available(): torch.cuda.manual_seed_all(seed_value)
+    random.seed(seed_value)
 
 
 def str2int4triples(triples):

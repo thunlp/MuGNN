@@ -1,5 +1,5 @@
 import json
-from tools.print_time_info import print_time_info
+from utils.tools import print_time_info
 
 
 def read_mapping(path):

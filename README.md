@@ -104,38 +104,38 @@ To run the code on your own dataset:
 
    * Set the hyper-parameters;
 
-         ```python
-         config.set_cuda(True) # set train on cpu or gpu
-         config.set_dim(128) # set dimension number of embeddings and weight matrices
-         config.set_align_gamma(1.0) # set gamma_1 and gamma_2
-         config.set_rule_gamma(0.12) # set gamma_r
-         config.set_num_layer(2) # set layer number of MuGNN
-         config.set_dropout(0.2) # set dropout rate
-         config.set_learning_rate(0.001) # set learning rate
-         config.set_l2_penalty(1e-2) # set L2 regularization coefficient
-         config.set_update_cycle(5) # set negative sampling frequency
-         ```
+      ```python
+      config.set_cuda(True) # set train on cpu or gpu
+      config.set_dim(128) # set dimension number of embeddings and weight matrices
+      config.set_align_gamma(1.0) # set gamma_1 and gamma_2
+      config.set_rule_gamma(0.12) # set gamma_r
+      config.set_num_layer(2) # set layer number of MuGNN
+      config.set_dropout(0.2) # set dropout rate
+      config.set_learning_rate(0.001) # set learning rate
+      config.set_l2_penalty(1e-2) # set L2 regularization coefficient
+      config.set_update_cycle(5) # set negative sampling frequency
+      ```
 
    * Set your dataset path;
 
-         ```python
-         config.init(YOUR_DATASET_PATH)
-         # example
-         config.init('./bin/DBP15k/fr_en')
-         ```
+      ```python
+      config.init(YOUR_DATASET_PATH)
+      # example
+      config.init('./bin/DBP15k/fr_en')
+      ```
 
    * Set log path;
 
-         ```python
-         config.init_log(LOG_FILE_PATH)
-         # example
-         config.init_log('./log/test')
-         ```
+      ```python
+      config.init_log(LOG_FILE_PATH)
+      # example
+      config.init_log('./log/test')
+      ```
 
    * Train;
 
-         ```python
-         config.train()
-         ```
+      ```python
+      config.train()
+      ```
 
 ## Reference

@@ -152,5 +152,5 @@ checkpoint_max_normed
 result_max_normed
 
 #
-bin
-log/*
+running_temp
+JAPE

@@ -7,7 +7,7 @@ This is the code of *"Multi-Channel Graph Neural Network for Entity Alignment"* 
 * python 3.6
 * [PyTorch 1.0](https://pytorch.org/get-started/locally/)
 * [rdflib 4.2.2](https://pypi.org/project/rdflib/)
-* [tensorboardx 1.6](https://pypi.org/project/tensorboardX/)
+* [tensorboardX 1.6](https://pypi.org/project/tensorboardX/)
 
 *Note: tensorboardX needs a TensorFlow installation to work correctly.*
 

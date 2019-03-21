@@ -10,6 +10,7 @@ except IndexError:
 
 config.set_dim(128)
 config.set_align_gamma(1.0)
+config.set_rel_align_gamma(1.0)
 config.set_rule_gamma(0.12)
 config.set_num_layer(2)
 config.set_dropout(0.2)
@@ -24,8 +25,8 @@ config.set_rule_infer(True)
 config.set_rule_transfer(True)
 config.set_graph_completion(True)
 
-config.init('./bin/DBP15k/zh_en', True)
+config.init('./bin/DBP15k/ja_en', False)
 config.set_net()
 config.print_parameter()
-config.init_log('./log/test')
+config.init_log('./log/ja_en:test4')
 config.train()

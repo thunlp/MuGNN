@@ -1,5 +1,5 @@
 import torch
-from nets import GATNet
+from graph_completion.nets import GATNet
 from pathlib import Path
 from tensorboardX import SummaryWriter
 from utils.tools import print_time_info, timeit
@@ -18,9 +18,6 @@ class Config(object):
         self.ent_seeds = list()
         self.aligned_entites = set()
         self.aligned_relations = set()
-
-        # train train
-        self.align_epoch = 2
 
         # training
         self.patience = 10
@@ -135,7 +132,7 @@ class Config(object):
             transe_loss = criterion_transe(transe_tv)
             if self.rule_infer:
                 rule_loss = criterion_rule(rule_tv)
-                loss = sum([align_loss, transe_loss, rule_loss])
+                loss = sum([align_loss, transe_loss, rel_align_loss, rule_loss])
             else:
                 rule_loss = 0.0
                 loss = sum([align_loss, rel_align_loss, transe_loss])
@@ -312,3 +309,6 @@ class Config(object):
 
     def set_rule_transfer(self, rule_transfer):
         self.rule_transfer = rule_transfer
+
+    def set_rel_align_gamma(self, rel_align_gamma):
+        self.rel_align_gamma = rel_align_gamma

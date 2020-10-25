@@ -1,4 +1,5 @@
 import torch
+import shutil
 from graph_completion.nets import GATNet
 from pathlib import Path
 from tensorboardX import SummaryWriter
@@ -236,9 +237,9 @@ class Config(object):
     def init_log(self, log_dir):
         log_dir = Path(log_dir)
         if log_dir.exists():
-            raise FileExistsError('The directory already exists!')
-        else:
-            log_dir.mkdir()
+            print('Warning: we will remove %s' % (str(log_dir)))
+            shutil.rmtree(str(log_dir))
+        log_dir.mkdir()
         comment = log_dir.name
         self.writer = SummaryWriter(str(log_dir))
         with open(log_dir / 'parameters.txt', 'w') as f:

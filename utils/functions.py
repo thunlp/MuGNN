@@ -20,7 +20,7 @@ def get_hits(sim, top_k=(1, 10, 50, 100)):
     if isinstance(sim, np.ndarray):
         sim = torch.from_numpy(sim)
     top_lr, mr_lr, mrr_lr = topk(sim, top_k)
-    top_rl, mr_rl, mrr_rl = topk(sim.T, top_k)
+    top_rl, mr_rl, mrr_rl = topk(sim.t(), top_k)
     print_time_info('For each source:')
     print_time_info('MR: %.2f; MRR: %.2f%%.' % (mr_lr, mrr_lr))
     for i in range(len(top_lr)):
@@ -101,7 +101,7 @@ def get_nearest_neighbor(sim, indices, nega_sample_num=25):
     sim = sim.to(device)
     assert indices.dtype == 'int'
     ranks = torch.argsort(sim, dim=1)
-    ranks = ranks[:, 1:nega_sample_num + 1].numpy()
+    ranks = ranks[:, 1:nega_sample_num + 1].cpu().numpy()
     nega_samples = {}
     for i, row in enumerate(ranks):
         i = indices[i]

@@ -195,6 +195,7 @@ class Config(object):
             return ad_data, ad_rel_data, triples_data_sr, triples_data_tg, rules_data_sr, rules_data_tg
 
     @timeit
+    @torch.no_grad()
     def evaluate(self):
         self.net.eval()
         sr_data, tg_data = list(zip(*self.cgc.test_entity_seeds))

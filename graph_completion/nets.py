@@ -1,7 +1,7 @@
 import torch, math
 import torch.nn as nn
 import torch.nn.functional as F
-from utils.functions import multi_process_get_nearest_neighbor
+from utils.functions import multi_process_get_nearest_neighbor, get_nearest_neighbor
 from models.models import GATmGCN
 from models.layers import DoubleEmbedding
 from graph_completion.adjacency_matrix import SpTwinAdj, SpRelWeiADJ
@@ -121,8 +121,19 @@ class GATNet(AlignGraphNet):
         sim_tg = - torch.mm(tg_data_repre, tg_data_repre.t()).cpu().numpy()
         sr_data, tg_data = ad_data
         sr_nns = multi_process_get_nearest_neighbor(sim_sr, sr_data.cpu().numpy())
+        sr_nns2 = get_nearest_neighbor(sim_sr, sr_data.cpu().numpy())
         tg_nns = multi_process_get_nearest_neighbor(sim_tg, tg_data.cpu().numpy())
+        tg_nns2 = get_nearest_neighbor(sim_tg, tg_data.cpu().numpy())
 
+        def check_different(nns1, nns2):
+            assert len(nns1) == len(nns2)
+            for i, j in nns1.items():
+                assert i in nns2
+                assert j == nns2[j]
+        
+        check_different(sr_nns, sr_nns2)
+        check_different(tg_nns, tg_nns2)
+        
         if not sample_relation:
             return sr_nns, tg_nns, None, None
 
@@ -134,7 +145,14 @@ class GATNet(AlignGraphNet):
         rel_sim_sr = - torch.mm(sr_rel_repre, sr_rel_repre.t()).cpu().numpy()
         rel_sim_tg = - torch.mm(tg_rel_repre, tg_rel_repre.t()).cpu().numpy()
         sr_rel_nns = multi_process_get_nearest_neighbor(rel_sim_sr, sr_rel_data.cpu().numpy())
+        sr_rel_nns2 = get_nearest_neighbor(rel_sim_sr, sr_rel_data.cpu().numpy())
         tg_rel_nns = multi_process_get_nearest_neighbor(rel_sim_tg, tg_rel_data.cpu().numpy())
+        tg_rel_nns2 = get_nearest_neighbor(rel_sim_tg, tg_rel_data.cpu().numpy())
+
+
+        check_different(sr_rel_nns, sr_rel_nns2)
+        check_different(tg_rel_nns, tg_rel_nns2)
+
         return sr_nns, tg_nns, sr_rel_nns, tg_rel_nns
 
     def predict(self, ad_data):

@@ -17,23 +17,10 @@ def str2int4triples(triples):
 
 
 def get_hits(sim, top_k=(1, 10, 50, 100)):
-    test_num = sim.shape[0]
-
-    # sim = spatial.distance.cdist(Lvec, Rvec, metric='minkowski', p=2)
-    # sim = spatial.distance.cdist(Lvec, Rvec, metric='cityblock')
-    def top_get(sim, top_k):
-        top_x = [0] * len(top_k)
-        for i in range(sim.shape[0]):
-            rank = sim[i, :].argsort()
-            rank_index = np.where(rank == i)[0][0]
-            for j in range(len(top_k)):
-                if rank_index < top_k[j]:
-                    top_x[j] += 1
-        return top_x
-
-    top_lr, mr_lr, mrr_lr = multiprocess_topk(sim, top_k)
-    top_rl, mr_rl, mrr_rl = multiprocess_topk(sim.T, top_k)
-
+    if isinstance(sim, np.ndarray):
+        sim = torch.from_numpy(sim)
+    top_lr, mr_lr, mrr_lr = topk(sim, top_k)
+    top_rl, mr_rl, mrr_rl = topk(sim.T, top_k)
     print_time_info('For each source:')
     print_time_info('MR: %.2f; MRR: %.2f%%.' % (mr_lr, mrr_lr))
     for i in range(len(top_lr)):
@@ -47,54 +34,80 @@ def get_hits(sim, top_k=(1, 10, 50, 100)):
     return top_lr, top_rl, mr_lr, mr_rl, mrr_lr, mrr_rl
 
 
-def multiprocess_topk(sim, top_k=(1, 10, 50, 100)):
-    manager = multiprocessing.Manager()
-    return_dict = manager.dict()
-    n_p = 4
+def topk(sim, top_k=(1, 10, 50, 100)):
+    # Sim shape = [num_ent, num_ent]
+    
+    device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
-    # top_x = [0] * len(top_k)
-    def top_get(sim, top_k, id, return_dict, chunk_size):
-        top_x = [0] * len(top_k)
-        s = chunk_size * id
-        rank_sum = 0.0
-        r_rank_sum = 0.0
-        for i in range(sim.shape[0]):
-            rank = sim[i, :].argsort()
-            rank_index = np.where(rank == i + s)[0][0]
-            for j in range(len(top_k)):
-                if rank_index < top_k[j]:
-                    top_x[j] += 1
-            rank_sum += rank_index + 1
-            r_rank_sum += 1.0 / (rank_index + 1)
-        return_dict[id] = (top_x, rank_sum, r_rank_sum)
-
+    assert sim.shape[0] == sim.shape[1]
     test_num = sim.shape[0]
-    chunk = test_num // n_p + 1
-    sim_chunked = [sim[i:chunk + i, :] for i in range(0, test_num, chunk)]
-    assert len(sim_chunked) == n_p
-    pool = []
-    for i, sim_chunk in enumerate(sim_chunked):
-        p = multiprocessing.Process(target=top_get, args=(sim_chunk, top_k, i, return_dict, chunk))
-        pool.append(p)
-        p.start()
-    for p in pool:
-        p.join()
-    top_x = [0] * len(top_k)
-    rank_sum = 0.0
-    r_rank_sum = 0.0
-    for i, eval_result in return_dict.items():
-        top_kk, rank_sum_local, r_rank_sum_local = eval_result
-        rank_sum += rank_sum_local
-        r_rank_sum += r_rank_sum_local
-        assert len(top_x) == len(top_kk)
-        for j in range(len(top_kk)):
-            top_x[j] += top_kk[j]
-    for i in range(len(top_x)):
-        top_x[i] = top_x[i] / test_num * 100
-    mr = rank_sum / test_num
-    mrr = r_rank_sum / test_num * 100
-    return top_x, mr, mrr
+    batched = True
+    if sim.shape[0] * sim.shape[1] < 20000 * 128:
+        batched = False
+        sim = sim.to(device)
 
+    def _opti_topk(sim):
+        sorted_arg = torch.argsort(sim)
+        true_pos = torch.arange(test_num, device=device).reshape((-1, 1))
+        locate = sorted_arg - true_pos
+        del sorted_arg, true_pos
+        locate = torch.nonzero(locate == 0)
+        cols = locate[:, 1]  # Cols are ranks
+        cols = cols.float()
+        top_x = [0.0] * len(top_k)
+        for i, k in enumerate(top_k):
+            top_x[i] = float(torch.sum(cols < k)) / test_num * 100
+        mr = float(torch.sum(cols + 1)) / test_num
+        mrr = float(torch.sum(1.0 / (cols + 1))) / test_num * 100
+        return top_x, mr, mrr
+
+    def _opti_topk_batched(sim):
+        mr = 0.0
+        mrr = 0.0
+        top_x = [0.0] * len(top_k)
+        batch_size = 1024
+        for i in range(0, test_num, batch_size):
+            batch_sim = sim[i:i + batch_size].to(device)
+            sorted_arg = torch.argsort(batch_sim)
+            true_pos = torch.arange(
+                batch_sim.shape[0]).reshape((-1, 1)).to(device) + i
+            locate = sorted_arg - true_pos
+            del sorted_arg, true_pos
+            locate = torch.nonzero(locate == 0,)
+            cols = locate[:, 1]  # Cols are ranks
+            cols = cols.float()
+            mr += float(torch.sum(cols + 1))
+            mrr += float(torch.sum(1.0 / (cols + 1)))
+            for i, k in enumerate(top_k):
+                top_x[i] += float(torch.sum(cols < k))
+        mr = mr / test_num
+        mrr = mrr / test_num * 100
+        for i in range(len(top_x)):
+            top_x[i] = top_x[i] / test_num * 100
+        return top_x, mr, mrr
+
+    with torch.no_grad():
+        if not batched:
+            return _opti_topk(sim)
+        return _opti_topk_batched(sim)
+
+
+def get_nearest_neighbor(sim, indices, nega_sample_num=25):
+    # Sim do not have to be a square matrix
+    # Let us assume sim is a numpy array
+    if isinstance(sim, np.ndarray):
+        sim = torch.from_numpy(sim)
+    device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+    sim = sim.to(device)
+    assert indices.dtype == 'int'
+    ranks = torch.argsort(sim, dim=1)
+    ranks = ranks[:, 1:nega_sample_num + 1].numpy()
+    nega_samples = {}
+    for i, row in enumerate(ranks):
+        i = indices[i]
+        row = [indices[j] for j in row]
+        nega_samples[i] = row
+    return nega_samples
 
 def multi_process_get_nearest_neighbor(sim, ranks, nega_sample_num=25):
     assert len(sim) == len(ranks)
